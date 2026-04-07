@@ -6,12 +6,17 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct Graces_Holy_BellApp: App {
+
+    @State private var connectivityManager = PhoneConnectivityManager()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(connectivityManager: connectivityManager)
         }
+        .modelContainer(for: [PrayerSession.self, PrayerEntry.self])
     }
 }
