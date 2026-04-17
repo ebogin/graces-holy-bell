@@ -1,26 +1,30 @@
 import SwiftUI
 
-/// Compact prayer log for the Apple Watch.
-///
-/// Scrollable via Digital Crown. Shows prayer number, time, and duration.
-/// The last entry's duration is live-updating during an active session.
+/// Compact pixel-art prayer log for Apple Watch.
+/// Shown in both idle (previous session, read-only) and active (live last entry).
 struct WatchPrayerLogView: View {
 
     let viewModel: WatchSessionViewModel
 
     var body: some View {
-        ForEach(Array(viewModel.sortedEntries.enumerated()), id: \.element.sequenceIndex) { index, entry in
-            WatchPrayerEntryRow(
-                viewModel: viewModel,
-                entry: entry,
-                index: index,
-                isLastEntry: index == viewModel.sortedEntries.count - 1
-            )
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(
+                Array(viewModel.sortedEntries.enumerated()),
+                id: \.element.sequenceIndex
+            ) { index, entry in
+                WatchPrayerEntryRow(
+                    viewModel: viewModel,
+                    entry: entry,
+                    index: index,
+                    isLastEntry: index == viewModel.sortedEntries.count - 1
+                )
+            }
         }
+        .padding(8)
+        .pixelBorder()
     }
 }
 
-/// A single prayer entry row for the Watch log.
 struct WatchPrayerEntryRow: View {
 
     let viewModel: WatchSessionViewModel
@@ -29,33 +33,26 @@ struct WatchPrayerEntryRow: View {
     let isLastEntry: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            // Prayer #N    5:00 AM
-            HStack {
-                Text("Prayer #\(index + 1)")
-                    .font(.caption2.weight(.semibold))
-                Spacer()
-                Text(TimeFormatter.wallClockString(from: entry.timestamp))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+        HStack(alignment: .firstTextBaseline) {
+            Text("#\(index + 1) \(TimeFormatter.wallClockString(from: entry.timestamp))")
+                .font(.pixelFont(6))
+                .foregroundStyle(Color.lcdDark)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-            // Duration
-            HStack {
-                Text("Duration")
-                    .font(.caption2)
-                Spacer()
-                if isLastEntry && viewModel.appState == .active {
-                    WatchLiveDurationText(viewModel: viewModel, entryIndex: index)
-                } else {
-                    if let duration = viewModel.duration(for: index) {
-                        Text(DurationFormatter.string(from: duration))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+            Spacer(minLength: 4)
+
+            if isLastEntry && viewModel.appState == .active {
+                WatchLiveDurationText(viewModel: viewModel, entryIndex: index)
+            } else {
+                if let duration = viewModel.duration(for: index) {
+                    Text(DurationFormatter.string(from: duration))
+                        .font(.pixelFont(6))
+                        .foregroundStyle(Color.lcdMid)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
             }
         }
-        .padding(.vertical, 2)
     }
 }

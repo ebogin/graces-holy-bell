@@ -1,42 +1,81 @@
 import SwiftUI
 
-/// The IDLE state screen — no active prayer session.
+/// IDLE state screen — no active prayer session.
 ///
-/// Shows the previous session's log (if any) and the PRAY slider to start a new session.
-/// If a previous log exists, sliding PRAY shows a confirmation dialog before clearing it.
+/// LCD green background with pixel-art typography.
+/// Shows the previous session log in a bordered box and
+/// a START PRAYER slider at the bottom.
 struct IdleView: View {
 
     let viewModel: SessionViewModel
     @State private var showNewSessionConfirmation = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Header
-            Text("Grace's Holy Bell")
-                .font(.title)
-                .fontWeight(.semibold)
+        ZStack {
+            // LCD gradient background
+            LinearGradient(
+                colors: [Color.lcdBackgroundLight, Color.lcdBackgroundDark],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-            Text("No active session")
-                .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
 
-            // Previous session log (read-only)
-            if viewModel.hasExistingLog {
-                PrayerLogView(viewModel: viewModel)
-            } else {
-                Spacer()
-            }
+                // ── Header ──────────────────────────────────────────────
+                VStack(spacing: 10) {
+                    Text("Grace's Holy Bell")
+                        .font(.pixelFont(12))
+                        .foregroundStyle(Color.lcdDark)
+                        .multilineTextAlignment(.center)
 
-            // PRAY slider
-            PraySlider {
-                if viewModel.hasExistingLog {
-                    showNewSessionConfirmation = true
-                } else {
-                    viewModel.startNewSession()
+                    Text("NO ACTIVE SESSION")
+                        .font(.pixelFont(8))
+                        .foregroundStyle(Color.lcdMid)
                 }
+                .padding(.top, 28)
+                .padding(.horizontal)
+
+                // ── Praying figure ───────────────────────────────────────
+                PrayingFigureView(pose: .idle, scale: 2.6)
+                    .padding(.top, 20)
+
+                // ── Decorative divider ───────────────────────────────────
+                Rectangle()
+                    .fill(Color.lcdDark.opacity(0.25))
+                    .frame(height: 3)
+                    .padding(.horizontal, 60)
+                    .padding(.vertical, 16)
+
+                // ── Previous log (if any) ────────────────────────────────
+                if viewModel.hasExistingLog {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("PREVIOUS PRAYER LOG")
+                            .font(.pixelFont(7))
+                            .foregroundStyle(Color.lcdMid)
+                            .padding(.horizontal)
+
+                        PrayerLogView(viewModel: viewModel)
+                            .padding(.horizontal)
+                    }
+                } else {
+                    Spacer()
+                }
+
+                Spacer(minLength: 16)
+
+                // ── START PRAYER slider ──────────────────────────────────
+                PraySlider(label: "START PRAYER") {
+                    if viewModel.hasExistingLog {
+                        showNewSessionConfirmation = true
+                    } else {
+                        viewModel.startNewSession()
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 32)
             }
-            .padding(.bottom)
         }
-        .padding()
         .confirmationDialog(
             "Start new session?",
             isPresented: $showNewSessionConfirmation,
@@ -50,4 +89,8 @@ struct IdleView: View {
             Text("Your previous prayer log will be cleared.")
         }
     }
+}
+
+#Preview("Idle — no log") {
+    IdleView(viewModel: SessionViewModel())
 }

@@ -1,27 +1,30 @@
 import SwiftUI
 
-/// Displays the large elapsed timer (HH:MM:SS) during an active session.
+/// Large pixel-font elapsed timer (HH:MM:SS) for the active session screen.
 ///
-/// Uses `TimelineView` to tick every second. The displayed value is always computed
-/// from stored timestamps (`now - lastPrayerTimestamp`), never from a counter.
-/// This means the timer is always accurate even after backgrounding or screen sleep.
+/// Ticks every second via TimelineView. Always computed from stored timestamps
+/// so it stays accurate after backgrounding or screen sleep.
 struct LiveTimerView: View {
 
     let viewModel: SessionViewModel
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0)) { context in
-            let elapsed = viewModel.elapsedSinceLastPrayer(at: context.date)
-            Text(DurationFormatter.timerString(from: elapsed))
-                .font(.system(size: 48, weight: .light, design: .monospaced))
-                .contentTransition(.numericText())
+        VStack(spacing: 6) {
+            TimelineView(.periodic(from: .now, by: 1.0)) { context in
+                let elapsed = viewModel.elapsedSinceLastPrayer(at: context.date)
+                Text(DurationFormatter.timerString(from: elapsed))
+                    .font(.pixelFont(28))
+                    .foregroundStyle(Color.lcdDark)
+                    .contentTransition(.numericText())
+            }
+            Text("SINCE LAST PRAYER")
+                .font(.pixelFont(7))
+                .foregroundStyle(Color.lcdMid)
         }
     }
 }
 
-/// Displays a live-updating duration for a specific prayer entry in the log.
-///
-/// Only used for the last entry in an active session (all other durations are static).
+/// Live-updating duration label for the last prayer entry during an active session.
 struct LiveDurationText: View {
 
     let viewModel: SessionViewModel
@@ -31,7 +34,8 @@ struct LiveDurationText: View {
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
             if let duration = viewModel.duration(for: entryIndex, at: context.date) {
                 Text(DurationFormatter.string(from: duration))
-                    .foregroundStyle(.secondary)
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdMid)
             }
         }
     }

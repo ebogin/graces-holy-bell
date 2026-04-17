@@ -1,31 +1,41 @@
 import SwiftUI
 
-/// Displays the chronological prayer log for the current (or most recent) session.
+/// Pixel-art prayer log container (iPhone).
 ///
-/// Shared between IdleView (read-only, frozen durations) and ActiveSessionView (live last duration).
-/// Each row shows the prayer number, wall clock time, and elapsed duration.
+/// Displays entries in a double-bordered LCD-green box.
+/// Each row: "#N HH:MMam" on the left, duration on the right.
+/// The last entry shows a live-updating duration during an active session.
 struct PrayerLogView: View {
 
     let viewModel: SessionViewModel
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 16) {
-                ForEach(Array(viewModel.sortedEntries.enumerated()), id: \.element.persistentModelID) { index, entry in
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(
+                    Array(viewModel.sortedEntries.enumerated()),
+                    id: \.element.persistentModelID
+                ) { index, entry in
                     PrayerEntryRow(
                         viewModel: viewModel,
                         entry: entry,
                         index: index,
                         isLastEntry: index == viewModel.sortedEntries.count - 1
                     )
+
+                    if index < viewModel.sortedEntries.count - 1 {
+                        Divider()
+                            .overlay(Color.lcdMid.opacity(0.4))
+                    }
                 }
             }
-            .padding()
+            .padding(12)
         }
+        .pixelBorder()
     }
 }
 
-/// A single prayer entry in the log, showing the prayer time and its duration.
+/// A single prayer row — compact format: "#N HH:MMam   duration"
 struct PrayerEntryRow: View {
 
     let viewModel: SessionViewModel
@@ -34,29 +44,20 @@ struct PrayerEntryRow: View {
     let isLastEntry: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Prayer #N    5:00 AM
-            HStack {
-                Text("Prayer #\(index + 1)")
-                    .fontWeight(.semibold)
-                Spacer()
-                Text(TimeFormatter.wallClockString(from: entry.timestamp))
-                    .foregroundStyle(.secondary)
-            }
+        HStack(alignment: .firstTextBaseline) {
+            Text("#\(index + 1)  \(TimeFormatter.wallClockString(from: entry.timestamp))")
+                .font(.pixelFont(9))
+                .foregroundStyle(Color.lcdDark)
 
-            // Duration #N    2h 14m 32s (or live timer)
-            HStack {
-                Text("Duration #\(index + 1)")
-                Spacer()
-                if isLastEntry && viewModel.appState == .active {
-                    // Last entry during active session: show live-updating duration
-                    LiveDurationText(viewModel: viewModel, entryIndex: index)
-                } else {
-                    // All other entries: show static duration
-                    if let duration = viewModel.duration(for: index) {
-                        Text(DurationFormatter.string(from: duration))
-                            .foregroundStyle(.secondary)
-                    }
+            Spacer(minLength: 8)
+
+            if isLastEntry && viewModel.appState == .active {
+                LiveDurationText(viewModel: viewModel, entryIndex: index)
+            } else {
+                if let duration = viewModel.duration(for: index) {
+                    Text(DurationFormatter.string(from: duration))
+                        .font(.pixelFont(9))
+                        .foregroundStyle(Color.lcdMid)
                 }
             }
         }
