@@ -6,9 +6,16 @@
 //
 
 import SwiftUI
+import CoreText
 
 @main
 struct Graces_Holy_Bell_Watch_App_Watch_AppApp: App {
+
+    init() {
+        if let url = Bundle.main.url(forResource: "PressStart2P-Regular", withExtension: "ttf") {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+    }
 
     @StateObject private var connectivityManager = WatchConnectivityManager()
     @State private var viewModel: WatchSessionViewModel?
