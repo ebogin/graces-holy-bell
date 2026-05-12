@@ -1,45 +1,66 @@
 import SwiftUI
 
-/// Watch IDLE state screen — no active prayer session.
-///
-/// Shows the previous session's log (scrollable via Digital Crown) and the PRAY slider.
-/// If a previous log exists, the slider triggers a confirmation before starting a new session.
+/// Watch IDLE screen — LCD green background, pixel art, START PRAYER slider.
 struct WatchIdleView: View {
 
     let viewModel: WatchSessionViewModel
     @State private var showNewSessionConfirmation = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                Text("No active session")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        ZStack {
+            Color.lcdBackground.ignoresSafeArea()
 
-                if viewModel.hasExistingLog {
-                    WatchPrayerLogView(viewModel: viewModel)
-                }
+            ScrollView {
+                VStack(spacing: 0) {
 
-                WatchPraySlider {
+                    // Title
+                    Text("Grace's\nHoly Bell")
+                        .font(.pixelFont(7))
+                        .foregroundStyle(Color.lcdDark)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 8)
+
+                    // Status label
+                    Text("SESSION ENDED")
+                        .font(.pixelFont(5))
+                        .foregroundStyle(Color.lcdMid)
+                        .padding(.top, 6)
+
+                    // Praying figure
+                    WatchPrayingFigureView(pose: .idle, scale: 1.4)
+                        .padding(.top, 8)
+
+                    // START PRAYER slider
+                    WatchPraySlider {
+                        if viewModel.hasExistingLog {
+                            showNewSessionConfirmation = true
+                        } else {
+                            viewModel.sendStart()
+                        }
+                    }
+                    .padding(.top, 10)
+
+                    // Divider
+                    Rectangle()
+                        .fill(Color.lcdDark)
+                        .frame(height: 2)
+                        .padding(.vertical, 8)
+
+                    // Previous log
                     if viewModel.hasExistingLog {
-                        showNewSessionConfirmation = true
-                    } else {
-                        viewModel.sendStart()
+                        WatchPrayerLogView(viewModel: viewModel)
                     }
                 }
-                .padding(.top, 4)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal)
         }
-        .navigationTitle("Holy Bell")
         .confirmationDialog(
             "Start new session?",
             isPresented: $showNewSessionConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Start New", role: .destructive) {
-                viewModel.sendStart()
-            }
+            Button("Start New", role: .destructive) { viewModel.sendStart() }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Previous log will be cleared.")

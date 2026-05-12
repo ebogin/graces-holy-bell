@@ -1,40 +1,81 @@
 import SwiftUI
+import SwiftData
 
-/// The ACTIVE SESSION screen — a prayer session is in progress.
+/// ACTIVE SESSION screen — a prayer session is in progress.
 ///
-/// Shows the live elapsed timer, growing prayer log, PRAY slider to log prayers,
-/// and a STOP button (with confirmation) to end the session.
+/// LCD green background, pixel-font timer, animated praying figure,
+/// growing log box, PRAY slider, and octagon STOP button.
 struct ActiveSessionView: View {
 
     let viewModel: SessionViewModel
     @State private var showStopConfirmation = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Header
-            Text("Grace's Holy Bell")
-                .font(.title)
-                .fontWeight(.semibold)
+        ZStack {
+            // LCD gradient background
+            LinearGradient(
+                colors: [Color.lcdBackgroundLight, Color.lcdBackgroundDark],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-            // Large live elapsed timer
-            LiveTimerView(viewModel: viewModel)
-                .padding(.vertical, 8)
+            VStack(spacing: 0) {
 
-            // Prayer log (grows with each prayer)
-            PrayerLogView(viewModel: viewModel)
+                // ── Header ──────────────────────────────────────────────
+                Text("Grace's Holy Bell")
+                    .font(.pixelFont(12))
+                    .foregroundStyle(Color.lcdDark)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 28)
+                    .padding(.horizontal)
 
-            // PRAY slider (logs prayer + restarts timer)
-            PraySlider {
-                viewModel.logPrayer()
+                // ── Live timer ───────────────────────────────────────────
+                LiveTimerView(viewModel: viewModel)
+                    .padding(.top, 16)
+
+                // ── Animated praying figure ──────────────────────────────
+                PrayingFigureView(pose: .praying, scale: 2.6)
+                    .padding(.top, 14)
+
+                // ── Prayer log ───────────────────────────────────────────
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("PRAYER LOG")
+                        .font(.pixelFont(7))
+                        .foregroundStyle(Color.lcdMid)
+                        .padding(.horizontal)
+
+                    PrayerLogView(viewModel: viewModel)
+                        .padding(.horizontal)
+                }
+                .padding(.top, 14)
+
+                Spacer(minLength: 16)
+
+                // ── PRAY slider ──────────────────────────────────────────
+                PraySlider(label: "PRAY") {
+                    viewModel.logPrayer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+                // ── Octagon STOP button ──────────────────────────────────
+                Button {
+                    showStopConfirmation = true
+                } label: {
+                    ZStack {
+                        Octagon()
+                            .fill(Color.lcdDark)
+                            .frame(width: 56, height: 56)
+                        Rectangle()
+                            .fill(Color.lcdThumbText)
+                            .frame(width: 18, height: 18)
+                    }
+                }
+                .padding(.top, 12)
+                .padding(.bottom, 32)
             }
-
-            // STOP button
-            Button("Stop Session", role: .destructive) {
-                showStopConfirmation = true
-            }
-            .padding(.bottom)
         }
-        .padding()
         .confirmationDialog(
             "End prayer session?",
             isPresented: $showStopConfirmation,
@@ -45,7 +86,14 @@ struct ActiveSessionView: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("The clock will stop and no final prayer will be recorded.")
+            Text("Clock stops. No final prayer recorded.")
         }
     }
+}
+
+#Preview("Active session") {
+    let container = try! ModelContainer(for: PrayerSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let viewModel = SessionViewModel(modelContext: container.mainContext)
+    ActiveSessionView(viewModel: viewModel)
+        .modelContainer(container)
 }

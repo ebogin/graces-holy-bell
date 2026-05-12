@@ -1,24 +1,27 @@
 import SwiftUI
 
-/// Large elapsed timer for the Watch active session screen.
-///
-/// Same TimelineView pattern as iPhone — ticks every second, computes elapsed time
-/// from stored timestamps. Works locally without an active iPhone connection.
+/// Large pixel-font elapsed timer for the Watch active session screen.
 struct WatchLiveTimerView: View {
 
     let viewModel: WatchSessionViewModel
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0)) { context in
-            let elapsed = viewModel.elapsedSinceLastPrayer(at: context.date)
-            Text(DurationFormatter.timerString(from: elapsed))
-                .font(.system(size: 32, weight: .light, design: .monospaced))
-                .contentTransition(.numericText())
+        VStack(spacing: 4) {
+            TimelineView(.periodic(from: .now, by: 1.0)) { context in
+                let elapsed = viewModel.elapsedSinceLastPrayer(at: context.date)
+                Text(DurationFormatter.timerString(from: elapsed))
+                    .font(.pixelFont(16))
+                    .foregroundStyle(Color.lcdDark)
+                    .contentTransition(.numericText())
+            }
+            Text("SINCE LAST PRAYER")
+                .font(.pixelFont(4))
+                .foregroundStyle(Color.lcdMid)
         }
     }
 }
 
-/// Live-updating duration for the last entry in the Watch prayer log.
+/// Live-updating duration for the last log entry on Watch.
 struct WatchLiveDurationText: View {
 
     let viewModel: WatchSessionViewModel
@@ -28,8 +31,8 @@ struct WatchLiveDurationText: View {
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
             if let duration = viewModel.duration(for: entryIndex, at: context.date) {
                 Text(DurationFormatter.string(from: duration))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.pixelFont(6))
+                    .foregroundStyle(Color.lcdMid)
             }
         }
     }
