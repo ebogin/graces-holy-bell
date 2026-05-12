@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// IDLE state screen — no active prayer session.
 ///
@@ -92,5 +93,8 @@ struct IdleView: View {
 }
 
 #Preview("Idle — no log") {
-    IdleView(viewModel: SessionViewModel())
+    let container = try! ModelContainer(for: PrayerSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let viewModel = SessionViewModel(modelContext: container.mainContext)
+    IdleView(viewModel: viewModel)
+        .modelContainer(container)
 }

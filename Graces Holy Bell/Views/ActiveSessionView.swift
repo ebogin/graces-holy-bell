@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// ACTIVE SESSION screen — a prayer session is in progress.
 ///
@@ -91,5 +92,8 @@ struct ActiveSessionView: View {
 }
 
 #Preview("Active session") {
-    ActiveSessionView(viewModel: SessionViewModel())
+    let container = try! ModelContainer(for: PrayerSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let viewModel = SessionViewModel(modelContext: container.mainContext)
+    ActiveSessionView(viewModel: viewModel)
+        .modelContainer(container)
 }
