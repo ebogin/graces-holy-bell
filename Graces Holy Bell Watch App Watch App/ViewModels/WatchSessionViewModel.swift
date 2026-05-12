@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UserNotifications
 
 /// Watch-side ViewModel that mirrors the iPhone's session state.
 ///
@@ -9,6 +10,9 @@ import Observation
 ///
 /// Actions (PRAY, STOP, START) are sent to the iPhone for processing.
 /// The iPhone processes them, updates SwiftData, and sends the new state back.
+///
+/// When "Notify on Watch" is selected in Settings, this ViewModel schedules
+/// a local watchOS notification for the suggested prayer interval.
 @Observable
 @MainActor
 final class WatchSessionViewModel {
@@ -31,6 +35,12 @@ final class WatchSessionViewModel {
     /// The current app state.
     private(set) var appState: AppState = .idle
 
+    /// Suggested prayer interval in seconds (synced from iPhone settings).
+    private(set) var intervalSeconds: Double = 3600
+
+    /// Whether this Watch should schedule its own notification.
+    private(set) var notifyOnWatch: Bool = false
+
     // MARK: - Derived State
 
     /// The timestamp of the most recent prayer entry, if any.
@@ -42,6 +52,7 @@ final class WatchSessionViewModel {
 
     init(connectivityManager: WatchConnectivityManager) {
         self.connectivityManager = connectivityManager
+        requestNotificationPermission()
         // Apply any state already received before this ViewModel was created
         if let state = connectivityManager.latestState {
             apply(state)
@@ -56,6 +67,9 @@ final class WatchSessionViewModel {
         sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
         sessionStoppedAt = state.sessionStoppedAt
         hasExistingLog = state.hasExistingLog
+        intervalSeconds = state.intervalSeconds
+        notifyOnWatch = state.notifyOnWatch
+        scheduleWatchNotificationIfNeeded()
     }
 
     // MARK: - Actions (sent to iPhone)
@@ -110,5 +124,44 @@ final class WatchSessionViewModel {
 
         // Last entry in an active session: live elapsed
         return now.timeIntervalSince(entry.timestamp)
+    }
+
+    // MARK: - Watch Notifications
+
+    private let watchNotificationID = "prayReminderWatch"
+
+    /// Schedules a local Watch notification when notifyOnWatch is true and session is active.
+    /// Cancels the pending notification in all other cases.
+    private func scheduleWatchNotificationIfNeeded() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [watchNotificationID])
+
+        guard notifyOnWatch,
+              appState == .active,
+              let last = lastPrayerTimestamp else { return }
+
+        let fireInterval = last.addingTimeInterval(intervalSeconds).timeIntervalSinceNow
+        guard fireInterval > 0 else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Time to Pray"
+        content.categoryIdentifier = "PRAY_REMINDER"
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: fireInterval,
+            repeats: false
+        )
+        let request = UNNotificationRequest(
+            identifier: watchNotificationID,
+            content: content,
+            trigger: trigger
+        )
+        center.add(request)
+    }
+
+    /// Requests local notification authorization on the Watch.
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 }

@@ -20,13 +20,23 @@ struct SyncedSessionState: Codable {
     /// Whether there is an existing log (used for new-session confirmation).
     let hasExistingLog: Bool
 
+    /// Suggested prayer interval in seconds (from AppSettings).
+    /// Used by Watch to display the countdown and schedule its own notification.
+    let intervalSeconds: Double
+
+    /// When true, the Watch schedules its own local notification.
+    /// When false, iPhone handles the notification.
+    let notifyOnWatch: Bool
+
     // MARK: - Dictionary Conversion
 
     /// Converts to a property-list dictionary for WatchConnectivity.
     func toDictionary() -> [String: Any] {
         var dict: [String: Any] = [
             "appState": appState,
-            "hasExistingLog": hasExistingLog
+            "hasExistingLog": hasExistingLog,
+            "intervalSeconds": intervalSeconds,
+            "notifyOnWatch": notifyOnWatch
         ]
 
         if let stoppedAt = sessionStoppedAt {
@@ -70,11 +80,16 @@ struct SyncedSessionState: Codable {
             )
         }
 
+        let intervalSeconds = dict["intervalSeconds"] as? Double ?? 3600
+        let notifyOnWatch = dict["notifyOnWatch"] as? Bool ?? false
+
         return SyncedSessionState(
             appState: appState,
             entries: entries,
             sessionStoppedAt: stoppedAt,
-            hasExistingLog: hasExistingLog
+            hasExistingLog: hasExistingLog,
+            intervalSeconds: intervalSeconds,
+            notifyOnWatch: notifyOnWatch
         )
     }
 }

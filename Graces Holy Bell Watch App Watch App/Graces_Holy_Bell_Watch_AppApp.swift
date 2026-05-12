@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import WatchKit
 
 @main
 struct Graces_Holy_Bell_Watch_App_Watch_AppApp: App {
@@ -29,5 +30,9 @@ struct Graces_Holy_Bell_Watch_App_Watch_AppApp: App {
                     }
             }
         }
+
+        // Registers the custom full-screen notification interface for prayer reminders.
+        // Fires when a local notification with categoryIdentifier "PRAY_REMINDER" is delivered.
+        WKNotificationScene(controller: NotificationController.self, category: "PRAY_REMINDER")
     }
 }

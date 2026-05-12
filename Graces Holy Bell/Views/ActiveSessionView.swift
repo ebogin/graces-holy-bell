@@ -2,11 +2,13 @@ import SwiftUI
 
 /// The ACTIVE SESSION screen — a prayer session is in progress.
 ///
-/// Shows the live elapsed timer, growing prayer log, PRAY slider to log prayers,
+/// Shows the live elapsed timer, countdown to next suggested prayer,
+/// growing prayer log, PRAY slider to log prayers,
 /// and a STOP button (with confirmation) to end the session.
 struct ActiveSessionView: View {
 
     let viewModel: SessionViewModel
+    let settings: AppSettings
     @State private var showStopConfirmation = false
 
     var body: some View {
@@ -19,6 +21,11 @@ struct ActiveSessionView: View {
             // Large live elapsed timer
             LiveTimerView(viewModel: viewModel)
                 .padding(.vertical, 8)
+
+            // Countdown to next suggested prayer
+            CountdownTimerView(viewModel: viewModel, settings: settings)
+
+            Divider()
 
             // Prayer log (grows with each prayer)
             PrayerLogView(viewModel: viewModel)

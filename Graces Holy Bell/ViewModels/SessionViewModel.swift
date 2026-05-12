@@ -16,6 +16,8 @@ final class SessionViewModel {
     // MARK: - Dependencies
 
     private let modelContext: ModelContext
+    private let settings: AppSettings
+    private let notificationManager = NotificationManager.shared
 
     /// Called after every state mutation so the connectivity manager can push updates to the Watch.
     var onStateChanged: (() -> Void)?
@@ -47,10 +49,17 @@ final class SessionViewModel {
         sortedEntries.last?.timestamp
     }
 
+    /// Current interval seconds from settings — exposed for SyncedState construction.
+    var intervalSeconds: Double { settings.intervalSeconds }
+
+    /// Current notify destination from settings — exposed for SyncedState construction.
+    var notifyOnWatch: Bool { settings.notifyOnWatch }
+
     // MARK: - Initialization
 
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext, settings: AppSettings) {
         self.modelContext = modelContext
+        self.settings = settings
         loadCurrentSession()
     }
 
@@ -76,6 +85,7 @@ final class SessionViewModel {
 
         currentSession = session
         refreshEntries()
+        scheduleNotificationIfNeeded()
         onStateChanged?()
     }
 
@@ -95,6 +105,7 @@ final class SessionViewModel {
 
         save()
         refreshEntries()
+        scheduleNotificationIfNeeded()
         onStateChanged?()
     }
 
@@ -106,8 +117,16 @@ final class SessionViewModel {
     func stopSession() {
         guard let session = currentSession, session.isActive else { return }
         session.stoppedAt = .now
+        notificationManager.cancel()
         save()
         onStateChanged?()
+    }
+
+    /// Reschedules the notification using current settings.
+    ///
+    /// Call this when settings change while a session is active.
+    func rescheduleNotification() {
+        scheduleNotificationIfNeeded()
     }
 
     // MARK: - Elapsed Time Computation
@@ -158,6 +177,23 @@ final class SessionViewModel {
     }
 
     // MARK: - Private
+
+    /// Schedules an iPhone notification if the session is active and the user
+    /// has chosen to notify on iPhone. If notifyOnWatch is true, the Watch handles it.
+    private func scheduleNotificationIfNeeded() {
+        guard appState == .active, let last = lastPrayerTimestamp else {
+            notificationManager.cancel()
+            return
+        }
+
+        if settings.notifyOnWatch {
+            // Watch schedules its own notification via sync
+            notificationManager.cancel()
+        } else {
+            let fireAt = last.addingTimeInterval(settings.intervalSeconds)
+            notificationManager.schedule(fireAt: fireAt)
+        }
+    }
 
     /// Loads the most recent session from the database on startup.
     private func loadCurrentSession() {

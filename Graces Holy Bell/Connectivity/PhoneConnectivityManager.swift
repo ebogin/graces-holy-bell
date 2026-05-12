@@ -50,7 +50,9 @@ final class PhoneConnectivityManager: NSObject {
             appState: viewModel.appState == .active ? "active" : "idle",
             entries: entries,
             sessionStoppedAt: viewModel.currentSession?.stoppedAt,
-            hasExistingLog: viewModel.hasExistingLog
+            hasExistingLog: viewModel.hasExistingLog,
+            intervalSeconds: viewModel.intervalSeconds,
+            notifyOnWatch: viewModel.notifyOnWatch
         )
 
         try? WCSession.default.updateApplicationContext(state.toDictionary())
@@ -89,7 +91,9 @@ final class PhoneConnectivityManager: NSObject {
             appState: viewModel.appState == .active ? "active" : "idle",
             entries: entries,
             sessionStoppedAt: viewModel.currentSession?.stoppedAt,
-            hasExistingLog: viewModel.hasExistingLog
+            hasExistingLog: viewModel.hasExistingLog,
+            intervalSeconds: viewModel.intervalSeconds,
+            notifyOnWatch: viewModel.notifyOnWatch
         )
         return state.toDictionary()
     }

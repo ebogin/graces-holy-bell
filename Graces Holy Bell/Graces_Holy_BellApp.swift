@@ -12,10 +12,15 @@ import SwiftData
 struct Graces_Holy_BellApp: App {
 
     @State private var connectivityManager = PhoneConnectivityManager()
+    @State private var settings = AppSettings()
+
+    init() {
+        NotificationManager.shared.requestPermission()
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(connectivityManager: connectivityManager)
+            ContentView(connectivityManager: connectivityManager, settings: settings)
         }
         .modelContainer(for: [PrayerSession.self, PrayerEntry.self])
     }
