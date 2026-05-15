@@ -5,10 +5,6 @@ import SwiftUI
 /// Uses the 4 sprite frames exported from the Figma design.
 /// - `idle` → static frame 1
 /// - `praying` → cycles frames 1–4 every 300 ms (used during active session)
-///
-/// The sprite has a light background in the source PNG. We use `.blendMode(.multiply)`
-/// so the pale pixels multiply with the LCD green background and disappear,
-/// leaving only the dark pixel-art visible.
 struct PrayingFigureView: View {
 
     enum Pose {
@@ -33,7 +29,6 @@ struct PrayingFigureView: View {
             .interpolation(.none)           // keeps pixel art crisp
             .resizable()
             .frame(width: 50 * scale, height: 63 * scale)
-            .blendMode(.multiply)           // erases light background against the LCD green
             .onAppear {
                 frameIndex = 0
             }
