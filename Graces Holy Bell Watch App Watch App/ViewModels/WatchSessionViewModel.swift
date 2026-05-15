@@ -1,6 +1,13 @@
 import Foundation
 import Observation
 
+enum WatchRoute {
+    case firstLaunch
+    case active
+    case log
+    case idle
+}
+
 /// Watch-side ViewModel that mirrors the iPhone's session state.
 ///
 /// Unlike the iPhone's SessionViewModel, this does NOT use SwiftData.
@@ -31,11 +38,21 @@ final class WatchSessionViewModel {
     /// The current app state.
     private(set) var appState: AppState = .idle
 
+    /// Local-only flag — not synced to iPhone.
+    var showingLog = false
+
     // MARK: - Derived State
 
     /// The timestamp of the most recent prayer entry, if any.
     var lastPrayerTimestamp: Date? {
         sortedEntries.last?.timestamp
+    }
+
+    var route: WatchRoute {
+        switch appState {
+        case .idle:   return sortedEntries.isEmpty ? .firstLaunch : .idle
+        case .active: return showingLog ? .log : .active
+        }
     }
 
     // MARK: - Initialization
@@ -52,7 +69,9 @@ final class WatchSessionViewModel {
 
     /// Applies a synced state snapshot received from the iPhone.
     func apply(_ state: SyncedSessionState) {
-        appState = state.appState == "active" ? .active : .idle
+        let newAppState = state.appState == "active" ? AppState.active : AppState.idle
+        if newAppState == .idle { showingLog = false }
+        appState = newAppState
         sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
         sessionStoppedAt = state.sessionStoppedAt
         hasExistingLog = state.hasExistingLog
@@ -72,7 +91,16 @@ final class WatchSessionViewModel {
 
     /// Sends a STOP action to the iPhone.
     func sendStop() {
+        showingLog = false
         connectivityManager.sendAction("STOP")
+    }
+
+    /// Clears the local log immediately and notifies the iPhone.
+    func sendClearLog() {
+        sortedEntries = []
+        sessionStoppedAt = nil
+        hasExistingLog = false
+        connectivityManager.sendClearLog()
     }
 
     // MARK: - Elapsed Time Computation (same timestamp math as iPhone)

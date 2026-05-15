@@ -1,68 +1,68 @@
 import SwiftUI
+import WatchKit
 
-/// Watch ACTIVE SESSION screen — timer, animated figure, log, PRAY slider, STOP button.
+/// Watch ACTIVE SESSION screen — fixed layout with timer, animated figure, PRAY slider, STOP + LOG buttons.
 struct WatchActiveSessionView: View {
 
     let viewModel: WatchSessionViewModel
+    var namespace: Namespace.ID
     @State private var showStopConfirmation = false
 
+    private var figureHeight: CGFloat {
+        WKInterfaceDevice.current().screenBounds.width >= 200 ? 78 : 60
+    }
+
     var body: some View {
-        ZStack {
-            Color.lcdBackground.ignoresSafeArea()
+        VStack(spacing: 3) {
+            // Title
+            Text("GRACE'S HOLY BELL")
+                .font(.pixelFont(8.5))
+                .foregroundStyle(Color.lcdMid)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.top, 10)
 
-            ScrollView {
-                VStack(spacing: 0) {
+            // Live timer + label
+            WatchLiveTimerView(viewModel: viewModel)
 
-                    // Title
-                    Text("Grace's\nHoly Bell")
-                        .font(.pixelFont(6))
-                        .foregroundStyle(Color.lcdDark)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 6)
+            // Animated figure — fills remaining space
+            WatchPrayingFigureView(pose: .praying, height: figureHeight)
+                .matchedGeometryEffect(id: "prayFigure", in: namespace)
+                .frame(maxHeight: .infinity)
 
-                    // Live timer
-                    WatchLiveTimerView(viewModel: viewModel)
-                        .padding(.top, 8)
-
-                    // Animated praying figure
-                    WatchPrayingFigureView(pose: .praying, scale: 1.4)
-                        .padding(.top, 6)
-
-                    // PRAY slider
-                    WatchPraySlider {
-                        viewModel.sendPray()
-                    }
-                    .padding(.top, 10)
-
-                    // Divider
-                    Rectangle()
-                        .fill(Color.lcdDark)
-                        .frame(height: 2)
-                        .padding(.vertical, 6)
-
-                    // Prayer log
-                    WatchPrayerLogView(viewModel: viewModel)
-
-                    // Octagon STOP button
-                    Button {
-                        showStopConfirmation = true
-                    } label: {
-                        ZStack {
-                            Octagon()
-                                .fill(Color.lcdDark)
-                                .frame(width: 34, height: 34)
-                            Rectangle()
-                                .fill(Color.lcdThumbText)
-                                .frame(width: 11, height: 11)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 10)
-                    .padding(.bottom, 8)
-                }
-                .padding(.horizontal, 8)
+            // PRAY slider
+            WatchPraySlider(label: "PRAY") {
+                viewModel.sendPray()
             }
+
+            // Bottom row: STOP centered, LOG floating right
+            ZStack {
+                Button {
+                    showStopConfirmation = true
+                } label: {
+                    ZStack {
+                        Octagon()
+                            .fill(Color.lcdDark)
+                            .frame(width: 24, height: 24)
+                        Rectangle()
+                            .fill(Color.lcdThumbText)
+                            .frame(width: 11, height: 11)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                HStack {
+                    Spacer()
+                    LogBadgeButton(count: viewModel.sortedEntries.count) {
+                        viewModel.showingLog = true
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 6)
         }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .confirmationDialog(
             "End session?",
             isPresented: $showStopConfirmation,

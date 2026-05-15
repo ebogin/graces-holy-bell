@@ -58,6 +58,19 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
             session.transferUserInfo(payload)
         }
     }
+
+    /// Sends a clear-log request to the iPhone.
+    func sendClearLog() {
+        guard session.activationState == .activated else { return }
+        let payload: [String: Any] = ["action": "CLEAR_LOG"]
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil) { _ in
+                WCSession.default.transferUserInfo(payload)
+            }
+        } else {
+            session.transferUserInfo(payload)
+        }
+    }
 }
 
 // MARK: - WCSessionDelegate

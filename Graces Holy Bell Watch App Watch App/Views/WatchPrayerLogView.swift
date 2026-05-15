@@ -35,7 +35,7 @@ struct WatchPrayerEntryRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("#\(index + 1) \(TimeFormatter.wallClockString(from: entry.timestamp))")
-                .font(.pixelFont(6))
+                .font(.pixelFont(9))
                 .foregroundStyle(Color.lcdDark)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -47,7 +47,7 @@ struct WatchPrayerEntryRow: View {
             } else {
                 if let duration = viewModel.duration(for: index) {
                     Text(DurationFormatter.string(from: duration))
-                        .font(.pixelFont(6))
+                        .font(.pixelFont(9))
                         .foregroundStyle(Color.lcdMid)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)

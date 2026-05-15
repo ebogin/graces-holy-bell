@@ -438,6 +438,7 @@
 					"PressStart2P-Regular.ttf",
 				);
 				INFOPLIST_KEY_CFBundleDisplayName = "Graces Holy Bell Watch App";
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "Boginfactory.Graces-Holy-Bell";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -474,6 +475,7 @@
 					"PressStart2P-Regular.ttf",
 				);
 				INFOPLIST_KEY_CFBundleDisplayName = "Graces Holy Bell Watch App";
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "Boginfactory.Graces-Holy-Bell";
 				LD_RUNPATH_SEARCH_PATHS = (

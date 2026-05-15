@@ -36,5 +36,6 @@ struct Graces_Holy_Bell_Watch_App_Watch_AppApp: App {
                     }
             }
         }
+        .persistentSystemOverlays(.hidden)
     }
 }

@@ -110,6 +110,17 @@ final class SessionViewModel {
         onStateChanged?()
     }
 
+    /// Deletes the current session and all its entries.
+    func clearLog() {
+        if let session = currentSession {
+            modelContext.delete(session)
+            save()
+        }
+        currentSession = nil
+        sortedEntries = []
+        onStateChanged?()
+    }
+
     // MARK: - Elapsed Time Computation
 
     /// Computes the elapsed time since the most recent prayer entry.

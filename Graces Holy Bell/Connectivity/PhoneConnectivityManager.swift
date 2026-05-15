@@ -70,6 +70,8 @@ final class PhoneConnectivityManager: NSObject {
             viewModel.logPrayer()
         case "STOP":
             viewModel.stopSession()
+        case "CLEAR_LOG":
+            viewModel.clearLog()
         default:
             break
         }

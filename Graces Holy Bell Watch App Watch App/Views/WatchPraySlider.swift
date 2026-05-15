@@ -5,13 +5,15 @@ import SwiftUI
 /// Rectangular dark thumb on a green track. 85% drag threshold.
 struct WatchPraySlider: View {
 
+    var label: String = "PRAY"
+    var labelPadLeft: Bool = false
     let onComplete: () -> Void
 
     @State private var dragOffset: CGFloat = 0
     @State private var trackWidth: CGFloat = 0
 
-    private let thumbWidth: CGFloat   = 32
-    private let trackHeight: CGFloat  = 20
+    private let thumbWidth: CGFloat   = 38
+    private let trackHeight: CGFloat  = 26
     private let cornerRadius: CGFloat = 3
     private let activationThreshold: CGFloat = 0.85
 
@@ -34,19 +36,28 @@ struct WatchPraySlider: View {
                 .padding(2)
                 .frame(height: trackHeight)
 
-            // Center label
-            Text("PRAY")
-                .font(.pixelFont(6))
-                .foregroundStyle(Color.lcdThumbText)
-                .frame(maxWidth: .infinity)
-                .opacity(1.0 - min(progress * 1.5, 1.0))
+            // Label — either centered in full track or offset past thumb
+            if labelPadLeft {
+                Text(label)
+                    .font(.pixelFont(8))
+                    .foregroundStyle(Color.lcdThumbText)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.leading, thumbWidth + 4)
+                    .opacity(1.0 - min(progress * 1.5, 1.0))
+            } else {
+                Text(label)
+                    .font(.pixelFont(10))
+                    .foregroundStyle(Color.lcdThumbText)
+                    .frame(maxWidth: .infinity)
+                    .opacity(1.0 - min(progress * 1.5, 1.0))
+            }
 
             // Thumb
             RoundedRectangle(cornerRadius: cornerRadius - 1)
                 .fill(Color.lcdDark)
                 .frame(width: thumbWidth, height: trackHeight - 4)
                 .overlay(
-                    Image(systemName: "chevron.right")
+                    Image(systemName: "chevron.right.2")
                         .font(.system(size: 7, weight: .bold))
                         .foregroundStyle(Color.lcdThumbText)
                 )
