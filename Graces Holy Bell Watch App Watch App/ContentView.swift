@@ -8,27 +8,34 @@ struct WatchContentView: View {
     @Namespace private var prayerFigureNS
 
     var body: some View {
-        ZStack {
-            Color.lcdBackground
-
-            switch viewModel.route {
-            case .firstLaunch:
-                WatchFirstLaunchView(viewModel: viewModel, namespace: prayerFigureNS)
-            case .active:
-                WatchActiveSessionView(viewModel: viewModel, namespace: prayerFigureNS)
-            case .log:
-                WatchLogView(viewModel: viewModel)
-            case .idle:
-                WatchIdleClearedView(viewModel: viewModel)
+        NavigationStack {
+            ZStack {
+                switch viewModel.route {
+                case .firstLaunch:
+                    WatchFirstLaunchView(viewModel: viewModel, namespace: prayerFigureNS)
+                        .transition(.opacity)
+                case .active:
+                    WatchActiveSessionView(viewModel: viewModel, namespace: prayerFigureNS)
+                        .transition(.opacity)
+                case .log:
+                    WatchLogView(viewModel: viewModel)
+                        .transition(.opacity)
+                case .idle:
+                    WatchIdleClearedView(viewModel: viewModel)
+                        .transition(.opacity)
+                }
             }
+            .animation(.spring(duration: 0.4), value: viewModel.route)
+            .ignoresSafeArea(edges: .bottom)
+            .containerBackground(Color.lcdBackground, for: .navigation)
+            .toolbarVisibility(.hidden, for: .navigationBar)
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarHidden(true)
         }
-        .ignoresSafeArea()
         .persistentSystemOverlays(.hidden)
         .onReceive(connectivityManager.$latestState) { state in
             if let state {
-                withAnimation(.spring(duration: 0.4)) {
-                    viewModel.apply(state)
-                }
+                viewModel.apply(state)
             }
         }
     }

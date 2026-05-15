@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum WatchRoute {
+enum WatchRoute: Hashable {
     case firstLaunch
     case active
     case log
