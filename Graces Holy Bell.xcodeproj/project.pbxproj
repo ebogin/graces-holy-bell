@@ -18,6 +18,20 @@
 			remoteGlobalIDString = C73274D42F5671E8004B75A5;
 			remoteInfo = "Graces Holy Bell Watch App Watch App";
 		};
+		AA0100000000000000000AA1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C73274A32F56663A004B75A5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C73274D42F5671E8004B75A5;
+			remoteInfo = "Graces Holy Bell Watch App Watch App";
+		};
+		AA020000000000000000A0A2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C73274A32F56663A004B75A5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C73274D42F5671E8004B75A5;
+			remoteInfo = "Graces Holy Bell Watch App Watch App";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -37,6 +51,8 @@
 /* Begin PBXFileReference section */
 		C73274AB2F56663A004B75A5 /* Graces Holy Bell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Graces Holy Bell.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C73274D52F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Graces Holy Bell Watch App Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA01000000000000000001A1 /* Graces Holy Bell Watch App Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Graces Holy Bell Watch App Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA02000000000000000001A2 /* Graces Holy Bell Watch App UI Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Graces Holy Bell Watch App UI Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -48,6 +64,16 @@
 		C73274D62F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Graces Holy Bell Watch App Watch App";
+			sourceTree = "<group>";
+		};
+		AA01000000000000000002A1 /* Graces Holy Bell Watch App Watch App Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Graces Holy Bell Watch App Watch App Tests";
+			sourceTree = "<group>";
+		};
+		AA02000000000000000002A2 /* Graces Holy Bell Watch App Watch App UI Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Graces Holy Bell Watch App Watch App UI Tests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -67,6 +93,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA01000000000000000003A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA02000000000000000003A2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -75,6 +115,8 @@
 			children = (
 				C73274AD2F56663A004B75A5 /* Graces Holy Bell */,
 				C73274D62F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */,
+				AA01000000000000000002A1 /* Graces Holy Bell Watch App Watch App Tests */,
+				AA02000000000000000002A2 /* Graces Holy Bell Watch App Watch App UI Tests */,
 				C73274AC2F56663A004B75A5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -84,6 +126,8 @@
 			children = (
 				C73274AB2F56663A004B75A5 /* Graces Holy Bell.app */,
 				C73274D52F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App.app */,
+				AA01000000000000000001A1 /* Graces Holy Bell Watch App Tests.xctest */,
+				AA02000000000000000001A2 /* Graces Holy Bell Watch App UI Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -137,6 +181,52 @@
 			productReference = C73274D52F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
+		AA01000000000000000006A1 /* Graces Holy Bell Watch App Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA01000000000000000009A1 /* Build configuration list for PBXNativeTarget "Graces Holy Bell Watch App Tests" */;
+			buildPhases = (
+				AA01000000000000000004A1 /* Sources */,
+				AA01000000000000000003A1 /* Frameworks */,
+				AA01000000000000000005A1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA0100000000000000000BA1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA01000000000000000002A1 /* Graces Holy Bell Watch App Watch App Tests */,
+			);
+			name = "Graces Holy Bell Watch App Tests";
+			packageProductDependencies = (
+			);
+			productName = "Graces Holy Bell Watch App Tests";
+			productReference = AA01000000000000000001A1 /* Graces Holy Bell Watch App Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		AA02000000000000000006A2 /* Graces Holy Bell Watch App UI Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA02000000000000000009A2 /* Build configuration list for PBXNativeTarget "Graces Holy Bell Watch App UI Tests" */;
+			buildPhases = (
+				AA02000000000000000004A2 /* Sources */,
+				AA02000000000000000003A2 /* Frameworks */,
+				AA02000000000000000005A2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA020000000000000000B0A2 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA02000000000000000002A2 /* Graces Holy Bell Watch App Watch App UI Tests */,
+			);
+			name = "Graces Holy Bell Watch App UI Tests";
+			packageProductDependencies = (
+			);
+			productName = "Graces Holy Bell Watch App UI Tests";
+			productReference = AA02000000000000000001A2 /* Graces Holy Bell Watch App UI Tests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -152,6 +242,14 @@
 					};
 					C73274D42F5671E8004B75A5 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					AA01000000000000000006A1 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = C73274D42F5671E8004B75A5;
+					};
+					AA02000000000000000006A2 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = C73274D42F5671E8004B75A5;
 					};
 				};
 			};
@@ -171,6 +269,8 @@
 			targets = (
 				C73274AA2F56663A004B75A5 /* Graces Holy Bell */,
 				C73274D42F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */,
+				AA01000000000000000006A1 /* Graces Holy Bell Watch App Tests */,
+				AA02000000000000000006A2 /* Graces Holy Bell Watch App UI Tests */,
 			);
 		};
 /* End PBXProject section */
@@ -184,6 +284,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C73274D32F5671E8004B75A5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA01000000000000000005A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA02000000000000000005A2 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -207,6 +321,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA01000000000000000004A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA02000000000000000004A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -214,6 +342,16 @@
 			isa = PBXTargetDependency;
 			target = C73274D42F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */;
 			targetProxy = C73274DD2F5671EB004B75A5 /* PBXContainerItemProxy */;
+		};
+		AA0100000000000000000BA1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C73274D42F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */;
+			targetProxy = AA0100000000000000000AA1 /* PBXContainerItemProxy */;
+		};
+		AA020000000000000000B0A2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C73274D42F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */;
+			targetProxy = AA020000000000000000A0A2 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -339,14 +477,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = Q9H86YZE6N;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIAppFonts = (
-					"PressStart2P-Regular.ttf",
-				);
+				INFOPLIST_KEY_UIAppFonts = "PressStart2P-Regular.ttf";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -385,14 +521,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = Q9H86YZE6N;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIAppFonts = (
-					"PressStart2P-Regular.ttf",
-				);
+				INFOPLIST_KEY_UIAppFonts = "PressStart2P-Regular.ttf";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -431,13 +565,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = Q9H86YZE6N;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIAppFonts = (
-					"PressStart2P-Regular.ttf",
-				);
 				INFOPLIST_KEY_CFBundleDisplayName = "Graces Holy Bell Watch App";
+				INFOPLIST_KEY_UIAppFonts = "PressStart2P-Regular.ttf";
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "Boginfactory.Graces-Holy-Bell";
@@ -468,13 +600,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = Q9H86YZE6N;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIAppFonts = (
-					"PressStart2P-Regular.ttf",
-				);
 				INFOPLIST_KEY_CFBundleDisplayName = "Graces Holy Bell Watch App";
+				INFOPLIST_KEY_UIAppFonts = "PressStart2P-Regular.ttf";
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "Boginfactory.Graces-Holy-Bell";
@@ -494,6 +624,98 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		AA01000000000000000007A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Boginfactory.Graces-Holy-Bell.watchkitapp.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Graces Holy Bell Watch App Watch App.app/Graces Holy Bell Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		AA01000000000000000008A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Boginfactory.Graces-Holy-Bell.watchkitapp.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Graces Holy Bell Watch App Watch App.app/Graces Holy Bell Watch App Watch App";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		AA02000000000000000007A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Boginfactory.Graces-Holy-Bell.watchkitapp.uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "Graces Holy Bell Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		AA02000000000000000008A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Boginfactory.Graces-Holy-Bell.watchkitapp.uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "Graces Holy Bell Watch App Watch App";
 				VALIDATE_PRODUCT = YES;
 				WATCHOS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -525,6 +747,24 @@
 			buildConfigurations = (
 				C73274E12F5671EB004B75A5 /* Debug */,
 				C73274E22F5671EB004B75A5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA01000000000000000009A1 /* Build configuration list for PBXNativeTarget "Graces Holy Bell Watch App Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA01000000000000000007A1 /* Debug */,
+				AA01000000000000000008A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA02000000000000000009A2 /* Build configuration list for PBXNativeTarget "Graces Holy Bell Watch App UI Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA02000000000000000007A2 /* Debug */,
+				AA02000000000000000008A2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

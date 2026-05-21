@@ -13,7 +13,7 @@ import Combine
 ///
 /// NOT isolated to @MainActor — WCSession requires its delegate callbacks
 /// on a background serial queue. State updates are dispatched to the main thread explicitly.
-final class WatchConnectivityManager: NSObject, ObservableObject {
+final class WatchConnectivityManager: NSObject, ObservableObject, WatchConnectivityInterface {
 
     /// The latest state received from the iPhone.
     @Published var latestState: SyncedSessionState?
@@ -29,6 +29,12 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     override init() {
         self.session = WCSession.default
         super.init()
+        #if DEBUG
+        // In XCUITest runs, WCSession activation delivers cached applicationContext after
+        // ~10 s, causing latestState to update and re-render WatchContentView mid-test.
+        // Skip activation entirely so tests get a stable, isolated environment.
+        if ProcessInfo.processInfo.environment["UI_TESTING"] == "1" { return }
+        #endif
         session.delegate = self
         session.activate()
     }

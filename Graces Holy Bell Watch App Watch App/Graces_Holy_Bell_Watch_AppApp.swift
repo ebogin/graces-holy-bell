@@ -30,9 +30,18 @@ struct Graces_Holy_Bell_Watch_App_Watch_AppApp: App {
             } else {
                 ProgressView()
                     .task {
-                        viewModel = WatchSessionViewModel(
-                            connectivityManager: connectivityManager
-                        )
+                        let vm = WatchSessionViewModel(connectivityManager: connectivityManager)
+                        #if DEBUG
+                        if ProcessInfo.processInfo.environment["UI_TESTING"] == "1" {
+                            vm.apply(SyncedSessionState(
+                                appState: "active",
+                                entries: [SyncedEntry(timestamp: Date().addingTimeInterval(-30), sequenceIndex: 0)],
+                                sessionStoppedAt: nil,
+                                hasExistingLog: false
+                            ))
+                        }
+                        #endif
+                        viewModel = vm
                     }
             }
         }

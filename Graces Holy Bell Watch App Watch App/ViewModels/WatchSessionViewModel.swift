@@ -22,7 +22,7 @@ final class WatchSessionViewModel {
 
     // MARK: - Dependencies
 
-    private let connectivityManager: WatchConnectivityManager
+    private let connectivityManager: any WatchConnectivityInterface
 
     // MARK: - State (mirrors iPhone)
 
@@ -57,7 +57,7 @@ final class WatchSessionViewModel {
 
     // MARK: - Initialization
 
-    init(connectivityManager: WatchConnectivityManager) {
+    init(connectivityManager: any WatchConnectivityInterface) {
         self.connectivityManager = connectivityManager
         // Apply any state already received before this ViewModel was created
         if let state = connectivityManager.latestState {

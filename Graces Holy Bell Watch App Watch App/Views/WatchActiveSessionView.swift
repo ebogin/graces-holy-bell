@@ -13,9 +13,6 @@ struct WatchActiveSessionView: View {
     }
 
     var body: some View {
-        #if DEBUG
-        let _ = Self._printChanges()
-        #endif
         VStack(spacing: 3) {
             // Title
             Text("GRACE'S HOLY BELL")
@@ -37,6 +34,8 @@ struct WatchActiveSessionView: View {
             WatchPraySlider(label: "PRAY") {
                 viewModel.sendPray()
             }
+            .accessibilityIdentifier("pray-slider")
+            .accessibilityElement(children: .ignore)
 
             // Bottom row: STOP centered, LOG floating right
             ZStack {
@@ -59,6 +58,8 @@ struct WatchActiveSessionView: View {
                     LogBadgeButton(count: viewModel.sortedEntries.count) {
                         viewModel.showingLog = true
                     }
+                    .accessibilityIdentifier("prayer-count-badge")
+                    .accessibilityValue(String(viewModel.sortedEntries.count))
                 }
             }
             .frame(maxWidth: .infinity)

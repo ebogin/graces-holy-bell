@@ -34,6 +34,9 @@ struct WatchContentView: View {
         }
         .persistentSystemOverlays(.hidden)
         .onReceive(connectivityManager.$latestState) { state in
+            // In UI tests, suppress WCSession state deliveries so stale cached application
+            // contexts from the simulator don't overwrite the injected test state mid-run.
+            guard ProcessInfo.processInfo.environment["UI_TESTING"] != "1" else { return }
             if let state {
                 viewModel.apply(state)
             }

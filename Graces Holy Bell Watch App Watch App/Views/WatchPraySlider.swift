@@ -28,9 +28,35 @@ struct WatchPraySlider: View {
         return min(dragOffset / maxOffset, 1.0)
     }
 
+    // MARK: - Body
+
     var body: some View {
         // Uncomment during debugging to print which state/binding triggered re-renders:
         // let _ = Self._printChanges()
+        if ProcessInfo.processInfo.environment["UI_TESTING"] == "1" {
+            // In XCUITest, SwiftUI DragGesture isn't reliably synthesisable on watchOS.
+            // Replace with TapGesture so the stress test can drive the full state path
+            // (optimistic update → sendPray → badge count) deterministically.
+            sliderTrack
+                .onTapGesture { fire() }
+        } else {
+            sliderTrack
+                .gesture(
+                    DragGesture()
+                        .onChanged { v in dragOffset = min(max(v.translation.width, 0), maxOffset) }
+                        .onEnded { _ in
+                            if !isCompleting && progress >= activationThreshold {
+                                fire()
+                            }
+                            withAnimation(.spring(response: 0.3)) { dragOffset = 0 }
+                        }
+                )
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var sliderTrack: some View {
         ZStack(alignment: .leading) {
             // Outer dark border
             RoundedRectangle(cornerRadius: cornerRadius)
@@ -69,23 +95,6 @@ struct WatchPraySlider: View {
                         .foregroundStyle(Color.lcdThumbText)
                 )
                 .offset(x: dragOffset + 2)
-                .gesture(
-                    DragGesture()
-                        .onChanged { v in dragOffset = min(max(v.translation.width, 0), maxOffset) }
-                        .onEnded { _ in
-                            if !isCompleting && progress >= activationThreshold {
-                                isCompleting = true
-                                WKInterfaceDevice.current().play(.success)
-                                onComplete()
-                                // Reset guard after the snap-back animation completes.
-                                // Any gesture started during this window is intentionally ignored.
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                                    isCompleting = false
-                                }
-                            }
-                            withAnimation(.spring(response: 0.3)) { dragOffset = 0 }
-                        }
-                )
         }
         .frame(height: trackHeight)
         .overlay(
@@ -95,5 +104,17 @@ struct WatchPraySlider: View {
                     .onChange(of: proxy.size.width) { _, w in trackWidth = w }
             }
         )
+    }
+
+    /// Fires the completion callback with the debounce guard and success haptic.
+    private func fire() {
+        guard !isCompleting else { return }
+        isCompleting = true
+        WKInterfaceDevice.current().play(.success)
+        onComplete()
+        // Reset guard after snap-back animation completes.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            isCompleting = false
+        }
     }
 }
