@@ -12,6 +12,10 @@ struct WatchPraySlider: View {
 
     @State private var dragOffset: CGFloat = 0
     @State private var trackWidth: CGFloat = 0
+    // Debounce flag: blocks re-activation for the duration of the snap-back animation.
+    // Guards against the watchOS edge case where the NavigationStack gesture recogniser
+    // hands off to onEnded with stale state, triggering a spurious second fire.
+    @State private var isCompleting = false
 
     private let thumbWidth: CGFloat   = 38
     private let trackHeight: CGFloat  = 26
@@ -25,6 +29,8 @@ struct WatchPraySlider: View {
     }
 
     var body: some View {
+        // Uncomment during debugging to print which state/binding triggered re-renders:
+        // let _ = Self._printChanges()
         ZStack(alignment: .leading) {
             // Outer dark border
             RoundedRectangle(cornerRadius: cornerRadius)
@@ -67,9 +73,15 @@ struct WatchPraySlider: View {
                     DragGesture()
                         .onChanged { v in dragOffset = min(max(v.translation.width, 0), maxOffset) }
                         .onEnded { _ in
-                            if progress >= activationThreshold {
+                            if !isCompleting && progress >= activationThreshold {
+                                isCompleting = true
                                 WKInterfaceDevice.current().play(.success)
                                 onComplete()
+                                // Reset guard after the snap-back animation completes.
+                                // Any gesture started during this window is intentionally ignored.
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                    isCompleting = false
+                                }
                             }
                             withAnimation(.spring(response: 0.3)) { dragOffset = 0 }
                         }

@@ -13,6 +13,9 @@ struct WatchActiveSessionView: View {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
         VStack(spacing: 3) {
             // Title
             Text("GRACE'S HOLY BELL")

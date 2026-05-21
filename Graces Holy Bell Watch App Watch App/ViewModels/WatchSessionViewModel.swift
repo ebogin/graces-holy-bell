@@ -85,13 +85,25 @@ final class WatchSessionViewModel {
     }
 
     /// Sends a PRAY action to the iPhone.
+    ///
+    /// Optimistically appends a local entry so the Watch timer resets and the log
+    /// updates immediately, without waiting for the iPhone round-trip via
+    /// WatchConnectivity. When the confirmed state arrives, apply(_:) replaces
+    /// this entry with the real one (timestamps are within milliseconds, so the
+    /// UI change is invisible). This mirrors the pattern already used by sendClearLog().
     func sendPray() {
+        let optimistic = SyncedEntry(timestamp: .now, sequenceIndex: sortedEntries.count)
+        sortedEntries.append(optimistic)
         connectivityManager.sendAction("PRAY")
     }
 
     /// Sends a STOP action to the iPhone.
+    ///
+    /// Optimistically freezes the timer at the current time so the Watch display
+    /// stops immediately rather than continuing to count until iPhone confirms.
     func sendStop() {
         showingLog = false
+        sessionStoppedAt = .now
         connectivityManager.sendAction("STOP")
     }
 

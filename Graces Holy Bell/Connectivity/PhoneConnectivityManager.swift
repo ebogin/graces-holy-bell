@@ -53,7 +53,14 @@ final class PhoneConnectivityManager: NSObject {
             hasExistingLog: viewModel.hasExistingLog
         )
 
-        try? WCSession.default.updateApplicationContext(state.toDictionary())
+        do {
+            try WCSession.default.updateApplicationContext(state.toDictionary())
+        } catch {
+            // updateApplicationContext can fail if the payload is too large or the
+            // session is in a transient error state. Log so failures are visible
+            // instead of silently leaving the Watch with stale state.
+            print("[PhoneConnectivity] updateApplicationContext failed: \(error)")
+        }
     }
 
     // MARK: - Handle Watch Actions
