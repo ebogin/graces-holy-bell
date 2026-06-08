@@ -1,7 +1,10 @@
 import SwiftUI
 import WatchKit
 
-/// Watch ACTIVE SESSION screen — fixed layout with timer, animated figure, PRAY slider, STOP + LOG buttons.
+/// Watch ACTIVE SESSION screen — translated from Figma node 238:53 (Watch Active Prayer v1.41).
+/// Layout mirrors WatchFirstLaunchView so Core Content and Bottom Container elements
+/// render in identical positions across both screens.
+/// Native watchOS safe area provides the top system-time buffer — no .ignoresSafeArea needed.
 struct WatchActiveSessionView: View {
 
     let viewModel: WatchSessionViewModel
@@ -9,60 +12,91 @@ struct WatchActiveSessionView: View {
     @State private var showStopConfirmation = false
 
     private var figureHeight: CGFloat {
-        WKInterfaceDevice.current().screenBounds.width >= 200 ? 78 : 60
+        WKInterfaceDevice.current().screenBounds.width >= 200 ? 96 : 86
     }
 
     var body: some View {
-        VStack(spacing: 3) {
-            // Title
-            Text("GRACE'S HOLY BELL")
-                .font(.pixelFont(8.5))
-                .foregroundStyle(Color.lcdMid)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.top, 10)
 
-            // Live timer + label
-            WatchLiveTimerView(viewModel: viewModel)
+        // Root — Figma: VStack, justify-between, px-[30px] → .padding(.horizontal, 14)
+        VStack(spacing: 0) {
 
-            // Animated figure — fills remaining space
-            WatchPrayingFigureView(pose: .praying, height: figureHeight)
-                .matchedGeometryEffect(id: "prayFigure", in: namespace)
-                .frame(maxHeight: .infinity)
+            // Core Content Stack — Figma: VStack, gap-[4px] → spacing: 2
+            VStack(spacing: 2) {
 
-            // PRAY slider
-            WatchPraySlider(label: "PRAY") {
-                viewModel.sendPray()
+                // Title and Time — Figma: VStack, gap-[4px] → spacing: 2, pt-[8px] → .padding(.top, 4)
+                // 3 rows: app title, timer, "SINCE LAST PRAYER". WatchLiveTimerView covers rows 2+3.
+                VStack(spacing: 2) {
+
+                    // Row 1: App title — Figma: 18px, #5f7c4d, visible, fill width
+                    Text("GRACE'S HOLY BELL")
+                        .font(.pixelFont(8))
+                        .foregroundStyle(DesignSystem.Colors.textSecondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+
+                    // Row 2 + "SINCE LAST PRAYER" — handled internally by WatchLiveTimerView
+                    WatchLiveTimerView(viewModel: viewModel)
+                        .frame(maxWidth: .infinity)
+                }
+                .padding(.top, 4) // Figma: pt-[8px] on Title and Time → 4pt
+
+                // Transparent placeholder — Figma: h-[17px] → 8pt, holds vertical space
+                Color.clear.frame(height: 8)
+
+                // Animation figure — Figma: h-[192px] w-[142px]
+                WatchPrayingFigureView(pose: .praying, height: figureHeight)
+                    .matchedGeometryEffect(id: "prayFigure", in: namespace)
             }
 
-            // Bottom row: STOP centered, LOG floating right
-            ZStack {
-                Button {
-                    showStopConfirmation = true
-                } label: {
-                    ZStack {
-                        Octagon()
-                            .fill(Color.lcdDark)
-                            .frame(width: 24, height: 24)
-                        Rectangle()
-                            .fill(Color.lcdThumbText)
-                            .frame(width: 11, height: 11)
-                    }
-                }
-                .buttonStyle(.plain)
+            // Root justify-between spacer
+            Spacer()
 
-                HStack {
-                    Spacer()
-                    LogBadgeButton(count: viewModel.sortedEntries.count) {
-                        viewModel.showingLog = true
+            // Bottom Container — Figma: VStack, justify-center, h-[116px] → 52pt
+            VStack(spacing: 0) {
+
+                // Slider row — Figma: py-[4px] → .padding(.vertical, 2)
+                WatchPraySlider(label: "PRAY") {
+                    viewModel.sendPray()
+                }
+                .padding(.vertical, 2)
+
+                // Bottom Buttons — Stop centered, Log badge trailing
+                // ZStack avoids rigid frame constraints that conflict with watchOS touch target sizing
+                ZStack {
+                    // Stop button — Figma: Stop Icon, centered
+                    Button {
+                        showStopConfirmation = true
+                    } label: {
+                        ZStack {
+                            Octagon()
+                                .fill(Color.lcdDark)
+                                .frame(width: 24, height: 24)
+                            Rectangle()
+                                .fill(Color.lcdThumbText)
+                                .frame(width: 11, height: 11)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    // Log badge — Figma: Watch Log Badge, trailing edge
+                    HStack {
+                        Spacer()
+                        LogBadgeButton(count: viewModel.sortedEntries.count) {
+                            viewModel.showingLog = true
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 2)
             }
             .frame(maxWidth: .infinity)
-            .padding(.bottom, 6)
+            .frame(height: 52)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignSystem.Colors.background)
         .confirmationDialog(
             "End session?",
             isPresented: $showStopConfirmation,
