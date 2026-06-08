@@ -20,13 +20,11 @@ struct WatchActiveSessionView: View {
         // Root — Figma: VStack, justify-between, px-[30px] → .padding(.horizontal, 14)
         VStack(spacing: 0) {
 
-            // Core Content Stack — Figma: VStack, gap-[4px] → spacing: 2, pt-[5px] → .padding(.top, 2)
+            // Core Content Stack — Figma: VStack, gap-[4px] → spacing: 2
             VStack(spacing: 2) {
 
-                // Title and Time + "SINCE LAST PRAYER"
-                // WatchLiveTimerView already renders the timer AND "SINCE LAST PRAYER" internally,
-                // so it covers Figma rows 2 and 3. Row 1 (app title) sits above it.
-                // Figma: gap-[4px] → spacing: 2
+                // Title and Time — Figma: VStack, gap-[4px] → spacing: 2, pt-[8px] → .padding(.top, 4)
+                // 3 rows: app title, timer, "SINCE LAST PRAYER". WatchLiveTimerView covers rows 2+3.
                 VStack(spacing: 2) {
 
                     // Row 1: App title — Figma: 18px, #5f7c4d, visible, fill width
@@ -42,6 +40,7 @@ struct WatchActiveSessionView: View {
                     WatchLiveTimerView(viewModel: viewModel)
                         .frame(maxWidth: .infinity)
                 }
+                .padding(.top, 4) // Figma: pt-[8px] on Title and Time → 4pt
 
                 // Transparent placeholder — Figma: h-[17px] → 8pt, holds vertical space
                 Color.clear.frame(height: 8)
@@ -50,7 +49,6 @@ struct WatchActiveSessionView: View {
                 WatchPrayingFigureView(pose: .praying, height: figureHeight)
                     .matchedGeometryEffect(id: "prayFigure", in: namespace)
             }
-            .padding(.top, 2)
 
             // Root justify-between spacer
             Spacer()

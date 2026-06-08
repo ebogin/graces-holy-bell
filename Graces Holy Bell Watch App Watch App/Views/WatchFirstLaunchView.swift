@@ -20,12 +20,12 @@ struct WatchFirstLaunchView: View {
         // Root — Figma: VStack, justify-between, px-[30px] → .padding(.horizontal, 14)
         VStack(spacing: 0) {
 
-            // Core Content Stack — Figma: VStack, gap-[4px] → spacing: 2, pt-[5px] → .padding(.top, 2)
+            // Core Content Stack — Figma: VStack, gap-[4px] → spacing: 2
             VStack(spacing: 2) {
 
-                // Title and Time — Figma: VStack, no gap, h-[88px]
-                // No fixed heights — let text expand to its natural size
-                VStack(spacing: 0) {
+                // Title and Time — Figma: VStack, gap-[4px] → spacing: 2, h-[88px]
+                // 3 rows: app title (opacity 0), main title (visible), "SINCE LAST PRAYER" (opacity 0)
+                VStack(spacing: 2) {
 
                     // Row 1: single-line nav title placeholder — Figma: 18px, opacity 0, fill width
                     Text("GRACE'S HOLY BELL")
@@ -44,14 +44,15 @@ struct WatchFirstLaunchView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
-                }
 
-                // "SINCE LAST PRAYER" — Figma: 14px, opacity 0, fill width, holds vertical space
-                Text("SINCE LAST PRAYER")
-                    .font(.pixelFont(7))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .opacity(0)
+                    // Row 3: "SINCE LAST PRAYER" placeholder — Figma: 14px, opacity 0, fill width
+                    Text("SINCE LAST PRAYER")
+                        .font(.pixelFont(7))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .opacity(0)
+                }
 
                 // Transparent placeholder — Figma: h-[17px] → 8pt, holds vertical space
                 Color.clear.frame(height: 8)
@@ -60,7 +61,6 @@ struct WatchFirstLaunchView: View {
                 WatchPrayingFigureView(pose: .idle, height: figureHeight)
                     .matchedGeometryEffect(id: "prayFigure", in: namespace)
             }
-            .padding(.top, 2)
 
             // Root justify-between spacer
             Spacer()
@@ -92,6 +92,7 @@ struct WatchFirstLaunchView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 52)
         }
+        .padding(.top, 4) // Figma: pt-[8px] on Root → 4pt
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DesignSystem.Colors.background)
