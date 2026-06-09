@@ -20,8 +20,6 @@ struct WatchPrayerLogView: View {
                 )
             }
         }
-        .padding(8)
-        .pixelBorder()
     }
 }
 
