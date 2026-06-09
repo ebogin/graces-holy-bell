@@ -32,6 +32,8 @@ struct WatchIdleClearedView: View {
             // Scrollable log — fills remaining space
             ScrollView {
                 WatchPrayerLogView(viewModel: viewModel)
+                    .padding(8)
+                    .pixelBorder()
             }
             .frame(maxHeight: .infinity)
             .focusable()
