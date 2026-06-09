@@ -49,7 +49,7 @@ struct PraySlider: View {
 
             // Center label (fades as thumb advances)
             Text(label)
-                .font(.pixelFont(8))
+                .font(.pixelFont(12))
                 .foregroundStyle(Color.lcdThumbText)
                 .frame(maxWidth: .infinity)
                 .opacity(1.0 - min(progress * 1.5, 1.0))
@@ -61,9 +61,9 @@ struct PraySlider: View {
                 .overlay(
                     HStack(spacing: 2) {
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                     }
                     .foregroundStyle(Color.lcdThumbText)
                 )

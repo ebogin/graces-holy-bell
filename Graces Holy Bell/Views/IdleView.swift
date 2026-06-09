@@ -3,17 +3,19 @@ import SwiftData
 
 /// IDLE state screen — no active prayer session.
 ///
-/// LCD green background with pixel-art typography.
-/// Shows the previous session log in a bordered box and
-/// a START PRAYER slider at the bottom.
+/// Layout mirrors ActiveSessionView's Core Content Stack structure exactly:
+/// invisible row 1 (small title placeholder) + visible row 2 (big app title) +
+/// invisible row 3 (subtitle placeholder). This keeps the praying figure and
+/// bottom stack at identical vertical positions across both screens.
 struct IdleView: View {
 
     let viewModel: SessionViewModel
     @State private var showNewSessionConfirmation = false
+    @State private var blinkVisible = true
 
     var body: some View {
         ZStack {
-            // LCD gradient background
+            // LCD gradient background — fills behind safe areas
             LinearGradient(
                 colors: [Color.lcdBackgroundLight, Color.lcdBackgroundDark],
                 startPoint: .topLeading,
@@ -23,58 +25,107 @@ struct IdleView: View {
 
             VStack(spacing: 0) {
 
-                // ── Header ──────────────────────────────────────────────
-                VStack(spacing: 10) {
-                    Text("Grace's Holy Bell")
-                        .font(.pixelFont(12))
+                // ── Core Content Stack (Figma gap: 20px → 7pt) ───────────
+                VStack(spacing: 7) {
+
+                    // Row 1: invisible — mirrors active screen's small title (17pt)
+                    Text("GRACE'S HOLY BELL")
+                        .font(.pixelFont(17))
+                        .opacity(0)
+                        .frame(maxWidth: .infinity)
+
+                    // Row 2: main app title — 84px → 28pt, lcdDark, two lines
+                    Text("GRACE'S\nHOLY BELL")
+                        .font(.pixelFont(28))
                         .foregroundStyle(Color.lcdDark)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity)
 
-                    Text("NO ACTIVE SESSION")
-                        .font(.pixelFont(8))
-                        .foregroundStyle(Color.lcdMid)
+                    // Row 3: invisible — mirrors active screen's "SINCE LAST PRAYER" (7pt)
+                    Text("SINCE LAST PRAYER")
+                        .font(.pixelFont(7))
+                        .opacity(0)
+                        .frame(maxWidth: .infinity)
                 }
-                .padding(.top, 28)
-                .padding(.horizontal)
+                .padding(.top, 16)
+                .padding(.horizontal, 16)
 
-                // ── Praying figure ───────────────────────────────────────
+                Spacer(minLength: 12)
+
+                // ── Animated praying figure (idle pose) ──────────────────
                 PrayingFigureView(pose: .idle, scale: 2.6)
-                    .padding(.top, 20)
 
-                // ── Decorative divider ───────────────────────────────────
-                Rectangle()
-                    .fill(Color.lcdDark.opacity(0.25))
-                    .frame(height: 3)
-                    .padding(.horizontal, 60)
-                    .padding(.vertical, 16)
+                Spacer(minLength: 12)
 
-                // ── Previous log (if any) ────────────────────────────────
-                if viewModel.hasExistingLog {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("PREVIOUS PRAYER LOG")
-                            .font(.pixelFont(7))
+                // ── Bottom Content Stack (Figma gap: 62px → 21pt) ────────
+                VStack(spacing: 21) {
+
+                    // Content area — welcome text and "SLIDE TO BEGIN",
+                    // justify-end with 200px → 67pt gap between them
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        Text("Welcome to your favorite app to time prayer duration.")
+                            .font(.pixelFont(12))
+                            .foregroundStyle(Color.lcdDark)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .lineSpacing(3)
+
+                        Spacer().frame(height: 67)
+
+                        Text("SLIDE TO BEGIN")
+                            .font(.pixelFont(12))
                             .foregroundStyle(Color.lcdMid)
-                            .padding(.horizontal)
-
-                        PrayerLogView(viewModel: viewModel)
-                            .padding(.horizontal)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .opacity(blinkVisible ? 1 : 0)
+                            .onAppear {
+                                Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                                    blinkVisible.toggle()
+                                }
+                            }
                     }
-                } else {
-                    Spacer()
-                }
+                    .frame(maxWidth: .infinity)
 
-                Spacer(minLength: 16)
-
-                // ── START PRAYER slider ──────────────────────────────────
-                PraySlider(label: "START PRAYER") {
-                    if viewModel.hasExistingLog {
-                        showNewSessionConfirmation = true
-                    } else {
-                        viewModel.startNewSession()
+                    // PRAY slider — same component as active screen
+                    PraySlider(label: "PRAY") {
+                        if viewModel.hasExistingLog {
+                            showNewSessionConfirmation = true
+                        } else {
+                            viewModel.startNewSession()
+                        }
                     }
+                    .frame(maxWidth: .infinity)
+
+                    // Bottom buttons: Gear (inert) | Stop (inert) | Placeholder
+                    HStack {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(Color.lcdDark)
+                            .frame(width: 37, height: 36)
+
+                        Spacer()
+
+                        ZStack {
+                            Octagon()
+                                .fill(Color.lcdDark)
+                                .frame(width: 56, height: 56)
+                            Rectangle()
+                                .fill(Color.lcdThumbText)
+                                .frame(width: 18, height: 18)
+                        }
+
+                        Spacer()
+
+                        Color.clear
+                            .frame(width: 37, height: 36)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 32)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
         }
         .confirmationDialog(
