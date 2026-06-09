@@ -19,6 +19,8 @@ extension Color {
     static let lcdDark        = Color(hex: "#1a2a0a")
     /// Secondary / caption text — dark olive green
     static let lcdMid         = Color(hex: "#4a6a3a")
+    /// Screen title text — medium olive (Figma #5f7c4d)
+    static let lcdTitle       = Color(hex: "#5f7c4d")
     /// Text that sits on a dark (lcdDark) background
     static let lcdThumbText   = Color(hex: "#c8d8b0")
     /// Subtle screen edge border

@@ -33,7 +33,6 @@ struct PrayingFigureView: View {
             .interpolation(.none)           // keeps pixel art crisp
             .resizable()
             .frame(width: 50 * scale, height: 63 * scale)
-            .blendMode(.multiply)           // erases light background against the LCD green
             .onAppear {
                 frameIndex = 0
             }

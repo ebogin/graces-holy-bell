@@ -12,7 +12,7 @@ struct ActiveSessionView: View {
 
     var body: some View {
         ZStack {
-            // LCD gradient background
+            // LCD gradient background — fills behind safe areas
             LinearGradient(
                 colors: [Color.lcdBackgroundLight, Color.lcdBackgroundDark],
                 startPoint: .topLeading,
@@ -22,71 +22,90 @@ struct ActiveSessionView: View {
 
             VStack(spacing: 0) {
 
-                // ── Header ──────────────────────────────────────────────
-                Text("Grace's Holy Bell")
-                    .font(.pixelFont(12))
-                    .foregroundStyle(Color.lcdDark)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 28)
-                    .padding(.horizontal)
+                // ── Core Content Stack (Figma gap: 20px → 7pt) ───────────
+                VStack(spacing: 7) {
+                    Text("GRACE'S HOLY BELL")
+                        .font(.pixelFont(17))
+                        .foregroundStyle(Color.lcdTitle)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
 
-                // ── Live timer ───────────────────────────────────────────
-                LiveTimerView(viewModel: viewModel)
-                    .padding(.top, 16)
+                    LiveTimerView(viewModel: viewModel)
+                }
+                .padding(.top, 16)
+                .padding(.horizontal, 16)
+
+                Spacer(minLength: 12)
 
                 // ── Animated praying figure ──────────────────────────────
                 PrayingFigureView(pose: .praying, scale: 2.6)
-                    .padding(.top, 14)
 
-                // ── Prayer log ───────────────────────────────────────────
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("PRAYER LOG")
-                        .font(.pixelFont(7))
-                        .foregroundStyle(Color.lcdMid)
-                        .padding(.horizontal)
+                Spacer(minLength: 12)
 
-                    PrayerLogView(viewModel: viewModel)
-                        .padding(.horizontal)
-                }
-                .padding(.top, 14)
+                // ── Bottom Content Stack (Figma gap: 50px → 17pt) ────────
+                VStack(spacing: 17) {
 
-                Spacer(minLength: 16)
+                    // Prayer log with label
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("PRAYER LOG")
+                            .font(.pixelFont(7))
+                            .foregroundStyle(Color.lcdMid)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                // ── PRAY slider ──────────────────────────────────────────
-                PraySlider(label: "PRAY") {
-                    viewModel.logPrayer()
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-
-                // ── Octagon STOP button ──────────────────────────────────
-                Button {
-                    showStopConfirmation = true
-                } label: {
-                    ZStack {
-                        Octagon()
-                            .fill(Color.lcdDark)
-                            .frame(width: 56, height: 56)
-                        Rectangle()
-                            .fill(Color.lcdThumbText)
-                            .frame(width: 18, height: 18)
+                        PrayerLogView(viewModel: viewModel)
                     }
+                    .frame(maxWidth: .infinity)
+
+                    // PRAY slider
+                    PraySlider(label: "PRAY") {
+                        viewModel.logPrayer()
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Bottom buttons: Gear | Stop | placeholder (balance)
+                    HStack {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(Color.lcdDark)
+                            .frame(width: 37, height: 36)
+
+                        Spacer()
+
+                        Button {
+                            showStopConfirmation = true
+                        } label: {
+                            ZStack {
+                                Octagon()
+                                    .fill(Color.lcdDark)
+                                    .frame(width: 56, height: 56)
+                                Rectangle()
+                                    .fill(Color.lcdThumbText)
+                                    .frame(width: 18, height: 18)
+                            }
+                        }
+
+                        Spacer()
+
+                        Color.clear
+                            .frame(width: 37, height: 36)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.top, 12)
-                .padding(.bottom, 32)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
         }
         .confirmationDialog(
-            "End prayer session?",
+            "End Praying?",
             isPresented: $showStopConfirmation,
             titleVisibility: .visible
         ) {
-            Button("End Session", role: .destructive) {
-                viewModel.stopSession()
+            Button("Clear Log", role: .destructive) {
+                viewModel.clearLog()
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Clock stops. No final prayer recorded.")
+            Text("Clear the log and start fresh. This CANNOT BE UNDONE")
         }
     }
 }
