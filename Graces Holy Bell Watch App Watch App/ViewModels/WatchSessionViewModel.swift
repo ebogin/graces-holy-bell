@@ -41,6 +41,10 @@ final class WatchSessionViewModel {
     /// Local-only flag — not synced to iPhone.
     var showingLog = false
 
+    /// Set during sendStopAndClear() to suppress entry restoration from
+    /// intermediate sync states (STOP confirmed but CLEAR not yet processed).
+    private var isClearing = false
+
     // MARK: - Derived State
 
     /// The timestamp of the most recent prayer entry, if any.
@@ -72,7 +76,16 @@ final class WatchSessionViewModel {
         let newAppState = state.appState == "active" ? AppState.active : AppState.idle
         if newAppState == .idle { showingLog = false }
         appState = newAppState
-        sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
+
+        // While a stop+clear is in flight, suppress entry restoration to prevent
+        // a flash through the idle/log screen. Once the iPhone confirms empty
+        // entries, the clear is complete and we resume normal sync.
+        if isClearing {
+            if state.entries.isEmpty { isClearing = false }
+        } else {
+            sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
+        }
+
         sessionStoppedAt = state.sessionStoppedAt
         hasExistingLog = state.hasExistingLog
     }
@@ -100,6 +113,19 @@ final class WatchSessionViewModel {
         sortedEntries = []
         sessionStoppedAt = nil
         hasExistingLog = false
+        connectivityManager.sendClearLog()
+    }
+
+    /// Stops the session and clears the log in one action, immediately
+    /// transitioning to the first-launch (Watch Start) screen.
+    func sendStopAndClear() {
+        isClearing = true         // suppress intermediate sync states from iPhone
+        showingLog = false
+        sortedEntries = []
+        sessionStoppedAt = nil
+        hasExistingLog = false
+        appState = .idle          // immediately routes to .firstLaunch
+        connectivityManager.sendAction("STOP")
         connectivityManager.sendClearLog()
     }
 

@@ -98,14 +98,14 @@ struct WatchActiveSessionView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DesignSystem.Colors.background)
         .confirmationDialog(
-            "End session?",
+            "End Praying?",
             isPresented: $showStopConfirmation,
             titleVisibility: .visible
         ) {
-            Button("End Session", role: .destructive) { viewModel.sendStop() }
+            Button("Clear Log", role: .destructive) { viewModel.sendStopAndClear() }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Clock stops. No final prayer recorded.")
+            Text("Clear the log and start fresh. This CANNOT BE UNDONE")
         }
     }
 }
