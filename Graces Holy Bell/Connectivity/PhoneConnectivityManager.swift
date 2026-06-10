@@ -51,14 +51,14 @@ final class PhoneConnectivityManager: NSObject {
         // Fire time = lastPrayerTimestamp + alarmDuration, but only when:
         //   - The session is active
         //   - The watch alarm toggle is on
-        //   - The computed fire time is still in the future
+        // A past fire time is still sent so the watch slider keeps blinking AMEN!
+        // after a resync — notification scheduling guards against past dates itself.
         let amenAlarmFireAt: Date? = {
             guard let settings = amenAlarmSettings,
                   settings.watchEnabled,
                   viewModel.appState == .active,
                   let lastTimestamp = viewModel.lastPrayerTimestamp else { return nil }
-            let fireDate = lastTimestamp.addingTimeInterval(settings.duration.rawValue)
-            return fireDate > .now ? fireDate : nil
+            return lastTimestamp.addingTimeInterval(settings.duration.rawValue)
         }()
 
         let state = SyncedSessionState(
@@ -108,8 +108,7 @@ final class PhoneConnectivityManager: NSObject {
                   settings.watchEnabled,
                   viewModel.appState == .active,
                   let lastTimestamp = viewModel.lastPrayerTimestamp else { return nil }
-            let fireDate = lastTimestamp.addingTimeInterval(settings.duration.rawValue)
-            return fireDate > .now ? fireDate : nil
+            return lastTimestamp.addingTimeInterval(settings.duration.rawValue)
         }()
 
         let state = SyncedSessionState(

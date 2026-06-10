@@ -59,8 +59,14 @@ struct WatchActiveSessionView: View {
             VStack(spacing: 0) {
 
                 // Slider row — Figma: py-[4px] → .padding(.vertical, 2)
-                WatchPraySlider(label: "PRAY") {
-                    viewModel.sendPray()
+                // Doubles as Amen Alarm progress bar when the alarm is on
+                TimelineView(.periodic(from: .now, by: 1.0)) { context in
+                    WatchPraySlider(
+                        label: "PRAY",
+                        alarmProgress: viewModel.alarmProgress(at: context.date)
+                    ) {
+                        viewModel.sendPray()
+                    }
                 }
                 .padding(.vertical, 2)
 

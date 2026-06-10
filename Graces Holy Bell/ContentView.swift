@@ -44,6 +44,12 @@ struct ContentView: View {
                     }
                     connectivityManager.configure(with: vm)
                 }
+                // Settings changes apply immediately: reschedule the phone alarm
+                // and push the new fire date (or nil) to the Watch.
+                amenAlarmSettings.onChange = { [weak vm, weak connectivityManager] in
+                    vm?.refreshAmenAlarm()
+                    connectivityManager?.sendStateToWatch()
+                }
                 viewModel = vm
             }
         }

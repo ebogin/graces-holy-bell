@@ -38,19 +38,32 @@ enum AmenAlarmDuration: TimeInterval, CaseIterable, Identifiable {
 @Observable
 final class AmenAlarmSettings {
 
+    /// Invoked after any setting changes — used to reschedule the phone alarm
+    /// and resync the Watch immediately instead of waiting for the next PRAY slide.
+    @ObservationIgnored var onChange: (() -> Void)?
+
     /// The alarm duration (seconds since last prayer).
     var duration: AmenAlarmDuration {
-        didSet { UserDefaults.standard.set(duration.rawValue, forKey: Keys.duration) }
+        didSet {
+            UserDefaults.standard.set(duration.rawValue, forKey: Keys.duration)
+            onChange?()
+        }
     }
 
     /// Whether to vibrate the phone when the alarm fires.
     var phoneEnabled: Bool {
-        didSet { UserDefaults.standard.set(phoneEnabled, forKey: Keys.phoneEnabled) }
+        didSet {
+            UserDefaults.standard.set(phoneEnabled, forKey: Keys.phoneEnabled)
+            onChange?()
+        }
     }
 
     /// Whether to vibrate the watch when the alarm fires.
     var watchEnabled: Bool {
-        didSet { UserDefaults.standard.set(watchEnabled, forKey: Keys.watchEnabled) }
+        didSet {
+            UserDefaults.standard.set(watchEnabled, forKey: Keys.watchEnabled)
+            onChange?()
+        }
     }
 
     init() {

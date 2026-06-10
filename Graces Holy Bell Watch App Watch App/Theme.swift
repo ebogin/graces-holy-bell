@@ -10,6 +10,7 @@ extension Color {
     static let lcdLogInner        = Color(hex: "#c0d0a8")
     static let lcdLogBorder       = Color(hex: "#a0b080")
     static let lcdSlider          = Color(hex: "#8aaa6a")
+    static let lcdProgress        = Color(hex: "#6a8a4a")
     static let lcdDark            = Color(hex: "#1a2a0a")
     static let lcdMid             = Color(hex: "#4a6a3a")
     static let lcdThumbText       = Color(hex: "#c8d8b0")

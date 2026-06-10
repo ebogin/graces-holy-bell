@@ -15,6 +15,8 @@ extension Color {
     static let lcdLogBorder   = Color(hex: "#a0b080")
     /// Slider/button track fill (medium green)
     static let lcdSlider      = Color(hex: "#8aaa6a")
+    /// Amen Alarm progress fill — deeper green, reads against lcdSlider
+    static let lcdProgress    = Color(hex: "#6a8a4a")
     /// Primary text and borders — near-black olive
     static let lcdDark        = Color(hex: "#1a2a0a")
     /// Secondary / caption text — dark olive green
