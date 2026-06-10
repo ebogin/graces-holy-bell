@@ -81,9 +81,11 @@ struct ActiveSessionView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { /* absorb taps inside the panel */ }
 
-                    // PRAY slider
-                    PraySlider(label: "PRAY") {
-                        viewModel.logPrayer()
+                    // PRAY slider — doubles as Amen Alarm progress bar when the alarm is on
+                    TimelineView(.periodic(from: .now, by: 1.0)) { context in
+                        PraySlider(label: "PRAY", alarmProgress: alarmProgress(at: context.date)) {
+                            viewModel.logPrayer()
+                        }
                     }
                     .frame(maxWidth: .infinity)
 
@@ -142,6 +144,22 @@ struct ActiveSessionView: View {
         } message: {
             Text("Clear the log and start fresh. This CANNOT BE UNDONE")
         }
+    }
+
+    /// How long the AMEN! blink and its haptic pulses last.
+    private static let amenFlashDuration: TimeInterval = 5.0
+
+    /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm is off.
+    /// Shown whenever either device's alarm is enabled — the slider visual tracks the
+    /// shared interval even if only the watch vibrates.
+    /// After the AMEN! flash window passes, returns nil so the slider reverts to plain PRAY.
+    private func alarmProgress(at now: Date) -> Double? {
+        guard amenAlarmSettings.phoneEnabled || amenAlarmSettings.watchEnabled else { return nil }
+        let interval = amenAlarmSettings.duration.rawValue
+        guard interval > 0 else { return nil }
+        let elapsed = viewModel.elapsedSinceLastPrayer(at: now)
+        if elapsed - interval > Self.amenFlashDuration { return nil }
+        return elapsed / interval
     }
 
     private func dismissSettings() {

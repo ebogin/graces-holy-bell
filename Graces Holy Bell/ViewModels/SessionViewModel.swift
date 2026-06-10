@@ -131,6 +131,18 @@ final class SessionViewModel {
         onStateChanged?()
     }
 
+    /// Re-applies the Amen Alarm schedule after a settings change.
+    ///
+    /// Keeps the phone alarm in sync with the toggles/duration mid-session
+    /// (otherwise changes would only take effect on the next PRAY slide).
+    func refreshAmenAlarm() {
+        if appState == .active {
+            scheduleAmenAlarmIfNeeded()
+        } else {
+            amenAlarmManager.cancelAlarm()
+        }
+    }
+
     // MARK: - Elapsed Time Computation
 
     /// Computes the elapsed time since the most recent prayer entry.

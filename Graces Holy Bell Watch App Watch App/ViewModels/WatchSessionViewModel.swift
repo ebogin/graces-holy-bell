@@ -35,6 +35,9 @@ final class WatchSessionViewModel {
     /// Whether there is an existing log.
     private(set) var hasExistingLog = false
 
+    /// When the Amen Alarm fires on the Watch, or nil when the alarm is off.
+    private(set) var amenAlarmFireAt: Date?
+
     /// The current app state.
     private(set) var appState: AppState = .idle
 
@@ -75,6 +78,7 @@ final class WatchSessionViewModel {
         sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
         sessionStoppedAt = state.sessionStoppedAt
         hasExistingLog = state.hasExistingLog
+        amenAlarmFireAt = state.amenAlarmFireAt
     }
 
     // MARK: - Actions (sent to iPhone)
@@ -118,6 +122,24 @@ final class WatchSessionViewModel {
 
         // Active session: live elapsed
         return now.timeIntervalSince(lastTimestamp)
+    }
+
+    /// How long the AMEN! blink and its haptic pulses last.
+    private static let amenFlashDuration: TimeInterval = 5.0
+
+    /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm
+    /// is off or the session is stopped. Derived from the synced fire date:
+    /// the interval is `fireAt - lastPrayerTimestamp`, so no settings sync is needed.
+    /// After the AMEN! flash window passes, returns nil so the slider reverts to plain PRAY.
+    func alarmProgress(at now: Date = .now) -> Double? {
+        guard let fireAt = amenAlarmFireAt,
+              let lastTimestamp = lastPrayerTimestamp,
+              sessionStoppedAt == nil else { return nil }
+        let interval = fireAt.timeIntervalSince(lastTimestamp)
+        guard interval > 0 else { return nil }
+        let elapsed = now.timeIntervalSince(lastTimestamp)
+        if elapsed - interval > Self.amenFlashDuration { return nil }
+        return elapsed / interval
     }
 
     /// Computes the duration for a specific prayer entry.
