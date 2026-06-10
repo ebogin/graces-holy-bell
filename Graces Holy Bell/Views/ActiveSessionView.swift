@@ -8,7 +8,9 @@ import SwiftData
 struct ActiveSessionView: View {
 
     let viewModel: SessionViewModel
+    let amenAlarmSettings: AmenAlarmSettings
     @State private var showStopConfirmation = false
+    @State private var showSettings = false
 
     var body: some View {
         ZStack {
@@ -19,6 +21,14 @@ struct ActiveSessionView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
+
+            // Tap-outside-to-dismiss overlay — only active when settings is open
+            if showSettings {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { dismissSettings() }
+            }
 
             VStack(spacing: 0) {
 
@@ -45,16 +55,31 @@ struct ActiveSessionView: View {
                 // ── Bottom Content Stack (Figma gap: 50px → 17pt) ────────
                 VStack(spacing: 17) {
 
-                    // Prayer log with label
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("PRAYER LOG")
-                            .font(.pixelFont(7))
-                            .foregroundStyle(Color.lcdMid)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    // Content area — settings panel OR prayer log, same space
+                    ZStack(alignment: .topLeading) {
 
-                        PrayerLogView(viewModel: viewModel)
+                        // Prayer log with label (hidden behind settings when open)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("PRAYER LOG")
+                                .font(.pixelFont(7))
+                                .foregroundStyle(Color.lcdMid)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            PrayerLogView(viewModel: viewModel)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .opacity(showSettings ? 0 : 1)
+
+                        // Settings panel (slides in from left)
+                        if showSettings {
+                            SettingsView(settings: amenAlarmSettings)
+                                .transition(.move(edge: .leading))
+                        }
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // Prevent taps inside the content area from bubbling to dismiss overlay
+                    .contentShape(Rectangle())
+                    .onTapGesture { /* absorb taps inside the panel */ }
 
                     // PRAY slider
                     PraySlider(label: "PRAY") {
@@ -62,12 +87,21 @@ struct ActiveSessionView: View {
                     }
                     .frame(maxWidth: .infinity)
 
-                    // Bottom buttons: Gear | Stop | placeholder (balance)
+                    // Bottom buttons: Gear/X toggle | Stop | placeholder (balance)
                     HStack {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(Color.lcdDark)
-                            .frame(width: 37, height: 36)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showSettings.toggle()
+                            }
+                        } label: {
+                            Image(systemName: showSettings ? "xmark" : "gearshape.fill")
+                                .accessibilityIdentifier("settings-button")
+                                .font(.system(size: 28))
+                                .foregroundStyle(Color.lcdDark)
+                                .frame(width: 37, height: 36)
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                        .buttonStyle(.plain)
 
                         Spacer()
 
@@ -83,6 +117,7 @@ struct ActiveSessionView: View {
                                     .frame(width: 18, height: 18)
                             }
                         }
+                        .accessibilityIdentifier("stop-button")
 
                         Spacer()
 
@@ -108,9 +143,18 @@ struct ActiveSessionView: View {
             Text("Clear the log and start fresh. This CANNOT BE UNDONE")
         }
     }
+
+    private func dismissSettings() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            showSettings = false
+        }
+    }
 }
 
 #Preview("Active session") {
     let container = try! ModelContainer(for: PrayerSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    ActiveSessionView(viewModel: SessionViewModel(modelContext: container.mainContext))
+    ActiveSessionView(
+        viewModel: SessionViewModel(modelContext: container.mainContext),
+        amenAlarmSettings: AmenAlarmSettings()
+    )
 }

@@ -16,6 +16,7 @@ struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: SessionViewModel?
+    @State private var amenAlarmSettings = AmenAlarmSettings()
     var connectivityManager: PhoneConnectivityManager?
 
     var body: some View {
@@ -23,9 +24,9 @@ struct ContentView: View {
             if let viewModel {
                 switch viewModel.appState {
                 case .idle:
-                    IdleView(viewModel: viewModel)
+                    IdleView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings)
                 case .active:
-                    ActiveSessionView(viewModel: viewModel)
+                    ActiveSessionView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings)
                 }
             } else {
                 ProgressView()
@@ -34,8 +35,10 @@ struct ContentView: View {
         .task {
             if viewModel == nil {
                 let vm = SessionViewModel(modelContext: modelContext)
+                vm.amenAlarmSettings = amenAlarmSettings
                 // Wire up Watch connectivity: ViewModel notifies manager after each mutation
                 if let connectivityManager {
+                    connectivityManager.amenAlarmSettings = amenAlarmSettings
                     vm.onStateChanged = { [weak connectivityManager] in
                         connectivityManager?.sendStateToWatch()
                     }
