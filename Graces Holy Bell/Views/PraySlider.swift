@@ -84,6 +84,7 @@ struct PraySlider: View {
                 )
         }
         .frame(height: trackHeight)
+        .accessibilityIdentifier("pray-slider")
         .overlay(
             GeometryReader { proxy in
                 Color.clear

@@ -10,8 +10,10 @@ import SwiftData
 struct IdleView: View {
 
     let viewModel: SessionViewModel
+    let amenAlarmSettings: AmenAlarmSettings
     @State private var showNewSessionConfirmation = false
     @State private var blinkVisible = true
+    @State private var showSettings = false
 
     var body: some View {
         ZStack {
@@ -22,6 +24,14 @@ struct IdleView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
+
+            // Tap-outside-to-dismiss overlay — only active when settings is open
+            if showSettings {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { dismissSettings() }
+            }
 
             VStack(spacing: 0) {
 
@@ -61,33 +71,47 @@ struct IdleView: View {
                 // ── Bottom Content Stack (Figma gap: 62px → 21pt) ────────
                 VStack(spacing: 21) {
 
-                    // Content area — welcome text and "SLIDE TO BEGIN",
-                    // justify-end with 200px → 67pt gap between them
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        Text("Welcome to your favorite app to time prayer duration.")
-                            .font(.pixelFont(12))
-                            .foregroundStyle(Color.lcdDark)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .lineSpacing(3)
+                    // Content area — settings panel OR welcome text, same space
+                    ZStack(alignment: .topLeading) {
 
-                        Spacer().frame(height: 67)
+                        // Welcome text (visible when settings hidden)
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            Text("Welcome to your favorite app to time prayer duration.")
+                                .font(.pixelFont(12))
+                                .foregroundStyle(Color.lcdDark)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .lineSpacing(3)
 
-                        Text("SLIDE TO BEGIN")
-                            .font(.pixelFont(12))
-                            .foregroundStyle(Color.lcdMid)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .opacity(blinkVisible ? 1 : 0)
-                            .onAppear {
-                                Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                                    blinkVisible.toggle()
+                            Spacer().frame(height: 67)
+
+                            Text("SLIDE TO BEGIN")
+                                .font(.pixelFont(12))
+                                .foregroundStyle(Color.lcdMid)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                                .opacity(blinkVisible ? 1 : 0)
+                                .onAppear {
+                                    Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                                        blinkVisible.toggle()
+                                    }
                                 }
-                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .opacity(showSettings ? 0 : 1)
+
+                        // Settings panel (slides in from left)
+                        if showSettings {
+                            SettingsView(settings: amenAlarmSettings)
+                                .transition(.move(edge: .leading))
+                        }
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // Prevent taps on the content area from bubbling to dismiss overlay
+                    .contentShape(Rectangle())
+                    .onTapGesture { /* absorb taps inside the panel */ }
 
                     // PRAY slider — same component as active screen
                     PraySlider(label: "PRAY") {
@@ -99,12 +123,21 @@ struct IdleView: View {
                     }
                     .frame(maxWidth: .infinity)
 
-                    // Bottom buttons: Gear (inert) | Stop (inert) | Placeholder
+                    // Bottom buttons: Gear/X toggle | Stop (inert) | Placeholder
                     HStack {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(Color.lcdDark)
-                            .frame(width: 37, height: 36)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showSettings.toggle()
+                            }
+                        } label: {
+                            Image(systemName: showSettings ? "xmark" : "gearshape.fill")
+                                .accessibilityIdentifier("settings-button")
+                                .font(.system(size: 28))
+                                .foregroundStyle(Color.lcdDark)
+                                .frame(width: 37, height: 36)
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                        .buttonStyle(.plain)
 
                         Spacer()
 
@@ -141,9 +174,18 @@ struct IdleView: View {
             Text("Your previous prayer log will be cleared.")
         }
     }
+
+    private func dismissSettings() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            showSettings = false
+        }
+    }
 }
 
 #Preview("Idle — no log") {
     let container = try! ModelContainer(for: PrayerSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    IdleView(viewModel: SessionViewModel(modelContext: container.mainContext))
+    IdleView(
+        viewModel: SessionViewModel(modelContext: container.mainContext),
+        amenAlarmSettings: AmenAlarmSettings()
+    )
 }

@@ -15,6 +15,7 @@ import WatchConnectivity
 final class PhoneConnectivityManager: NSObject {
 
     private var viewModel: SessionViewModel?
+    var amenAlarmSettings: AmenAlarmSettings?
 
     override init() {
         super.init()
@@ -46,11 +47,26 @@ final class PhoneConnectivityManager: NSObject {
             )
         }
 
+        // Compute the Amen Alarm fire time for the watch, if applicable.
+        // Fire time = lastPrayerTimestamp + alarmDuration, but only when:
+        //   - The session is active
+        //   - The watch alarm toggle is on
+        //   - The computed fire time is still in the future
+        let amenAlarmFireAt: Date? = {
+            guard let settings = amenAlarmSettings,
+                  settings.watchEnabled,
+                  viewModel.appState == .active,
+                  let lastTimestamp = viewModel.lastPrayerTimestamp else { return nil }
+            let fireDate = lastTimestamp.addingTimeInterval(settings.duration.rawValue)
+            return fireDate > .now ? fireDate : nil
+        }()
+
         let state = SyncedSessionState(
             appState: viewModel.appState == .active ? "active" : "idle",
             entries: entries,
             sessionStoppedAt: viewModel.currentSession?.stoppedAt,
-            hasExistingLog: viewModel.hasExistingLog
+            hasExistingLog: viewModel.hasExistingLog,
+            amenAlarmFireAt: amenAlarmFireAt
         )
 
         try? WCSession.default.updateApplicationContext(state.toDictionary())
@@ -87,11 +103,21 @@ final class PhoneConnectivityManager: NSObject {
         let entries = viewModel.sortedEntries.map { entry in
             SyncedEntry(timestamp: entry.timestamp, sequenceIndex: entry.sequenceIndex)
         }
+        let amenAlarmFireAt: Date? = {
+            guard let settings = amenAlarmSettings,
+                  settings.watchEnabled,
+                  viewModel.appState == .active,
+                  let lastTimestamp = viewModel.lastPrayerTimestamp else { return nil }
+            let fireDate = lastTimestamp.addingTimeInterval(settings.duration.rawValue)
+            return fireDate > .now ? fireDate : nil
+        }()
+
         let state = SyncedSessionState(
             appState: viewModel.appState == .active ? "active" : "idle",
             entries: entries,
             sessionStoppedAt: viewModel.currentSession?.stoppedAt,
-            hasExistingLog: viewModel.hasExistingLog
+            hasExistingLog: viewModel.hasExistingLog,
+            amenAlarmFireAt: amenAlarmFireAt
         )
         return state.toDictionary()
     }
