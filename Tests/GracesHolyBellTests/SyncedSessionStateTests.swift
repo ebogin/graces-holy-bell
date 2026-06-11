@@ -47,29 +47,33 @@ final class SyncedSessionStateTests: XCTestCase {
         XCTAssertNil(restored?.amenAlarmFireAt)
     }
 
+    // MARK: - Wire format
+
+    func test_toDictionary_isPropertyListCompatible() {
+        // updateApplicationContext only accepts property-list types.
+        let dict = SyncedSessionState(
+            appState: "active",
+            entries: [SyncedEntry(timestamp: .now, sequenceIndex: 0)],
+            amenAlarmFireAt: .now
+        ).toDictionary()
+        XCTAssertTrue(PropertyListSerialization.propertyList(
+            dict, isValidFor: .binary
+        ))
+    }
+
     // MARK: - fromDictionary — malformed input
 
-    func test_fromDictionary_missingAppState_returnsNil() {
-        let dict: [String: Any] = ["entries": [[String: Any]]()]
-        XCTAssertNil(SyncedSessionState.fromDictionary(dict))
+    func test_fromDictionary_emptyDictionary_returnsNil() {
+        XCTAssertNil(SyncedSessionState.fromDictionary([:]))
     }
 
-    func test_fromDictionary_missingEntries_returnsNil() {
-        let dict: [String: Any] = ["appState": "idle"]
-        XCTAssertNil(SyncedSessionState.fromDictionary(dict))
+    func test_fromDictionary_wrongPayloadType_returnsNil() {
+        XCTAssertNil(SyncedSessionState.fromDictionary(["state": "not data"]))
     }
 
-    func test_fromDictionary_malformedEntryDropped() {
-        let dict: [String: Any] = [
-            "appState": "active",
-            "entries": [
-                ["timestamp": 1_000_000.0, "sequenceIndex": 0],
-                ["badKey": "garbage"]  // malformed — missing required fields
-            ]
-        ]
-        let restored = SyncedSessionState.fromDictionary(dict)
-        XCTAssertNotNil(restored)
-        XCTAssertEqual(restored?.entries.count, 1)
+    func test_fromDictionary_garbageData_returnsNil() {
+        let garbage = Data([0xDE, 0xAD, 0xBE, 0xEF])
+        XCTAssertNil(SyncedSessionState.fromDictionary(["state": garbage]))
     }
 
     // MARK: - Entry timestamp fidelity

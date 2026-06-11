@@ -84,10 +84,14 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     ///
     /// Tries `sendMessage` first (instant). If iPhone is not reachable,
     /// falls back to `transferUserInfo` (queued, guaranteed delivery on reconnect).
+    ///
+    /// Each payload carries a unique id: `sendMessage` can fail on the *reply*
+    /// after the iPhone already processed the action, so the fallback resend
+    /// would otherwise log a duplicate PRAY. The iPhone de-dupes by id.
     func sendAction(_ action: String) {
         guard session.activationState == .activated else { return }
 
-        let payload: [String: Any] = ["action": action]
+        let payload: [String: Any] = ["action": action, "id": UUID().uuidString]
 
         if session.isReachable {
             session.sendMessage(payload, replyHandler: { [weak self] reply in
@@ -108,15 +112,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
 
     /// Sends a clear-log request to the iPhone.
     func sendClearLog() {
-        guard session.activationState == .activated else { return }
-        let payload: [String: Any] = ["action": "CLEAR_LOG"]
-        if session.isReachable {
-            session.sendMessage(payload, replyHandler: nil) { _ in
-                WCSession.default.transferUserInfo(payload)
-            }
-        } else {
-            session.transferUserInfo(payload)
-        }
+        sendAction("CLEAR_LOG")
     }
 }
 

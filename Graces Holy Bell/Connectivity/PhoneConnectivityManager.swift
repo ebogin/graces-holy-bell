@@ -17,6 +17,11 @@ final class PhoneConnectivityManager: NSObject {
     private var viewModel: SessionViewModel?
     var amenAlarmSettings: AmenAlarmSettings?
 
+    /// Recently handled action ids — the Watch may deliver the same action
+    /// twice when a sendMessage reply fails and it falls back to
+    /// transferUserInfo. Only touched on the main actor (see handleAction).
+    private var handledActionIDs: [String] = []
+
     override init() {
         super.init()
         guard WCSession.isSupported() else { return }
@@ -78,10 +83,20 @@ final class PhoneConnectivityManager: NSObject {
 
     // MARK: - Handle Watch Actions
 
-    /// Processes an action received from the Watch.
+    /// Processes an action message received from the Watch, ignoring
+    /// duplicate deliveries of the same action id.
     @MainActor
-    private func handleAction(_ action: String) {
-        guard let viewModel else { return }
+    private func handleAction(_ message: [String: Any]) {
+        guard let viewModel,
+              let action = message["action"] as? String else { return }
+
+        if let id = message["id"] as? String {
+            guard !handledActionIDs.contains(id) else { return }
+            handledActionIDs.append(id)
+            if handledActionIDs.count > 32 {
+                handledActionIDs.removeFirst()
+            }
+        }
 
         switch action {
         case "START":
@@ -137,13 +152,9 @@ extension PhoneConnectivityManager: WCSessionDelegate {
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
-        if let action = message["action"] as? String {
-            Task { @MainActor in
-                self.handleAction(action)
-                replyHandler(self.currentStateDictionary())
-            }
-        } else {
-            replyHandler([:])
+        Task { @MainActor in
+            self.handleAction(message)
+            replyHandler(self.currentStateDictionary())
         }
     }
 
@@ -152,10 +163,8 @@ extension PhoneConnectivityManager: WCSessionDelegate {
         _ session: WCSession,
         didReceiveMessage message: [String: Any]
     ) {
-        if let action = message["action"] as? String {
-            Task { @MainActor in
-                self.handleAction(action)
-            }
+        Task { @MainActor in
+            self.handleAction(message)
         }
     }
 
@@ -164,10 +173,8 @@ extension PhoneConnectivityManager: WCSessionDelegate {
         _ session: WCSession,
         didReceiveUserInfo userInfo: [String: Any]
     ) {
-        if let action = userInfo["action"] as? String {
-            Task { @MainActor in
-                self.handleAction(action)
-            }
+        Task { @MainActor in
+            self.handleAction(userInfo)
         }
     }
 
