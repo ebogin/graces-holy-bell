@@ -5,6 +5,7 @@ import SwiftUI
 struct WatchPrayerLogView: View {
 
     let viewModel: WatchSessionViewModel
+    let now: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -16,7 +17,8 @@ struct WatchPrayerLogView: View {
                     viewModel: viewModel,
                     entry: entry,
                     index: index,
-                    isLastEntry: index == viewModel.sortedEntries.count - 1
+                    isLastEntry: index == viewModel.sortedEntries.count - 1,
+                    now: now
                 )
             }
         }
@@ -31,6 +33,7 @@ struct WatchPrayerEntryRow: View {
     let entry: SyncedEntry
     let index: Int
     let isLastEntry: Bool
+    let now: Date
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -43,7 +46,7 @@ struct WatchPrayerEntryRow: View {
             Spacer(minLength: 4)
 
             if isLastEntry && viewModel.appState == .active {
-                WatchLiveDurationText(viewModel: viewModel, entryIndex: index)
+                WatchLiveDurationText(viewModel: viewModel, entryIndex: index, now: now)
             } else {
                 if let duration = viewModel.duration(for: index) {
                     Text(DurationFormatter.string(from: duration))

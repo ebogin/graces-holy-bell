@@ -7,6 +7,13 @@ struct WatchLogView: View {
     let viewModel: WatchSessionViewModel
 
     var body: some View {
+        // Single per-second clock for the timer and the log's live last row.
+        TimelineView(.periodic(from: .now, by: 1.0)) { context in
+            screen(now: context.date)
+        }
+    }
+
+    private func screen(now: Date) -> some View {
         VStack(spacing: 3) {
             // Header — same as Active screen
             Text("GRACE'S HOLY BELL")
@@ -16,11 +23,11 @@ struct WatchLogView: View {
                 .minimumScaleFactor(0.8)
 
             // Live timer (keeps ticking while viewing log)
-            WatchLiveTimerView(viewModel: viewModel)
+            WatchLiveTimerView(viewModel: viewModel, now: now)
 
             // Scrollable log — fills remaining space
             ScrollView {
-                WatchPrayerLogView(viewModel: viewModel)
+                WatchPrayerLogView(viewModel: viewModel, now: now)
             }
             .frame(maxHeight: .infinity)
             .focusable()

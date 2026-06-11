@@ -2,9 +2,11 @@ import SwiftUI
 import WatchKit
 
 /// Large pixel-font elapsed timer for the Watch active/log screens.
+/// `now` comes from the screen's single TimelineView tick.
 struct WatchLiveTimerView: View {
 
     let viewModel: WatchSessionViewModel
+    let now: Date
 
     // Press Start 2P advance ≈ 1pt per pt of font size.
     // "HH:MM:SS" = 8 chars. Safe max per char:
@@ -17,15 +19,12 @@ struct WatchLiveTimerView: View {
 
     var body: some View {
         VStack(spacing: 3) {
-            TimelineView(.periodic(from: .now, by: 1.0)) { context in
-                let elapsed = viewModel.elapsedSinceLastPrayer(at: context.date)
-                Text(DurationFormatter.timerString(from: elapsed))
-                    .font(.pixelFont(Self.timerFontSize, relativeTo: .title2))
-                    .foregroundStyle(Color.lcdDark)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .contentTransition(.numericText())
-            }
+            Text(DurationFormatter.timerString(from: viewModel.elapsedSinceLastPrayer(at: now)))
+                .font(.pixelFont(Self.timerFontSize, relativeTo: .title2))
+                .foregroundStyle(Color.lcdDark)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .contentTransition(.numericText())
             Text("SINCE LAST PRAYER")
                 .font(.pixelFont(7, relativeTo: .caption2))
                 .foregroundStyle(Color.lcdMid)
@@ -38,14 +37,13 @@ struct WatchLiveDurationText: View {
 
     let viewModel: WatchSessionViewModel
     let entryIndex: Int
+    let now: Date
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0)) { context in
-            if let duration = viewModel.duration(for: entryIndex, at: context.date) {
-                Text(DurationFormatter.string(from: duration))
-                    .font(.pixelFont(9))
-                    .foregroundStyle(Color.lcdMid)
-            }
+        if let duration = viewModel.duration(for: entryIndex, at: now) {
+            Text(DurationFormatter.string(from: duration))
+                .font(.pixelFont(9))
+                .foregroundStyle(Color.lcdMid)
         }
     }
 }
