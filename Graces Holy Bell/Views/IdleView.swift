@@ -108,9 +108,10 @@ struct IdleView: View {
 
                         Spacer()
 
+                        // Disabled stop button — muted green since the timer isn't running
                         ZStack {
                             Octagon()
-                                .fill(Color.lcdDark)
+                                .fill(Color.lcdMid)
                                 .frame(width: 56, height: 56)
                             Rectangle()
                                 .fill(Color.lcdThumbText)
