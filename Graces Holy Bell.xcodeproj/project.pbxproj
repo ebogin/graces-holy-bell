@@ -50,6 +50,11 @@
 			path = "Graces Holy Bell Watch App Watch App";
 			sourceTree = "<group>";
 		};
+		C7AA00012F567000004B75A5 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +80,7 @@
 			children = (
 				C73274AD2F56663A004B75A5 /* Graces Holy Bell */,
 				C73274D62F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */,
+				C7AA00012F567000004B75A5 /* Shared */,
 				C73274AC2F56663A004B75A5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,6 +113,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				C73274AD2F56663A004B75A5 /* Graces Holy Bell */,
+				C7AA00012F567000004B75A5 /* Shared */,
 			);
 			name = "Graces Holy Bell";
 			packageProductDependencies = (
@@ -129,6 +136,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				C73274D62F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */,
+				C7AA00012F567000004B75A5 /* Shared */,
 			);
 			name = "Graces Holy Bell Watch App Watch App";
 			packageProductDependencies = (
