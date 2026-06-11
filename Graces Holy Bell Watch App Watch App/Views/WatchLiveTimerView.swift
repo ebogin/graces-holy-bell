@@ -10,7 +10,8 @@ struct WatchLiveTimerView: View {
     // "HH:MM:SS" = 8 chars. Safe max per char:
     //   41mm (176pt, 8pt h-pad each side) → 160pt ÷ 8 = 20pt → use 18pt
     //   49mm (205pt, 8pt h-pad each side) → 189pt ÷ 8 = 23pt → use 20pt
-    private var timerFontSize: CGFloat {
+    // Static so WatchScreenLayout's sizing template can reserve matching space.
+    static var timerFontSize: CGFloat {
         WKInterfaceDevice.current().screenBounds.width >= 200 ? 20 : 18
     }
 
@@ -19,14 +20,14 @@ struct WatchLiveTimerView: View {
             TimelineView(.periodic(from: .now, by: 1.0)) { context in
                 let elapsed = viewModel.elapsedSinceLastPrayer(at: context.date)
                 Text(DurationFormatter.timerString(from: elapsed))
-                    .font(.pixelFont(timerFontSize))
+                    .font(.pixelFont(Self.timerFontSize, relativeTo: .title2))
                     .foregroundStyle(Color.lcdDark)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.6)
                     .contentTransition(.numericText())
             }
             Text("SINCE LAST PRAYER")
-                .font(.pixelFont(7))
+                .font(.pixelFont(7, relativeTo: .caption2))
                 .foregroundStyle(Color.lcdMid)
         }
     }

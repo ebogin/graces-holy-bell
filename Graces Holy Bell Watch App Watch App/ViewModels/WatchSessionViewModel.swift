@@ -5,7 +5,6 @@ enum WatchRoute: Hashable {
     case firstLaunch
     case active
     case log
-    case idle
 }
 
 /// Watch-side ViewModel that mirrors the iPhone's session state.
@@ -53,7 +52,9 @@ final class WatchSessionViewModel {
 
     var route: WatchRoute {
         switch appState {
-        case .idle:   return sortedEntries.isEmpty ? .firstLaunch : .idle
+        // Any idle state returns to the welcome screen — matches the iPhone,
+        // which always shows IdleView when idle. There is no separate "ended" page.
+        case .idle:   return .firstLaunch
         case .active: return showingLog ? .log : .active
         }
     }
@@ -93,17 +94,18 @@ final class WatchSessionViewModel {
         connectivityManager.sendAction("PRAY")
     }
 
-    /// Sends a STOP action to the iPhone.
-    func sendStop() {
-        showingLog = false
-        connectivityManager.sendAction("STOP")
-    }
-
-    /// Clears the local log immediately and notifies the iPhone.
+    /// Ends the session by clearing the log — the watch STOP action.
+    ///
+    /// Mirrors the iPhone's "End Praying?" → Clear Log flow: the session and its
+    /// log are discarded and both devices return to the welcome screen. Updates
+    /// local state optimistically so the transition is immediate, then tells the
+    /// iPhone (the source of truth) to clear.
     func sendClearLog() {
         sortedEntries = []
         sessionStoppedAt = nil
         hasExistingLog = false
+        appState = .idle
+        showingLog = false
         connectivityManager.sendClearLog()
     }
 

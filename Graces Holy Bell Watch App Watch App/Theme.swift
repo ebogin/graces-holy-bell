@@ -37,8 +37,11 @@ extension Color {
 }
 
 extension Font {
-    static func pixelFont(_ size: CGFloat) -> Font {
-        Font.custom("PressStart2P-Regular", size: size)
+    /// Press Start 2P pixel font at the given size, scaled with Dynamic Type.
+    /// `style` controls how aggressively the size tracks the user's text-size
+    /// setting (e.g. `.title` scales more than `.caption2`).
+    static func pixelFont(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
+        Font.custom("PressStart2P-Regular", size: size, relativeTo: style)
     }
 }
 

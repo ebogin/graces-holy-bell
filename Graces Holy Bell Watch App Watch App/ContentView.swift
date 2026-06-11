@@ -5,32 +5,28 @@ struct WatchContentView: View {
 
     let viewModel: WatchSessionViewModel
     @ObservedObject var connectivityManager: WatchConnectivityManager
-    @Namespace private var prayerFigureNS
 
     var body: some View {
         NavigationStack {
             ZStack {
                 switch viewModel.route {
                 case .firstLaunch:
-                    WatchFirstLaunchView(viewModel: viewModel, namespace: prayerFigureNS)
+                    WatchFirstLaunchView(viewModel: viewModel)
                         .transition(.opacity)
                 case .active:
-                    WatchActiveSessionView(viewModel: viewModel, namespace: prayerFigureNS)
+                    WatchActiveSessionView(viewModel: viewModel)
                         .transition(.opacity)
                 case .log:
                     WatchLogView(viewModel: viewModel)
                         .transition(.opacity)
-                case .idle:
-                    WatchIdleClearedView(viewModel: viewModel)
-                        .transition(.opacity)
                 }
             }
             .animation(.spring(duration: 0.4), value: viewModel.route)
-            .ignoresSafeArea(edges: .bottom)
             .containerBackground(Color.lcdBackground, for: .navigation)
-            .toolbarVisibility(.hidden, for: .navigationBar)
+            // The navigation bar is hidden so screens can use the full height.
+            // The system clock still draws top-right; each screen reserves
+            // DesignSystem.Metrics.clockClearance at the top to stay clear of it.
             .toolbar(.hidden, for: .navigationBar)
-            .navigationBarHidden(true)
         }
         .persistentSystemOverlays(.hidden)
         .onReceive(connectivityManager.$latestState) { state in

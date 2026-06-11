@@ -1,6 +1,19 @@
 import SwiftUI
+import WatchKit
 
 enum DesignSystem {
+
+    // MARK: - Metrics
+    enum Metrics {
+        /// Vertical band reserved for the system clock, which watchOS always
+        /// draws in the top-right corner. The navigation bar is hidden (so the
+        /// safe area does not account for the clock); ~14% of screen height
+        /// clears the clock on every watch size (measured: clock bottom ≈ 13.7%
+        /// of screen height on 40mm) while scaling proportionally on larger models.
+        static var clockClearance: CGFloat {
+            WKInterfaceDevice.current().screenBounds.height * 0.14
+        }
+    }
 
     // MARK: - Colors
     enum Colors {
@@ -26,17 +39,18 @@ enum DesignSystem {
     }
 
     // MARK: - Typography
+    // Each role scales with the user's Dynamic Type setting via `relativeTo`.
     enum Typography {
-        static let caption:      Font = pixelFont(7)
-        static let bodySmall:    Font = pixelFont(8)
-        static let body:         Font = pixelFont(9)
-        static let bodyLarge:    Font = pixelFont(10)
-        static let subheadline:  Font = pixelFont(11)
-        static let headline:     Font = pixelFont(12)
-        static let display:      Font = pixelFont(28)
+        static let caption:      Font = pixelFont(7,  relativeTo: .caption2)
+        static let bodySmall:    Font = pixelFont(8,  relativeTo: .footnote)
+        static let body:         Font = pixelFont(9,  relativeTo: .body)
+        static let bodyLarge:    Font = pixelFont(10, relativeTo: .body)
+        static let subheadline:  Font = pixelFont(11, relativeTo: .subheadline)
+        static let headline:     Font = pixelFont(12, relativeTo: .headline)
+        static let display:      Font = pixelFont(28, relativeTo: .largeTitle)
 
-        static func pixelFont(_ size: CGFloat) -> Font {
-            Font.custom("PressStart2P-Regular", size: size)
+        static func pixelFont(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
+            Font.custom("PressStart2P-Regular", size: size, relativeTo: style)
         }
     }
 
