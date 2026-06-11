@@ -1,0 +1,23 @@
+appId: Boginfactory.Graces-Holy-Bell
+---
+# Open and close the settings panel from the idle screen.
+# Verifies the settings panel slides in and out.
+
+- launchApp:
+    clearState: true
+
+# Tap gear icon to open settings
+- tapOn:
+    id: "settings-button"
+
+# Settings panel should be visible
+- assertVisible:
+    text: "SETTINGS"
+
+# Tap outside to dismiss (tap upper portion of screen)
+- tapOn:
+    point: "50%, 20%"
+
+# Welcome text should be back
+- assertVisible:
+    text: "SLIDE TO BEGIN"

@@ -1,0 +1,29 @@
+appId: Boginfactory.Graces-Holy-Bell
+---
+# Start a session, then log a second prayer.
+# Verifies a second entry appears in the prayer log.
+
+- launchApp:
+    clearState: true
+
+# Start a new session
+- swipe:
+    start: "8%, 82%"
+    end: "92%, 82%"
+    duration: 800
+
+- assertVisible:
+    text: "PRAYER LOG"
+
+# Log a second prayer
+- swipe:
+    start: "8%, 82%"
+    end: "92%, 82%"
+    duration: 800
+
+# Two entries should now be visible (rows read "#N  H:MM AM")
+- assertVisible:
+    text: "#1 .*"
+
+- assertVisible:
+    text: "#2 .*"
