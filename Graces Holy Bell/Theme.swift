@@ -50,10 +50,11 @@ extension Color {
 
 // MARK: - Press Start 2P Font
 extension Font {
-    /// Press Start 2P pixel font at the given size.
-    /// Falls back to monospaced system font if the custom font isn't registered yet.
-    static func pixelFont(_ size: CGFloat) -> Font {
-        Font.custom("PressStart2P-Regular", size: size)
+    /// Press Start 2P pixel font at the given size, scaled with Dynamic Type.
+    /// `style` controls how aggressively the size tracks the user's text-size
+    /// setting (e.g. `.largeTitle` scales more than `.caption2`).
+    static func pixelFont(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
+        Font.custom("PressStart2P-Regular", size: size, relativeTo: style)
     }
 }
 

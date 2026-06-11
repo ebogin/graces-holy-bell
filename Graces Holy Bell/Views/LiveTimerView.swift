@@ -13,12 +13,14 @@ struct LiveTimerView: View {
             TimelineView(.periodic(from: .now, by: 1.0)) { context in
                 let elapsed = viewModel.elapsedSinceLastPrayer(at: context.date)
                 Text(DurationFormatter.timerString(from: elapsed))
-                    .font(.pixelFont(28))
+                    .font(.pixelFont(28, relativeTo: .largeTitle))
                     .foregroundStyle(Color.lcdDark)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                     .contentTransition(.numericText())
             }
             Text("SINCE LAST PRAYER")
-                .font(.pixelFont(7))
+                .font(.pixelFont(7, relativeTo: .caption2))
                 .foregroundStyle(Color.lcdMid)
         }
     }

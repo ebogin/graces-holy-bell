@@ -14,7 +14,6 @@ struct WatchLogView: View {
                 .foregroundStyle(Color.lcdMid)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-                .padding(.top, 10)
 
             // Live timer (keeps ticking while viewing log)
             WatchLiveTimerView(viewModel: viewModel)
@@ -30,9 +29,13 @@ struct WatchLogView: View {
             BackButton {
                 viewModel.showingLog = false
             }
-            .padding(.bottom, 6)
         }
         .padding(.horizontal, 8)
+        // Same full-screen treatment as WatchScreenLayout: clear the system
+        // clock at the top, small margin above the rounded bottom edge.
+        .padding(.top, DesignSystem.Metrics.clockClearance)
+        .padding(.bottom, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
     }
 }

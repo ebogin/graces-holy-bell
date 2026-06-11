@@ -2,11 +2,8 @@ import SwiftUI
 import SwiftData
 
 /// IDLE state screen — no active prayer session.
-///
-/// Layout mirrors ActiveSessionView's Core Content Stack structure exactly:
-/// invisible row 1 (small title placeholder) + visible row 2 (big app title) +
-/// invisible row 3 (subtitle placeholder). This keeps the praying figure and
-/// bottom stack at identical vertical positions across both screens.
+/// All element positions come from PrayerScreenLayout, shared with
+/// ActiveSessionView, so the figure/slider/buttons never move between screens.
 struct IdleView: View {
 
     let viewModel: SessionViewModel
@@ -16,149 +13,101 @@ struct IdleView: View {
     @State private var showSettings = false
 
     var body: some View {
-        ZStack {
-            // LCD gradient background — fills behind safe areas
-            LinearGradient(
-                colors: [Color.lcdBackgroundLight, Color.lcdBackgroundDark],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        PrayerScreenLayout(
+            figurePose: .idle,
+            onBackgroundTap: showSettings ? { dismissSettings() } : nil
+        ) {
 
-            // Tap-outside-to-dismiss overlay — only active when settings is open
-            if showSettings {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .ignoresSafeArea()
-                    .onTapGesture { dismissSettings() }
+            // Header: big two-line app title
+            Text("GRACE'S\nHOLY BELL")
+                .font(.pixelFont(28, relativeTo: .largeTitle))
+                .foregroundStyle(Color.lcdDark)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+        } middle: {
+
+            // Settings panel OR welcome text, same space
+            ZStack(alignment: .topLeading) {
+
+                // Welcome text (visible when settings hidden)
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    Text("Welcome to your favorite app to time prayer duration.")
+                        .font(.pixelFont(12, relativeTo: .body))
+                        .foregroundStyle(Color.lcdDark)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .lineSpacing(3)
+
+                    Spacer().frame(height: 67)
+
+                    Text("SLIDE TO BEGIN")
+                        .font(.pixelFont(12, relativeTo: .body))
+                        .foregroundStyle(Color.lcdMid)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .opacity(blinkVisible ? 1 : 0)
+                        .onAppear {
+                            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                                blinkVisible.toggle()
+                            }
+                        }
+                }
+                .frame(maxWidth: .infinity)
+                .opacity(showSettings ? 0 : 1)
+
+                // Settings panel (slides in from left)
+                if showSettings {
+                    SettingsView(settings: amenAlarmSettings)
+                        .transition(.move(edge: .leading))
+                }
             }
 
-            VStack(spacing: 0) {
+        } slider: {
 
-                // ── Core Content Stack (Figma gap: 20px → 7pt) ───────────
-                VStack(spacing: 7) {
+            PraySlider(label: "PRAY") {
+                if viewModel.hasExistingLog {
+                    showNewSessionConfirmation = true
+                } else {
+                    viewModel.startNewSession()
+                }
+            }
 
-                    // Row 1: invisible — mirrors active screen's small title (17pt)
-                    Text("GRACE'S HOLY BELL")
-                        .font(.pixelFont(17))
-                        .opacity(0)
-                        .frame(maxWidth: .infinity)
+        } buttons: {
 
-                    // Row 2: main app title — 84px → 28pt, lcdDark, two lines
-                    Text("GRACE'S\nHOLY BELL")
-                        .font(.pixelFont(28))
+            // Gear/X toggle | Stop (inert) | Placeholder
+            HStack {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showSettings.toggle()
+                    }
+                } label: {
+                    Image(systemName: showSettings ? "xmark" : "gearshape.fill")
+                        .accessibilityIdentifier("settings-button")
+                        .font(.title)
                         .foregroundStyle(Color.lcdDark)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity)
-
-                    // Row 3: invisible — mirrors active screen's "SINCE LAST PRAYER" (7pt)
-                    Text("SINCE LAST PRAYER")
-                        .font(.pixelFont(7))
-                        .opacity(0)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 37, height: 36)
+                        .contentTransition(.symbolEffect(.replace))
                 }
-                .padding(.top, 16)
-                .padding(.horizontal, 16)
+                .buttonStyle(.plain)
 
-                Spacer(minLength: 12)
+                Spacer()
 
-                // ── Animated praying figure (idle pose) ──────────────────
-                PrayingFigureView(pose: .idle, scale: 2.6)
-
-                Spacer(minLength: 12)
-
-                // ── Bottom Content Stack (Figma gap: 62px → 21pt) ────────
-                VStack(spacing: 21) {
-
-                    // Content area — settings panel OR welcome text, same space
-                    ZStack(alignment: .topLeading) {
-
-                        // Welcome text (visible when settings hidden)
-                        VStack(spacing: 0) {
-                            Spacer(minLength: 0)
-                            Text("Welcome to your favorite app to time prayer duration.")
-                                .font(.pixelFont(12))
-                                .foregroundStyle(Color.lcdDark)
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .lineSpacing(3)
-
-                            Spacer().frame(height: 67)
-
-                            Text("SLIDE TO BEGIN")
-                                .font(.pixelFont(12))
-                                .foregroundStyle(Color.lcdMid)
-                                .multilineTextAlignment(.center)
-                                .frame(maxWidth: .infinity)
-                                .opacity(blinkVisible ? 1 : 0)
-                                .onAppear {
-                                    Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                                        blinkVisible.toggle()
-                                    }
-                                }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .opacity(showSettings ? 0 : 1)
-
-                        // Settings panel (slides in from left)
-                        if showSettings {
-                            SettingsView(settings: amenAlarmSettings)
-                                .transition(.move(edge: .leading))
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    // Prevent taps on the content area from bubbling to dismiss overlay
-                    .contentShape(Rectangle())
-                    .onTapGesture { /* absorb taps inside the panel */ }
-
-                    // PRAY slider — same component as active screen
-                    PraySlider(label: "PRAY") {
-                        if viewModel.hasExistingLog {
-                            showNewSessionConfirmation = true
-                        } else {
-                            viewModel.startNewSession()
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    // Bottom buttons: Gear/X toggle | Stop (inert) | Placeholder
-                    HStack {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                showSettings.toggle()
-                            }
-                        } label: {
-                            Image(systemName: showSettings ? "xmark" : "gearshape.fill")
-                                .accessibilityIdentifier("settings-button")
-                                .font(.system(size: 28))
-                                .foregroundStyle(Color.lcdDark)
-                                .frame(width: 37, height: 36)
-                                .contentTransition(.symbolEffect(.replace))
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        ZStack {
-                            Octagon()
-                                .fill(Color.lcdDark)
-                                .frame(width: 56, height: 56)
-                            Rectangle()
-                                .fill(Color.lcdThumbText)
-                                .frame(width: 18, height: 18)
-                        }
-
-                        Spacer()
-
-                        Color.clear
-                            .frame(width: 37, height: 36)
-                    }
-                    .frame(maxWidth: .infinity)
+                ZStack {
+                    Octagon()
+                        .fill(Color.lcdDark)
+                        .frame(width: 56, height: 56)
+                    Rectangle()
+                        .fill(Color.lcdThumbText)
+                        .frame(width: 18, height: 18)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+
+                Spacer()
+
+                Color.clear
+                    .frame(width: 37, height: 36)
             }
         }
         .confirmationDialog(

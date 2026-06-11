@@ -2,9 +2,8 @@ import SwiftUI
 import SwiftData
 
 /// ACTIVE SESSION screen — a prayer session is in progress.
-///
-/// LCD green background, pixel-font timer, animated praying figure,
-/// growing log box, PRAY slider, and octagon STOP button.
+/// All element positions come from PrayerScreenLayout, shared with IdleView,
+/// so the figure/slider/buttons never move between screens.
 struct ActiveSessionView: View {
 
     let viewModel: SessionViewModel
@@ -13,123 +12,95 @@ struct ActiveSessionView: View {
     @State private var showSettings = false
 
     var body: some View {
-        ZStack {
-            // LCD gradient background — fills behind safe areas
-            LinearGradient(
-                colors: [Color.lcdBackgroundLight, Color.lcdBackgroundDark],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        PrayerScreenLayout(
+            figurePose: .praying,
+            onBackgroundTap: showSettings ? { dismissSettings() } : nil
+        ) {
 
-            // Tap-outside-to-dismiss overlay — only active when settings is open
-            if showSettings {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .ignoresSafeArea()
-                    .onTapGesture { dismissSettings() }
+            // Header: small title over the live timer + "SINCE LAST PRAYER"
+            VStack(spacing: 7) {
+                Text("GRACE'S HOLY BELL")
+                    .font(.pixelFont(17, relativeTo: .title3))
+                    .foregroundStyle(Color.lcdTitle)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.center)
+
+                LiveTimerView(viewModel: viewModel)
+            }
+            .frame(maxWidth: .infinity)
+
+        } middle: {
+
+            // Settings panel OR prayer log, same space
+            ZStack(alignment: .topLeading) {
+
+                // Prayer log with label (hidden behind settings when open)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("PRAYER LOG")
+                        .font(.pixelFont(7, relativeTo: .caption2))
+                        .foregroundStyle(Color.lcdMid)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    PrayerLogView(viewModel: viewModel)
+                }
+                .frame(maxWidth: .infinity)
+                .opacity(showSettings ? 0 : 1)
+
+                // Settings panel (slides in from left)
+                if showSettings {
+                    SettingsView(settings: amenAlarmSettings)
+                        .transition(.move(edge: .leading))
+                }
             }
 
-            VStack(spacing: 0) {
+        } slider: {
 
-                // ── Core Content Stack (Figma gap: 20px → 7pt) ───────────
-                VStack(spacing: 7) {
-                    Text("GRACE'S HOLY BELL")
-                        .font(.pixelFont(17))
-                        .foregroundStyle(Color.lcdTitle)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-
-                    LiveTimerView(viewModel: viewModel)
+            // Doubles as Amen Alarm progress bar when the alarm is on
+            TimelineView(.periodic(from: .now, by: 1.0)) { context in
+                PraySlider(label: "PRAY", alarmProgress: alarmProgress(at: context.date)) {
+                    viewModel.logPrayer()
                 }
-                .padding(.top, 16)
-                .padding(.horizontal, 16)
+            }
 
-                Spacer(minLength: 12)
+        } buttons: {
 
-                // ── Animated praying figure ──────────────────────────────
-                PrayingFigureView(pose: .praying, scale: 2.6)
-
-                Spacer(minLength: 12)
-
-                // ── Bottom Content Stack (Figma gap: 50px → 17pt) ────────
-                VStack(spacing: 17) {
-
-                    // Content area — settings panel OR prayer log, same space
-                    ZStack(alignment: .topLeading) {
-
-                        // Prayer log with label (hidden behind settings when open)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("PRAYER LOG")
-                                .font(.pixelFont(7))
-                                .foregroundStyle(Color.lcdMid)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            PrayerLogView(viewModel: viewModel)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .opacity(showSettings ? 0 : 1)
-
-                        // Settings panel (slides in from left)
-                        if showSettings {
-                            SettingsView(settings: amenAlarmSettings)
-                                .transition(.move(edge: .leading))
-                        }
+            // Gear/X toggle | Stop | placeholder (balance)
+            HStack {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showSettings.toggle()
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    // Prevent taps inside the content area from bubbling to dismiss overlay
-                    .contentShape(Rectangle())
-                    .onTapGesture { /* absorb taps inside the panel */ }
-
-                    // PRAY slider — doubles as Amen Alarm progress bar when the alarm is on
-                    TimelineView(.periodic(from: .now, by: 1.0)) { context in
-                        PraySlider(label: "PRAY", alarmProgress: alarmProgress(at: context.date)) {
-                            viewModel.logPrayer()
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    // Bottom buttons: Gear/X toggle | Stop | placeholder (balance)
-                    HStack {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                showSettings.toggle()
-                            }
-                        } label: {
-                            Image(systemName: showSettings ? "xmark" : "gearshape.fill")
-                                .accessibilityIdentifier("settings-button")
-                                .font(.system(size: 28))
-                                .foregroundStyle(Color.lcdDark)
-                                .frame(width: 37, height: 36)
-                                .contentTransition(.symbolEffect(.replace))
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        Button {
-                            showStopConfirmation = true
-                        } label: {
-                            ZStack {
-                                Octagon()
-                                    .fill(Color.lcdDark)
-                                    .frame(width: 56, height: 56)
-                                Rectangle()
-                                    .fill(Color.lcdThumbText)
-                                    .frame(width: 18, height: 18)
-                            }
-                        }
-                        .accessibilityIdentifier("stop-button")
-
-                        Spacer()
-
-                        Color.clear
-                            .frame(width: 37, height: 36)
-                    }
-                    .frame(maxWidth: .infinity)
+                } label: {
+                    Image(systemName: showSettings ? "xmark" : "gearshape.fill")
+                        .accessibilityIdentifier("settings-button")
+                        .font(.title)
+                        .foregroundStyle(Color.lcdDark)
+                        .frame(width: 37, height: 36)
+                        .contentTransition(.symbolEffect(.replace))
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button {
+                    showStopConfirmation = true
+                } label: {
+                    ZStack {
+                        Octagon()
+                            .fill(Color.lcdDark)
+                            .frame(width: 56, height: 56)
+                        Rectangle()
+                            .fill(Color.lcdThumbText)
+                            .frame(width: 18, height: 18)
+                    }
+                }
+                .accessibilityIdentifier("stop-button")
+
+                Spacer()
+
+                Color.clear
+                    .frame(width: 37, height: 36)
             }
         }
         .confirmationDialog(
@@ -150,11 +121,11 @@ struct ActiveSessionView: View {
     private static let amenFlashDuration: TimeInterval = 5.0
 
     /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm is off.
-    /// Shown whenever either device's alarm is enabled — the slider visual tracks the
-    /// shared interval even if only the watch vibrates.
+    /// Gated on the Phone toggle only — the progress bar, flash, and vibration are
+    /// per-device, so the watch shows its own (driven by the synced fire date).
     /// After the AMEN! flash window passes, returns nil so the slider reverts to plain PRAY.
     private func alarmProgress(at now: Date) -> Double? {
-        guard amenAlarmSettings.phoneEnabled || amenAlarmSettings.watchEnabled else { return nil }
+        guard amenAlarmSettings.phoneEnabled else { return nil }
         let interval = amenAlarmSettings.duration.rawValue
         guard interval > 0 else { return nil }
         let elapsed = viewModel.elapsedSinceLastPrayer(at: now)

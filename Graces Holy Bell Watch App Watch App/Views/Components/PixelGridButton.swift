@@ -52,27 +52,3 @@ struct BackButton: View {
     }
 }
 
-struct ClearButton: View {
-    let action: () -> Void
-    var size: CGFloat = 28
-
-    private static let grid: [[PixelGridButton.Cell]] = [
-        [.clear,.clear,.clear,.clear,.dark,.dark,.dark,.dark,.dark,.clear,.clear,.clear,.clear],
-        [.clear,.clear,.clear,.dark,.dark,.dark,.dark,.dark,.dark,.dark,.clear,.clear,.clear],
-        [.clear,.clear,.dark,.dark,.dark,.dark,.dark,.dark,.dark,.dark,.dark,.clear,.clear],
-        [.clear,.dark,.dark,.light,.light,.dark,.dark,.dark,.light,.light,.dark,.dark,.clear],
-        [.dark,.dark,.dark,.dark,.light,.light,.dark,.light,.light,.dark,.dark,.dark,.dark],
-        [.dark,.dark,.dark,.dark,.dark,.light,.light,.light,.dark,.dark,.dark,.dark,.dark],
-        [.dark,.dark,.dark,.dark,.dark,.dark,.light,.dark,.dark,.dark,.dark,.dark,.dark],
-        [.dark,.dark,.dark,.dark,.dark,.light,.light,.light,.dark,.dark,.dark,.dark,.dark],
-        [.dark,.dark,.dark,.dark,.light,.light,.dark,.light,.light,.dark,.dark,.dark,.dark],
-        [.clear,.dark,.dark,.light,.light,.dark,.dark,.dark,.light,.light,.dark,.dark,.clear],
-        [.clear,.clear,.dark,.dark,.dark,.dark,.dark,.dark,.dark,.dark,.dark,.clear,.clear],
-        [.clear,.clear,.clear,.dark,.dark,.dark,.dark,.dark,.dark,.dark,.clear,.clear,.clear],
-        [.clear,.clear,.clear,.clear,.dark,.dark,.dark,.dark,.dark,.clear,.clear,.clear,.clear],
-    ]
-
-    var body: some View {
-        PixelGridButton(grid: Self.grid, size: size, action: action)
-    }
-}
