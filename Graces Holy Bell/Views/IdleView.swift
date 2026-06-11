@@ -8,7 +8,6 @@ struct IdleView: View {
 
     let viewModel: SessionViewModel
     let amenAlarmSettings: AmenAlarmSettings
-    @State private var showNewSessionConfirmation = false
     @State private var blinkVisible = true
     @State private var showSettings = false
 
@@ -67,12 +66,10 @@ struct IdleView: View {
 
         } slider: {
 
+            // Idle always means "no session" — ending a session clears its log,
+            // so there is never an old log to confirm over.
             PraySlider(label: "PRAY") {
-                if viewModel.hasExistingLog {
-                    showNewSessionConfirmation = true
-                } else {
-                    viewModel.startNewSession()
-                }
+                viewModel.startNewSession()
             }
 
         } buttons: {
@@ -111,18 +108,6 @@ struct IdleView: View {
                 Color.clear
                     .frame(width: 37, height: 36)
             }
-        }
-        .confirmationDialog(
-            "Start new session?",
-            isPresented: $showNewSessionConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Start New Session", role: .destructive) {
-                viewModel.startNewSession()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Your previous prayer log will be cleared.")
         }
     }
 
