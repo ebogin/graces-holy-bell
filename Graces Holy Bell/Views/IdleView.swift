@@ -96,8 +96,10 @@ struct IdleView: View {
                 Spacer()
 
                 ZStack {
+                    // Muted fill — the idle stop button is inert (timer not running),
+                    // so it reads as disabled while staying in the LCD-green palette.
                     Octagon()
-                        .fill(Color.lcdDark)
+                        .fill(Color.lcdMid)
                         .frame(width: 56, height: 56)
                     Rectangle()
                         .fill(Color.lcdThumbText)

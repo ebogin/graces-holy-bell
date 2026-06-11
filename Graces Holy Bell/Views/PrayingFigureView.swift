@@ -6,9 +6,8 @@ import SwiftUI
 /// - `idle` → static frame 1
 /// - `praying` → cycles frames 1–4 every 300 ms (used during active session)
 ///
-/// The sprite has a light background in the source PNG. We use `.blendMode(.multiply)`
-/// so the pale pixels multiply with the LCD green background and disappear,
-/// leaving only the dark pixel-art visible.
+/// The sprite PNGs have a transparent background, so the dark pixel-art renders
+/// directly over the LCD green with no blend mode needed.
 struct PrayingFigureView: View {
 
     enum Pose {
