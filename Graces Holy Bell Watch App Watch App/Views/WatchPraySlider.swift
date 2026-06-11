@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 /// Pixel-art slide-to-confirm control sized for Apple Watch.
 ///
@@ -66,7 +67,10 @@ struct WatchPraySlider: View {
                     DragGesture()
                         .onChanged { v in dragOffset = min(max(v.translation.width, 0), maxOffset) }
                         .onEnded { _ in
-                            if progress >= activationThreshold { onComplete() }
+                            if progress >= activationThreshold {
+                                WKInterfaceDevice.current().play(.success)
+                                onComplete()
+                            }
                             withAnimation(.spring(response: 0.3)) { dragOffset = 0 }
                         }
                 )

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Pixel-art "slide to confirm" control for logging prayers (iPhone).
 ///
@@ -75,6 +76,7 @@ struct PraySlider: View {
                         }
                         .onEnded { _ in
                             if progress >= activationThreshold {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
                                 onComplete()
                             }
                             withAnimation(.spring(response: 0.3)) {
