@@ -1,92 +1,205 @@
-# Handoff: Grace's Holy Bell — Watch UI Layout Fixes
+# AI Handoff Document — Grace's Holy Bell
 
-## Project
-iOS + watchOS SwiftUI app. Working directory / git worktree:
-`/Users/ericbogin/Developer/graces-holy-bell/.claude/worktrees/hungry-bohr-6b8a62`
-Branch: `claude/hungry-bohr-6b8a62`
+---
 
-## What's done
-A new pixel-art LCD-green watch UI was implemented across 4 screens:
-- `WatchFirstLaunchView` — idle figure + START PRAYING slider
-- `WatchActiveSessionView` — live timer + praying animation + PRAY slider + STOP/LOG buttons
-- `WatchLogView` — timer + scrollable log + BACK button
-- `WatchIdleClearedView` — title + timestamp + scrollable log + CLEAR button
+## Session Log
 
-Build compiles clean:
-```
-xcodebuild -scheme "Graces Holy Bell Watch App Watch App" \
-  -destination "platform=watchOS Simulator,id=6ED128C1-FD25-4334-8C5E-FC52A0AE65CA" build
-```
+| Date | What Was Done |
+|---|---|
+| **2026-06-01** | Created `DesignSystem.swift` (both targets), updated `WatchFirstLaunchView.swift` to match Figma node 216:758 (v1.41), updated `ui-workflow.md` with Layout Translation Rules. Left Top Title Block positioning is incomplete — see ⚠️ section below. |
 
-## Three remaining bugs (NOT yet fixed)
+---
 
-### Bug 1 — Black bar at bottom of First Launch and Active screens
-**Root cause:** The root VStacks in `WatchFirstLaunchView` and `WatchActiveSessionView` size to content, leaving unused space that shows as black below the LCD-green area.
+## Project Overview
 
-**Fix:** Add `.frame(maxWidth: .infinity, maxHeight: .infinity)` to the root `VStack` in both views. Apply the same to `WatchLogView` and `WatchIdleClearedView` for consistency.
+**App:** Grace's Holy Bell — iOS + watchOS prayer tracker with a Game Boy / Tamagotchi LCD pixel-art aesthetic.
+**Repo:** `/Users/ericbogin/Developer/graces-holy-bell`
+**Active Branch:** `beta-UI`
+**Xcode Project:** `Graces Holy Bell.xcodeproj`
 
+**Session goal:** Import Figma designs into the existing app to clean up the UI while preserving all original functional logic — state, timers, ViewModels, bindings. No features added or removed. This is a visual/layout pass only.
+
+---
+
+## Figma File
+
+**File:** Grace's Holy Bell
+**URL:** `https://www.figma.com/design/aFFwA2eZWpjhJJVvQIh0Sb/Grace-s-Holy-Bell`
+**MCP Server in use:** **Remote Figma MCP** (NOT the Figma desktop plugin).
+
+Tools used: `get_design_context`, `get_screenshot`, `get_metadata`, `get_variable_defs`.
+
+> Always call `get_design_context` AND `get_screenshot` fresh for any node before working — the Figma file has been actively updated during this session and cached results will be stale.
+
+---
+
+## Workflow Rules (Read Before Touching Any File)
+
+Rules file: `.claude/agents/ui-workflow.md`
+
+1. Extract colors/fonts from `DesignSystem.swift` — never hardcode hex values.
+2. Never modify `@State`, `@StateObject`, `@EnvironmentObject`, timers, closures, or model bindings.
+3. Never modify `WatchPrayingFigureView()` internals. It is an animated figure. Only modify surrounding layout wrappers (`.padding`, `VStack`, `HStack`).
+4. Map Figma Auto Layout `item-spacing` → SwiftUI `spacing:` parameter directly. Never use `Spacer().frame(height: X)` for invisible placeholder shapes.
+5. **Always present a mapping table and get human approval before modifying any file.**
+
+---
+
+## What Was Completed This Session
+
+### 1. `DesignSystem.swift` — Created (both targets)
+
+- `Graces Holy Bell/DesignSystem.swift` — iOS target ✅
+- `Graces Holy Bell Watch App Watch App/DesignSystem.swift` — Watch target ✅ (file exists on disk)
+
+> ⚠️ The Watch copy must be **manually added to the Xcode project**. The file exists on disk but Xcode won't compile it until you do: Project Navigator → right-click Watch App group → Add Files → select `DesignSystem.swift` → ensure only the Watch target is checked.
+
+**Tokens defined:**
+- `DesignSystem.Colors` — `background` (#c8d8b0), `backgroundLight`, `backgroundDark`, `surfaceInner`, `surfaceBorder`, `interactive` (#8aaa6a), `textPrimary` (#1a2a0a), `textSecondary` (#4a6a3a), `textOnDark`, `border`
+- `DesignSystem.Typography` — `caption`(7), `bodySmall`(8), `body`(9), `bodyLarge`(10), `subheadline`(11), `headline`(12), `display`(28) — all PressStart2P-Regular
+- `DesignSystem.Spacing` — `xxs` through `xxxl` (2, 4, 6, 8, 12, 16, 24, 32)
+- `DesignSystem.Radius` — `sm`(3), `md`(6), `lg`(8)
+- `DesignSystem.Gradients.lcdBackground`
+
+The existing `Theme.swift` in both targets is still live. `DesignSystem.*` and `Color.lcd*` / `.pixelFont()` currently coexist — no call-site migration was done yet.
+
+### 2. `WatchFirstLaunchView.swift` — Partially updated
+
+**File:** `Graces Holy Bell Watch App Watch App/Views/WatchFirstLaunchView.swift`
+**Figma node:** `216:758` ("Watch Start - v1.41")
+
+Changes made and confirmed working:
+- Slider label: `"START PRAYING"` → `"PRAY"`, `labelPadLeft: true` → `false` (centered, larger font)
+- `"SLIDE TO BEGIN"` moved below the slider (matches Figma)
+- `Color.lcdDark` → `DesignSystem.Colors.textPrimary`
+- `Color.lcdMid` → `DesignSystem.Colors.textSecondary`
+- `.background(DesignSystem.Colors.background)` added to root
+- Inner `VStack(spacing: 8)` maps Figma's `gap-[17px]` Core Content Stack
+
+**Current state of the file:**
 ```swift
-// Example — add this to each screen's root VStack:
-VStack(spacing: 0) { ... }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-```
+import SwiftUI
+import WatchKit
 
-### Bug 2 — System clock + battery indicator showing in upper left
-**Root cause:** `.ignoresSafeArea()` does not suppress watchOS persistent system overlays. The correct API is `.persistentSystemOverlays(.hidden)` (watchOS 9+).
+struct WatchFirstLaunchView: View {
 
-**Fix:** In `ContentView.swift`, add `.persistentSystemOverlays(.hidden)` to the root ZStack:
+    let viewModel: WatchSessionViewModel
+    var namespace: Namespace.ID
 
-```swift
-ZStack {
-    Color.lcdBackground
-    switch viewModel.route { ... }
+    private var figureHeight: CGFloat {
+        WKInterfaceDevice.current().screenBounds.width >= 200 ? 96 : 86
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("GRACE'S\nHOLY BELL")
+                .font(.pixelFont(8))
+                .foregroundStyle(DesignSystem.Colors.textSecondary)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 8) {
+                Text("GRACE'S\nHOLY BELL")
+                    .font(.pixelFont(11))
+                    .foregroundStyle(DesignSystem.Colors.textPrimary)
+                    .multilineTextAlignment(.center)
+                WatchPrayingFigureView(pose: .idle, height: figureHeight)
+                    .matchedGeometryEffect(id: "prayFigure", in: namespace)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            WatchPraySlider(label: "PRAY", labelPadLeft: false) {
+                viewModel.sendStart()
+            }
+
+            Text("SLIDE TO BEGIN")
+                .font(.pixelFont(7))
+                .foregroundStyle(DesignSystem.Colors.textSecondary)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
+        }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignSystem.Colors.background)
+    }
 }
-.ignoresSafeArea()
-.persistentSystemOverlays(.hidden)   // ← ADD THIS
-.onReceive(connectivityManager.$latestState) { ... }
 ```
 
-### Bug 3 — Praying figure jumps position when switching First Launch → Active
-**User request:** "When a user switches to the ACTIVE screen, and the animation starts, the animation should be in the exact same place as the image on the FIRST LAUNCH screen."
+---
 
-**Root cause:** The two screens have different VStack layouts, so the figure lands at a different Y position.
+## ⚠️ Incomplete — Next AI Starts Here
 
-**Fix options:**
-- **Option A (recommended):** Use `matchedGeometryEffect` with a shared `Namespace` passed down from `WatchContentView`, keying the figure view on both screens to the same ID so SwiftUI animates it smoothly between positions.
-- **Option B:** Make both layouts distribute vertical space identically so the figure's center is at the same absolute Y — harder to maintain.
+### Problem: Left Top Title Block is in the wrong position
 
-For Option A, thread a `@Namespace` from `WatchContentView` into `WatchFirstLaunchView` and `WatchActiveSessionView`, then apply:
-```swift
-WatchPrayingFigureView(pose: .idle, height: figureHeight)
-    .matchedGeometryEffect(id: "prayFigure", in: namespace)
-```
-on First Launch, and:
-```swift
-WatchPrayingFigureView(pose: .praying, height: figureHeight)
-    .matchedGeometryEffect(id: "prayFigure", in: namespace)
-```
-on Active. Wrap the `switch` in `WatchContentView` with a `withAnimation` block on route change.
+**What the Figma shows (node 216:758):**
+The small olive-green "GRACE'S / HOLY BELL" header (`.pixelFont(8)`, `textSecondary`) sits **horizontally inline with the native watchOS system time** — top-left of the screen, same row as the clock.
 
-## Key files
+**What the current code does:**
+The small title `Text` is the first child of the outer `VStack`, so it stacks **below** the system time and takes up vertical space in the content area. It renders in the wrong row entirely.
+
+**What needs to happen:**
+The Left Top Title Block must appear in the **navigation bar row** — to the left of the system time — not in the scrollable body. This is standard watchOS navigation bar placement.
+
+**Approaches already tried and their outcomes:**
+- `.toolbar { ToolbarItem(placement: .principal) }` — **build error**: `principal` is unavailable on watchOS
+- `.navigationTitle("GRACE'S HOLY BELL")` — compiles but loses pixel font styling; renders as plain system text
+
+**Recommended next steps:**
+1. Check where `WatchFirstLaunchView` is instantiated — search `ContentView.swift` in the Watch target. Determine whether it is inside a `NavigationStack`. If not, toolbar items will not render regardless of placement.
+2. Try `ToolbarItem(placement: .confirmationAction)` — this IS available on watchOS and places content in the top-right area. Or `.cancellationAction` for top-left (matching the Figma's left alignment).
+3. If adding a `NavigationStack` wrapper is needed, add it at the root Watch `ContentView` level, not inside `WatchFirstLaunchView`.
+4. Preserve pixel font: whatever placement works, the text should remain `.font(.pixelFont(8)).foregroundStyle(DesignSystem.Colors.textSecondary)`.
+
+---
+
+## Figma Scale Factor Reference
+
+Figma canvas: `410×502px`. Actual Apple Watch: ~184px wide. Scale ≈ **0.45**.
+
+| Figma value | watchOS SwiftUI equivalent |
+|---|---|
+| `gap: 4px` | `VStack(spacing: 2)` |
+| `gap: 17px` | `VStack(spacing: 8)` |
+| `pt: 8px` | `.padding(.top, 4)` |
+| `18px` font | `.pixelFont(8)` |
+| `24px` font | `.pixelFont(11)` |
+| `14px` font | `.pixelFont(7)` |
+
+---
+
+## Known Non-Issues
+
+- **`No such module 'WatchKit'` (SourceKit, line 2 of WatchFirstLaunchView.swift)** — SourceKit indexing warning only. Not a real build error. The build succeeds.
+
+---
+
+## Prior Session Context (from previous HANDOFF.md)
+
+The following bugs were identified in an earlier session and may still apply:
+
+### Bug — Black bar at bottom of some screens
+Root VStacks in some Watch views size to content, leaving black space below the LCD-green area.
+Fix: `.frame(maxWidth: .infinity, maxHeight: .infinity)` on root VStacks. Already applied to `WatchFirstLaunchView`.
+
+### Bug — System clock + battery showing in upper left
+`.ignoresSafeArea()` does not suppress watchOS persistent system overlays.
+Fix: Add `.persistentSystemOverlays(.hidden)` (watchOS 9+) to the root ZStack in `ContentView.swift`.
+
+### Bug — Praying figure jumps when switching First Launch → Active
+`matchedGeometryEffect(id: "prayFigure", in: namespace)` is already applied to `WatchFirstLaunchView`. Verify it is also applied to `WatchActiveSessionView` with the same namespace passed from the parent.
+
+---
+
+## Key Files Reference
 
 | File | Purpose |
-|------|---------|
-| `Graces Holy Bell Watch App Watch App/ContentView.swift` | Root view — ZStack + route switch. Fix Bug 2 here. |
-| `.../Views/WatchFirstLaunchView.swift` | First launch screen. Fix Bugs 1 & 3 here. |
-| `.../Views/WatchActiveSessionView.swift` | Active session screen. Fix Bugs 1 & 3 here. |
-| `.../Views/WatchLogView.swift` | Log screen. Fix Bug 1 here. |
-| `.../Views/WatchIdleClearedView.swift` | Idle/cleared screen. Fix Bug 1 here. |
-| `.../Views/WatchLiveTimerView.swift` | Timer display — already fixed (adaptive font size). |
-
-## Design reference
-Original Figma handoff was exported to: `/tmp/grace-s-holy-bell/` (may not persist). The LCD color palette:
-- `lcdBackground` / `lcdBg` — `#c8d8b0`
-- `lcdDark` — `#1a2a0a`
-- `lcdMid` — `#4a6a3a`
-- `lcdThumbText` — `#c8d8b0`
-
-## Notes
-- Font: Press Start 2P (registered programmatically at launch, `.pixelFont(n)` extension)
-- Watch size detection: `WKInterfaceDevice.current().screenBounds.width >= 200` → 49mm Ultra
-- `@Observable` macro used (not `@Published`) — bare `var` properties
-- Simulator ID for Apple Watch Ultra 3 49mm: `6ED128C1-FD25-4334-8C5E-FC52A0AE65CA`
+|---|---|
+| `Graces Holy Bell Watch App Watch App/ContentView.swift` | Root Watch view — ZStack + route switch |
+| `.../Views/WatchFirstLaunchView.swift` | **Active work target** — Watch Start screen |
+| `.../Views/WatchActiveSessionView.swift` | Active prayer session screen |
+| `.../Views/WatchLogView.swift` | Prayer log screen |
+| `.../Views/WatchIdleClearedView.swift` | Post-session idle screen |
+| `.../Views/WatchPraySlider.swift` | Slide-to-confirm control (`labelPadLeft` param controls centering) |
+| `.../Views/WatchPrayingFigureView.swift` | Animated pixel figure — do not modify internals |
+| `Graces Holy Bell Watch App Watch App/DesignSystem.swift` | Design tokens — needs adding to Xcode target |
+| `.claude/agents/ui-workflow.md` | Mandatory workflow rules |

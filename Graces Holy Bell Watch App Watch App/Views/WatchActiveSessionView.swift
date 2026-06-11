@@ -1,41 +1,45 @@
 import SwiftUI
-import WatchKit
 
-/// Watch ACTIVE SESSION screen — fixed layout with timer, animated figure, PRAY slider, STOP + LOG buttons.
+/// Watch ACTIVE SESSION screen — translated from Figma node 238:53 (Watch Active Prayer v1.41).
+/// All element positions come from WatchScreenLayout, shared with
+/// WatchFirstLaunchView, so the figure/slider/bottom row never move
+/// between the two screens.
 struct WatchActiveSessionView: View {
 
     let viewModel: WatchSessionViewModel
-    var namespace: Namespace.ID
     @State private var showStopConfirmation = false
 
-    private var figureHeight: CGFloat {
-        WKInterfaceDevice.current().screenBounds.width >= 200 ? 78 : 60
-    }
-
     var body: some View {
-        VStack(spacing: 3) {
-            // Title
-            Text("GRACE'S HOLY BELL")
-                .font(.pixelFont(8.5))
-                .foregroundStyle(Color.lcdMid)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.top, 10)
+        WatchScreenLayout(figurePose: .praying) {
 
-            // Live timer + label
-            WatchLiveTimerView(viewModel: viewModel)
+            // Header: small title over the live timer + "SINCE LAST PRAYER"
+            VStack(spacing: 2) {
+                Text("GRACE'S HOLY BELL")
+                    .font(.pixelFont(8))
+                    .foregroundStyle(DesignSystem.Colors.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.center)
 
-            // Animated figure — fills remaining space
-            WatchPrayingFigureView(pose: .praying, height: figureHeight)
-                .matchedGeometryEffect(id: "prayFigure", in: namespace)
-                .frame(maxHeight: .infinity)
+                WatchLiveTimerView(viewModel: viewModel)
+            }
+            .frame(maxWidth: .infinity)
 
-            // PRAY slider
-            WatchPraySlider(label: "PRAY") {
-                viewModel.sendPray()
+        } slider: {
+
+            // Doubles as Amen Alarm progress bar when the alarm is on
+            TimelineView(.periodic(from: .now, by: 1.0)) { context in
+                WatchPraySlider(
+                    label: "PRAY",
+                    alarmProgress: viewModel.alarmProgress(at: context.date)
+                ) {
+                    viewModel.sendPray()
+                }
             }
 
-            // Bottom row: STOP centered, LOG floating right
+        } bottomRow: {
+
+            // Stop centered, log badge trailing
             ZStack {
                 Button {
                     showStopConfirmation = true
@@ -58,20 +62,16 @@ struct WatchActiveSessionView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, 6)
         }
-        .padding(.horizontal, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .confirmationDialog(
-            "End session?",
+            "End Praying?",
             isPresented: $showStopConfirmation,
             titleVisibility: .visible
         ) {
-            Button("End Session", role: .destructive) { viewModel.sendStop() }
+            Button("Clear Log", role: .destructive) { viewModel.sendClearLog() }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Clock stops. No final prayer recorded.")
+            Text("Clear the log and start fresh. This CANNOT BE UNDONE")
         }
     }
 }

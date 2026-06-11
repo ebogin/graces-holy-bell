@@ -1,6 +1,7 @@
 import Foundation
 import WatchConnectivity
 import Combine
+import UserNotifications
 
 /// Watch-side WatchConnectivity manager.
 ///
@@ -26,11 +27,57 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
 
     private let session: WCSession
 
+    private static let alarmNotificationID = "watchAmenAlarm"
+
     override init() {
         self.session = WCSession.default
         super.init()
         session.delegate = self
         session.activate()
+    }
+
+    // MARK: - Watch Amen Alarm Notifications
+
+    /// Schedules (or replaces) a local haptic-only notification on the watch
+    /// for the given fire date. Requests permission first if needed.
+    private func scheduleWatchAlarm(fireDate: Date) {
+        guard fireDate > .now else { return }
+
+        let center = UNUserNotificationCenter.current()
+
+        Task {
+            // Request permission if not yet determined
+            let settings = await center.notificationSettings()
+            if settings.authorizationStatus == .notDetermined {
+                try? await center.requestAuthorization(options: [.alert, .sound])
+            }
+
+            // Cancel any existing alarm then schedule fresh
+            center.removePendingNotificationRequests(withIdentifiers: [Self.alarmNotificationID])
+
+            let content = UNMutableNotificationContent()
+            content.title = "🔔 Amen"
+            // No sound — watch delivers a haptic via the system notification haptic
+            content.sound = nil
+
+            let components = Calendar.current.dateComponents(
+                [.year, .month, .day, .hour, .minute, .second],
+                from: fireDate
+            )
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: Self.alarmNotificationID,
+                content: content,
+                trigger: trigger
+            )
+            try? await center.add(request)
+        }
+    }
+
+    /// Cancels any pending watch Amen Alarm notification.
+    private func cancelWatchAlarm() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [Self.alarmNotificationID])
     }
 
     /// Sends an action to the iPhone.
@@ -90,6 +137,10 @@ extension WatchConnectivityManager: WCSessionDelegate {
             if !session.receivedApplicationContext.isEmpty {
                 if let state = SyncedSessionState.fromDictionary(session.receivedApplicationContext) {
                     self.latestState = state
+                    // Restore alarm schedule if one is still pending
+                    if let fireDate = state.amenAlarmFireAt {
+                        self.scheduleWatchAlarm(fireDate: fireDate)
+                    }
                 }
             }
         }
@@ -103,6 +154,12 @@ extension WatchConnectivityManager: WCSessionDelegate {
         if let state = SyncedSessionState.fromDictionary(applicationContext) {
             DispatchQueue.main.async {
                 self.latestState = state
+            }
+            // Schedule or cancel the watch Amen Alarm based on the synced fire date
+            if let fireDate = state.amenAlarmFireAt {
+                scheduleWatchAlarm(fireDate: fireDate)
+            } else {
+                cancelWatchAlarm()
             }
         }
     }

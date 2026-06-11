@@ -15,10 +15,14 @@ extension Color {
     static let lcdLogBorder   = Color(hex: "#a0b080")
     /// Slider/button track fill (medium green)
     static let lcdSlider      = Color(hex: "#8aaa6a")
+    /// Amen Alarm progress fill — deeper green, reads against lcdSlider
+    static let lcdProgress    = Color(hex: "#6a8a4a")
     /// Primary text and borders — near-black olive
     static let lcdDark        = Color(hex: "#1a2a0a")
     /// Secondary / caption text — dark olive green
     static let lcdMid         = Color(hex: "#4a6a3a")
+    /// Screen title text — medium olive (Figma #5f7c4d)
+    static let lcdTitle       = Color(hex: "#5f7c4d")
     /// Text that sits on a dark (lcdDark) background
     static let lcdThumbText   = Color(hex: "#c8d8b0")
     /// Subtle screen edge border
@@ -46,10 +50,11 @@ extension Color {
 
 // MARK: - Press Start 2P Font
 extension Font {
-    /// Press Start 2P pixel font at the given size.
-    /// Falls back to monospaced system font if the custom font isn't registered yet.
-    static func pixelFont(_ size: CGFloat) -> Font {
-        Font.custom("PressStart2P-Regular", size: size)
+    /// Press Start 2P pixel font at the given size, scaled with Dynamic Type.
+    /// `style` controls how aggressively the size tracks the user's text-size
+    /// setting (e.g. `.largeTitle` scales more than `.caption2`).
+    static func pixelFont(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
+        Font.custom("PressStart2P-Regular", size: size, relativeTo: style)
     }
 }
 

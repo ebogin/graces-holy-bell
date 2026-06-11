@@ -2,64 +2,87 @@ import SwiftUI
 import SwiftData
 
 /// ACTIVE SESSION screen — a prayer session is in progress.
-///
-/// LCD green background, pixel-font timer, animated praying figure,
-/// growing log box, PRAY slider, and octagon STOP button.
+/// All element positions come from PrayerScreenLayout, shared with IdleView,
+/// so the figure/slider/buttons never move between screens.
 struct ActiveSessionView: View {
 
     let viewModel: SessionViewModel
+    let amenAlarmSettings: AmenAlarmSettings
     @State private var showStopConfirmation = false
+    @State private var showSettings = false
 
     var body: some View {
-        ZStack {
-            // LCD gradient background
-            LinearGradient(
-                colors: [Color.lcdBackgroundLight, Color.lcdBackgroundDark],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        PrayerScreenLayout(
+            figurePose: .praying,
+            onBackgroundTap: showSettings ? { dismissSettings() } : nil
+        ) {
 
-            VStack(spacing: 0) {
-
-                // ── Header ──────────────────────────────────────────────
-                Text("Grace's Holy Bell")
-                    .font(.pixelFont(12))
-                    .foregroundStyle(Color.lcdDark)
+            // Header: small title over the live timer + "SINCE LAST PRAYER"
+            VStack(spacing: 7) {
+                Text("GRACE'S HOLY BELL")
+                    .font(.pixelFont(17, relativeTo: .title3))
+                    .foregroundStyle(Color.lcdTitle)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .multilineTextAlignment(.center)
-                    .padding(.top, 28)
-                    .padding(.horizontal)
 
-                // ── Live timer ───────────────────────────────────────────
                 LiveTimerView(viewModel: viewModel)
-                    .padding(.top, 16)
+            }
+            .frame(maxWidth: .infinity)
 
-                // ── Animated praying figure ──────────────────────────────
-                PrayingFigureView(pose: .praying, scale: 2.6)
-                    .padding(.top, 14)
+        } middle: {
 
-                // ── Prayer log ───────────────────────────────────────────
-                VStack(alignment: .leading, spacing: 8) {
+            // Settings panel OR prayer log, same space
+            ZStack(alignment: .topLeading) {
+
+                // Prayer log with label (hidden behind settings when open)
+                VStack(alignment: .leading, spacing: 3) {
                     Text("PRAYER LOG")
-                        .font(.pixelFont(7))
+                        .font(.pixelFont(7, relativeTo: .caption2))
                         .foregroundStyle(Color.lcdMid)
-                        .padding(.horizontal)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                     PrayerLogView(viewModel: viewModel)
-                        .padding(.horizontal)
                 }
-                .padding(.top, 14)
+                .frame(maxWidth: .infinity)
+                .opacity(showSettings ? 0 : 1)
 
-                Spacer(minLength: 16)
+                // Settings panel (slides in from left)
+                if showSettings {
+                    SettingsView(settings: amenAlarmSettings)
+                        .transition(.move(edge: .leading))
+                }
+            }
 
-                // ── PRAY slider ──────────────────────────────────────────
-                PraySlider(label: "PRAY") {
+        } slider: {
+
+            // Doubles as Amen Alarm progress bar when the alarm is on
+            TimelineView(.periodic(from: .now, by: 1.0)) { context in
+                PraySlider(label: "PRAY", alarmProgress: alarmProgress(at: context.date)) {
                     viewModel.logPrayer()
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+            }
 
-                // ── Octagon STOP button ──────────────────────────────────
+        } buttons: {
+
+            // Gear/X toggle | Stop | placeholder (balance)
+            HStack {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showSettings.toggle()
+                    }
+                } label: {
+                    Image(systemName: showSettings ? "xmark" : "gearshape.fill")
+                        .accessibilityIdentifier("settings-button")
+                        .font(.title)
+                        .foregroundStyle(Color.lcdDark)
+                        .frame(width: 37, height: 36)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
                 Button {
                     showStopConfirmation = true
                 } label: {
@@ -72,26 +95,55 @@ struct ActiveSessionView: View {
                             .frame(width: 18, height: 18)
                     }
                 }
-                .padding(.top, 12)
-                .padding(.bottom, 32)
+                .accessibilityIdentifier("stop-button")
+
+                Spacer()
+
+                Color.clear
+                    .frame(width: 37, height: 36)
             }
         }
         .confirmationDialog(
-            "End prayer session?",
+            "End Praying?",
             isPresented: $showStopConfirmation,
             titleVisibility: .visible
         ) {
-            Button("End Session", role: .destructive) {
-                viewModel.stopSession()
+            Button("Clear Log", role: .destructive) {
+                viewModel.clearLog()
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Clock stops. No final prayer recorded.")
+            Text("Clear the log and start fresh. This CANNOT BE UNDONE")
+        }
+    }
+
+    /// How long the AMEN! blink and its haptic pulses last.
+    private static let amenFlashDuration: TimeInterval = 5.0
+
+    /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm is off.
+    /// Gated on the Phone toggle only — the progress bar, flash, and vibration are
+    /// per-device, so the watch shows its own (driven by the synced fire date).
+    /// After the AMEN! flash window passes, returns nil so the slider reverts to plain PRAY.
+    private func alarmProgress(at now: Date) -> Double? {
+        guard amenAlarmSettings.phoneEnabled else { return nil }
+        let interval = amenAlarmSettings.duration.rawValue
+        guard interval > 0 else { return nil }
+        let elapsed = viewModel.elapsedSinceLastPrayer(at: now)
+        if elapsed - interval > Self.amenFlashDuration { return nil }
+        return elapsed / interval
+    }
+
+    private func dismissSettings() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            showSettings = false
         }
     }
 }
 
 #Preview("Active session") {
     let container = try! ModelContainer(for: PrayerSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    ActiveSessionView(viewModel: SessionViewModel(modelContext: container.mainContext))
+    ActiveSessionView(
+        viewModel: SessionViewModel(modelContext: container.mainContext),
+        amenAlarmSettings: AmenAlarmSettings()
+    )
 }

@@ -20,6 +20,11 @@ struct SyncedSessionState: Codable {
     /// Whether there is an existing log (used for new-session confirmation).
     let hasExistingLog: Bool
 
+    /// The exact date/time the Amen Alarm should fire on the Watch.
+    /// Nil when the alarm is disabled or the session is stopped/cleared.
+    /// Recalculated as `lastPrayerTimestamp + alarmDuration` on every PRAY slide.
+    let amenAlarmFireAt: Date?
+
     // MARK: - Dictionary Conversion
 
     /// Converts to a property-list dictionary for WatchConnectivity.
@@ -31,6 +36,10 @@ struct SyncedSessionState: Codable {
 
         if let stoppedAt = sessionStoppedAt {
             dict["sessionStoppedAt"] = stoppedAt.timeIntervalSince1970
+        }
+
+        if let fireAt = amenAlarmFireAt {
+            dict["amenAlarmFireAt"] = fireAt.timeIntervalSince1970
         }
 
         let entryDicts: [[String: Any]] = entries.map { entry in
@@ -70,11 +79,19 @@ struct SyncedSessionState: Codable {
             )
         }
 
+        let amenAlarmFireAt: Date?
+        if let fireAtInterval = dict["amenAlarmFireAt"] as? TimeInterval {
+            amenAlarmFireAt = Date(timeIntervalSince1970: fireAtInterval)
+        } else {
+            amenAlarmFireAt = nil
+        }
+
         return SyncedSessionState(
             appState: appState,
             entries: entries,
             sessionStoppedAt: stoppedAt,
-            hasExistingLog: hasExistingLog
+            hasExistingLog: hasExistingLog,
+            amenAlarmFireAt: amenAlarmFireAt
         )
     }
 }

@@ -5,7 +5,6 @@ enum WatchRoute: Hashable {
     case firstLaunch
     case active
     case log
-    case idle
 }
 
 /// Watch-side ViewModel that mirrors the iPhone's session state.
@@ -35,6 +34,9 @@ final class WatchSessionViewModel {
     /// Whether there is an existing log.
     private(set) var hasExistingLog = false
 
+    /// When the Amen Alarm fires on the Watch, or nil when the alarm is off.
+    private(set) var amenAlarmFireAt: Date?
+
     /// The current app state.
     private(set) var appState: AppState = .idle
 
@@ -50,7 +52,9 @@ final class WatchSessionViewModel {
 
     var route: WatchRoute {
         switch appState {
-        case .idle:   return sortedEntries.isEmpty ? .firstLaunch : .idle
+        // Any idle state returns to the welcome screen — matches the iPhone,
+        // which always shows IdleView when idle. There is no separate "ended" page.
+        case .idle:   return .firstLaunch
         case .active: return showingLog ? .log : .active
         }
     }
@@ -75,6 +79,7 @@ final class WatchSessionViewModel {
         sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
         sessionStoppedAt = state.sessionStoppedAt
         hasExistingLog = state.hasExistingLog
+        amenAlarmFireAt = state.amenAlarmFireAt
     }
 
     // MARK: - Actions (sent to iPhone)
@@ -89,17 +94,18 @@ final class WatchSessionViewModel {
         connectivityManager.sendAction("PRAY")
     }
 
-    /// Sends a STOP action to the iPhone.
-    func sendStop() {
-        showingLog = false
-        connectivityManager.sendAction("STOP")
-    }
-
-    /// Clears the local log immediately and notifies the iPhone.
+    /// Ends the session by clearing the log — the watch STOP action.
+    ///
+    /// Mirrors the iPhone's "End Praying?" → Clear Log flow: the session and its
+    /// log are discarded and both devices return to the welcome screen. Updates
+    /// local state optimistically so the transition is immediate, then tells the
+    /// iPhone (the source of truth) to clear.
     func sendClearLog() {
         sortedEntries = []
         sessionStoppedAt = nil
         hasExistingLog = false
+        appState = .idle
+        showingLog = false
         connectivityManager.sendClearLog()
     }
 
@@ -118,6 +124,24 @@ final class WatchSessionViewModel {
 
         // Active session: live elapsed
         return now.timeIntervalSince(lastTimestamp)
+    }
+
+    /// How long the AMEN! blink and its haptic pulses last.
+    private static let amenFlashDuration: TimeInterval = 5.0
+
+    /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm
+    /// is off or the session is stopped. Derived from the synced fire date:
+    /// the interval is `fireAt - lastPrayerTimestamp`, so no settings sync is needed.
+    /// After the AMEN! flash window passes, returns nil so the slider reverts to plain PRAY.
+    func alarmProgress(at now: Date = .now) -> Double? {
+        guard let fireAt = amenAlarmFireAt,
+              let lastTimestamp = lastPrayerTimestamp,
+              sessionStoppedAt == nil else { return nil }
+        let interval = fireAt.timeIntervalSince(lastTimestamp)
+        guard interval > 0 else { return nil }
+        let elapsed = now.timeIntervalSince(lastTimestamp)
+        if elapsed - interval > Self.amenFlashDuration { return nil }
+        return elapsed / interval
     }
 
     /// Computes the duration for a specific prayer entry.

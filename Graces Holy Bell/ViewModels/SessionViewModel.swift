@@ -20,6 +20,12 @@ final class SessionViewModel {
     /// Called after every state mutation so the connectivity manager can push updates to the Watch.
     var onStateChanged: (() -> Void)?
 
+    /// Injected settings — used to decide whether / when to fire the phone alarm.
+    var amenAlarmSettings: AmenAlarmSettings?
+
+    /// Manages phone-side UNUserNotification scheduling for the Amen Alarm.
+    let amenAlarmManager = AmenAlarmManager()
+
     // MARK: - Published State
 
     /// The current (or most recent) prayer session, or nil if none exists.
@@ -76,6 +82,7 @@ final class SessionViewModel {
 
         currentSession = session
         refreshEntries()
+        scheduleAmenAlarmIfNeeded()
         onStateChanged?()
     }
 
@@ -95,6 +102,7 @@ final class SessionViewModel {
 
         save()
         refreshEntries()
+        scheduleAmenAlarmIfNeeded()
         onStateChanged?()
     }
 
@@ -107,6 +115,7 @@ final class SessionViewModel {
         guard let session = currentSession, session.isActive else { return }
         session.stoppedAt = .now
         save()
+        amenAlarmManager.cancelAlarm()
         onStateChanged?()
     }
 
@@ -118,7 +127,20 @@ final class SessionViewModel {
         }
         currentSession = nil
         sortedEntries = []
+        amenAlarmManager.cancelAlarm()
         onStateChanged?()
+    }
+
+    /// Re-applies the Amen Alarm schedule after a settings change.
+    ///
+    /// Keeps the phone alarm in sync with the toggles/duration mid-session
+    /// (otherwise changes would only take effect on the next PRAY slide).
+    func refreshAmenAlarm() {
+        if appState == .active {
+            scheduleAmenAlarmIfNeeded()
+        } else {
+            amenAlarmManager.cancelAlarm()
+        }
     }
 
     // MARK: - Elapsed Time Computation
@@ -191,5 +213,20 @@ final class SessionViewModel {
     /// Saves the model context, ensuring data is persisted immediately.
     private func save() {
         try? modelContext.save()
+    }
+
+    /// Schedules (or reschedules) the phone Amen Alarm based on current settings.
+    ///
+    /// Called after every PRAY slide (startNewSession / logPrayer).
+    /// Does nothing if phone alarm is disabled or there is no last prayer timestamp.
+    private func scheduleAmenAlarmIfNeeded() {
+        guard let settings = amenAlarmSettings,
+              settings.phoneEnabled,
+              let lastTimestamp = lastPrayerTimestamp else {
+            amenAlarmManager.cancelAlarm()
+            return
+        }
+        let fireDate = lastTimestamp.addingTimeInterval(settings.duration.rawValue)
+        amenAlarmManager.scheduleAlarm(fireDate: fireDate)
     }
 }

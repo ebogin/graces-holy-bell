@@ -1,42 +1,44 @@
 import SwiftUI
-import WatchKit
 
 /// First-launch screen — shown when there are no prayer entries yet.
+/// All element positions come from WatchScreenLayout, shared with
+/// WatchActiveSessionView, so the figure/slider/bottom row never move
+/// between the two screens.
 struct WatchFirstLaunchView: View {
 
     let viewModel: WatchSessionViewModel
-    var namespace: Namespace.ID
 
-    private var figureHeight: CGFloat {
-        WKInterfaceDevice.current().screenBounds.width >= 200 ? 96 : 86
-    }
+    @State private var blinkVisible = true
 
     var body: some View {
-        VStack(spacing: 0) {
+        WatchScreenLayout(figurePose: .idle) {
+
+            // Header: two-line app title, centered in the shared header area
             Text("GRACE'S\nHOLY BELL")
-                .font(.pixelFont(11))
-                .foregroundStyle(Color.lcdDark)
+                .font(.pixelFont(11, relativeTo: .headline))
+                .foregroundStyle(DesignSystem.Colors.textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
                 .multilineTextAlignment(.center)
-                .padding(.top, 8)
 
-            Spacer()
+        } slider: {
 
-            WatchPrayingFigureView(pose: .idle, height: figureHeight)
-                .matchedGeometryEffect(id: "prayFigure", in: namespace)
-
-            Spacer()
-
-            Text("SLIDE TO BEGIN")
-                .font(.pixelFont(7))
-                .foregroundStyle(Color.lcdMid)
-                .padding(.bottom, 4)
-
-            WatchPraySlider(label: "START PRAYING", labelPadLeft: true) {
+            WatchPraySlider(label: "PRAY", labelPadLeft: false) {
                 viewModel.sendStart()
             }
-            .padding(.bottom, 8)
+
+        } bottomRow: {
+
+            Text("SLIDE TO BEGIN")
+                .font(.pixelFont(7, relativeTo: .caption2))
+                .foregroundStyle(DesignSystem.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .opacity(blinkVisible ? 1 : 0)
+                .onAppear {
+                    Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                        blinkVisible.toggle()
+                    }
+                }
         }
-        .padding(.horizontal, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
