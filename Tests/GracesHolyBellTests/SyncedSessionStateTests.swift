@@ -5,7 +5,7 @@ final class SyncedSessionStateTests: XCTestCase {
 
     // MARK: - Round-trip
 
-    func test_toDictionary_fromDictionary_roundTrip() {
+    func test_toDictionary_fromDictionary_roundTrip() throws {
         let t0 = Date(timeIntervalSince1970: 1_000_000)
         let t1 = Date(timeIntervalSince1970: 1_001_000)
         let alarmFireAt = Date(timeIntervalSince1970: 1_003_600)
@@ -27,7 +27,8 @@ final class SyncedSessionStateTests: XCTestCase {
         XCTAssertEqual(restored?.entries.count, 2)
         XCTAssertEqual(restored?.entries[0].sequenceIndex, 0)
         XCTAssertEqual(restored?.entries[1].sequenceIndex, 1)
-        XCTAssertEqual(restored?.amenAlarmFireAt?.timeIntervalSince1970,
+        let restoredFireAt = try XCTUnwrap(restored?.amenAlarmFireAt)
+        XCTAssertEqual(restoredFireAt.timeIntervalSince1970,
                        alarmFireAt.timeIntervalSince1970, accuracy: 0.001)
     }
 
@@ -78,7 +79,7 @@ final class SyncedSessionStateTests: XCTestCase {
 
     // MARK: - Entry timestamp fidelity
 
-    func test_entryTimestampPreservedThroughDictionary() {
+    func test_entryTimestampPreservedThroughDictionary() throws {
         let timestamp = Date(timeIntervalSince1970: 1_718_000_000)
         let state = SyncedSessionState(
             appState: "active",
@@ -86,8 +87,9 @@ final class SyncedSessionStateTests: XCTestCase {
             amenAlarmFireAt: nil
         )
         let restored = SyncedSessionState.fromDictionary(state.toDictionary())
+        let restoredTimestamp = try XCTUnwrap(restored?.entries.first?.timestamp)
         XCTAssertEqual(
-            restored?.entries.first?.timestamp.timeIntervalSince1970,
+            restoredTimestamp.timeIntervalSince1970,
             timestamp.timeIntervalSince1970,
             accuracy: 0.001
         )
