@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// Pixel-art prayer log container (iPhone).
 ///
@@ -8,6 +9,7 @@ import SwiftUI
 struct PrayerLogView: View {
 
     let viewModel: SessionViewModel
+    let now: Date
 
     var body: some View {
         ScrollView {
@@ -20,7 +22,8 @@ struct PrayerLogView: View {
                         viewModel: viewModel,
                         entry: entry,
                         index: index,
-                        isLastEntry: index == viewModel.sortedEntries.count - 1
+                        isLastEntry: index == viewModel.sortedEntries.count - 1,
+                        now: now
                     )
 
                     if index < viewModel.sortedEntries.count - 1 {
@@ -42,6 +45,7 @@ struct PrayerEntryRow: View {
     let entry: PrayerEntry
     let index: Int
     let isLastEntry: Bool
+    let now: Date
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -52,7 +56,7 @@ struct PrayerEntryRow: View {
             Spacer(minLength: 8)
 
             if isLastEntry && viewModel.appState == .active {
-                LiveDurationText(viewModel: viewModel, entryIndex: index)
+                LiveDurationText(viewModel: viewModel, entryIndex: index, now: now)
             } else {
                 if let duration = viewModel.duration(for: index) {
                     Text(DurationFormatter.string(from: duration))

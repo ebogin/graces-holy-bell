@@ -1,0 +1,36 @@
+appId: Boginfactory.Graces-Holy-Bell
+---
+# Start a session, then end it via the stop button.
+# Ending a session clears its log — the app returns to the welcome screen.
+# (The dialog's Cancel button is not exposed to Maestro's accessibility
+# snapshot, so only the Clear Log path is exercised here.)
+
+- launchApp:
+    clearState: true
+
+# Start a session
+- swipe:
+    start: "8%, 82%"
+    end: "92%, 82%"
+    duration: 800
+
+- assertVisible:
+    id: "stop-button"
+
+# Tap the stop (octagon) button
+- tapOn:
+    id: "stop-button"
+
+# Confirmation dialog: "End Praying?"
+- assertVisible:
+    text: "End Praying?"
+
+- tapOn:
+    text: "Clear Log"
+
+# Back on the welcome screen, log gone
+- assertVisible:
+    text: "SLIDE TO BEGIN"
+
+- assertNotVisible:
+    text: "PRAYER LOG"

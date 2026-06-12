@@ -13,7 +13,7 @@ enum WatchRoute: Hashable {
 /// It holds plain structs received from the iPhone via WatchConnectivity,
 /// and performs the same timestamp math for the live timer display.
 ///
-/// Actions (PRAY, STOP, START) are sent to the iPhone for processing.
+/// Actions (PRAY, START, CLEAR_LOG) are sent to the iPhone for processing.
 /// The iPhone processes them, updates SwiftData, and sends the new state back.
 @Observable
 @MainActor
@@ -27,12 +27,6 @@ final class WatchSessionViewModel {
 
     /// Sorted prayer entries from the synced state.
     private(set) var sortedEntries: [SyncedEntry] = []
-
-    /// When the session was stopped, or nil if active.
-    private(set) var sessionStoppedAt: Date?
-
-    /// Whether there is an existing log.
-    private(set) var hasExistingLog = false
 
     /// When the Amen Alarm fires on the Watch, or nil when the alarm is off.
     private(set) var amenAlarmFireAt: Date?
@@ -77,8 +71,6 @@ final class WatchSessionViewModel {
         if newAppState == .idle { showingLog = false }
         appState = newAppState
         sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
-        sessionStoppedAt = state.sessionStoppedAt
-        hasExistingLog = state.hasExistingLog
         amenAlarmFireAt = state.amenAlarmFireAt
     }
 
@@ -102,8 +94,6 @@ final class WatchSessionViewModel {
     /// iPhone (the source of truth) to clear.
     func sendClearLog() {
         sortedEntries = []
-        sessionStoppedAt = nil
-        hasExistingLog = false
         appState = .idle
         showingLog = false
         connectivityManager.sendClearLog()
@@ -111,18 +101,11 @@ final class WatchSessionViewModel {
 
     // MARK: - Elapsed Time Computation (same timestamp math as iPhone)
 
-    /// Computes the elapsed time since the most recent prayer entry.
+    /// Computes the live elapsed time since the most recent prayer entry.
     ///
     /// Works locally from synced timestamps — does NOT need an active connection.
     func elapsedSinceLastPrayer(at now: Date = .now) -> TimeInterval {
         guard let lastTimestamp = lastPrayerTimestamp else { return 0 }
-
-        // If session is stopped, freeze at stop time
-        if let stoppedAt = sessionStoppedAt {
-            return stoppedAt.timeIntervalSince(lastTimestamp)
-        }
-
-        // Active session: live elapsed
         return now.timeIntervalSince(lastTimestamp)
     }
 
@@ -130,13 +113,12 @@ final class WatchSessionViewModel {
     private static let amenFlashDuration: TimeInterval = 5.0
 
     /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm
-    /// is off or the session is stopped. Derived from the synced fire date:
+    /// is off. Derived from the synced fire date:
     /// the interval is `fireAt - lastPrayerTimestamp`, so no settings sync is needed.
     /// After the AMEN! flash window passes, returns nil so the slider reverts to plain PRAY.
     func alarmProgress(at now: Date = .now) -> Double? {
         guard let fireAt = amenAlarmFireAt,
-              let lastTimestamp = lastPrayerTimestamp,
-              sessionStoppedAt == nil else { return nil }
+              let lastTimestamp = lastPrayerTimestamp else { return nil }
         let interval = fireAt.timeIntervalSince(lastTimestamp)
         guard interval > 0 else { return nil }
         let elapsed = now.timeIntervalSince(lastTimestamp)
@@ -155,12 +137,7 @@ final class WatchSessionViewModel {
             return sortedEntries[entryIndex + 1].timestamp.timeIntervalSince(entry.timestamp)
         }
 
-        // Last entry in a stopped session: freeze at stop time
-        if let stoppedAt = sessionStoppedAt {
-            return stoppedAt.timeIntervalSince(entry.timestamp)
-        }
-
-        // Last entry in an active session: live elapsed
+        // Last entry: live elapsed
         return now.timeIntervalSince(entry.timestamp)
     }
 }
