@@ -36,7 +36,7 @@ struct PrivacyPolicyView: View {
             "If this policy ever changes — for example, if a future version adds a feature that needs data — we'll update this page and ask for your consent where required."
         ]),
         ("CONTACT", [
-            "Questions? Email ericbogin@gmail.com."
+            "Questions? Email eric@boginfactory.com."
         ])
     ]
 
