@@ -8,8 +8,6 @@ struct WatchFirstLaunchView: View {
 
     let viewModel: WatchSessionViewModel
 
-    @State private var blinkVisible = true
-
     var body: some View {
         WatchScreenLayout(figurePose: .idle) {
 
@@ -29,16 +27,15 @@ struct WatchFirstLaunchView: View {
 
         } bottomRow: {
 
-            Text("SLIDE TO BEGIN")
-                .font(.pixelFont(7, relativeTo: .caption2))
-                .foregroundStyle(DesignSystem.Colors.textSecondary)
-                .multilineTextAlignment(.center)
-                .opacity(blinkVisible ? 1 : 0)
-                .onAppear {
-                    Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                        blinkVisible.toggle()
-                    }
-                }
+            // Square-wave blink driven by the timeline clock — unlike a
+            // repeating Timer, this pauses automatically off-screen.
+            TimelineView(.periodic(from: .now, by: 0.5)) { context in
+                Text("SLIDE TO BEGIN")
+                    .font(.pixelFont(7, relativeTo: .caption2))
+                    .foregroundStyle(DesignSystem.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .opacity(Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0 ? 1 : 0)
+            }
         }
     }
 }

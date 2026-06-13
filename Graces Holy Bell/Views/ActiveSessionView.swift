@@ -12,6 +12,15 @@ struct ActiveSessionView: View {
     @State private var showSettings = false
 
     var body: some View {
+        // Single per-second clock for the whole screen: the header timer, the
+        // log's live last row, and the slider's alarm progress all derive from
+        // one context.date instead of running their own TimelineViews.
+        TimelineView(.periodic(from: .now, by: 1.0)) { context in
+            screen(now: context.date)
+        }
+    }
+
+    private func screen(now: Date) -> some View {
         PrayerScreenLayout(
             figurePose: .praying,
             onBackgroundTap: showSettings ? { dismissSettings() } : nil
@@ -26,7 +35,7 @@ struct ActiveSessionView: View {
                     .minimumScaleFactor(0.7)
                     .multilineTextAlignment(.center)
 
-                LiveTimerView(viewModel: viewModel)
+                LiveTimerView(viewModel: viewModel, now: now)
             }
             .frame(maxWidth: .infinity)
 
@@ -42,7 +51,7 @@ struct ActiveSessionView: View {
                         .foregroundStyle(Color.lcdMid)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    PrayerLogView(viewModel: viewModel)
+                    PrayerLogView(viewModel: viewModel, now: now)
                 }
                 .frame(maxWidth: .infinity)
                 .opacity(showSettings ? 0 : 1)
@@ -57,10 +66,8 @@ struct ActiveSessionView: View {
         } slider: {
 
             // Doubles as Amen Alarm progress bar when the alarm is on
-            TimelineView(.periodic(from: .now, by: 1.0)) { context in
-                PraySlider(label: "PRAY", alarmProgress: alarmProgress(at: context.date)) {
-                    viewModel.logPrayer()
-                }
+            PraySlider(label: "PRAY", alarmProgress: alarmProgress(at: now)) {
+                viewModel.logPrayer()
             }
 
         } buttons: {

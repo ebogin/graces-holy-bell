@@ -1,0 +1,30 @@
+appId: Boginfactory.Graces-Holy-Bell
+---
+# Slide the PRAY slider to start a new session.
+# Verifies the app transitions from IDLE → ACTIVE.
+
+- launchApp:
+    clearState: true
+
+# Confirm idle state
+- assertVisible:
+    text: "SLIDE TO BEGIN"
+
+# Swipe the PRAY slider (85%+ travel required for activation)
+- swipe:
+    start: "8%, 82%"
+    end: "92%, 82%"
+    duration: 800
+
+# Active screen should now be visible
+- assertVisible:
+    text: "GRACE'S HOLY BELL"
+
+- assertVisible:
+    text: "PRAYER LOG"
+
+- assertVisible:
+    id: "pray-slider"
+
+- assertVisible:
+    id: "stop-button"

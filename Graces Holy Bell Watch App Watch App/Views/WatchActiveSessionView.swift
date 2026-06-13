@@ -10,6 +10,14 @@ struct WatchActiveSessionView: View {
     @State private var showStopConfirmation = false
 
     var body: some View {
+        // Single per-second clock for the whole screen — the timer and the
+        // slider's alarm progress both derive from one context.date.
+        TimelineView(.periodic(from: .now, by: 1.0)) { context in
+            screen(now: context.date)
+        }
+    }
+
+    private func screen(now: Date) -> some View {
         WatchScreenLayout(figurePose: .praying) {
 
             // Header: small title over the live timer + "SINCE LAST PRAYER"
@@ -21,20 +29,18 @@ struct WatchActiveSessionView: View {
                     .minimumScaleFactor(0.7)
                     .multilineTextAlignment(.center)
 
-                WatchLiveTimerView(viewModel: viewModel)
+                WatchLiveTimerView(viewModel: viewModel, now: now)
             }
             .frame(maxWidth: .infinity)
 
         } slider: {
 
             // Doubles as Amen Alarm progress bar when the alarm is on
-            TimelineView(.periodic(from: .now, by: 1.0)) { context in
-                WatchPraySlider(
-                    label: "PRAY",
-                    alarmProgress: viewModel.alarmProgress(at: context.date)
-                ) {
-                    viewModel.sendPray()
-                }
+            WatchPraySlider(
+                label: "PRAY",
+                alarmProgress: viewModel.alarmProgress(at: now)
+            ) {
+                viewModel.sendPray()
             }
 
         } bottomRow: {

@@ -7,8 +7,8 @@ import Observation
 /// This class owns all state transitions, persistence, and elapsed-time computations.
 /// Views read from it but never perform logic themselves.
 ///
-/// Designed to be the single point of contact for future WatchConnectivity integration —
-/// the Watch will call the same `startNewSession()`, `logPrayer()`, and `stopSession()` methods.
+/// Designed to be the single point of contact for WatchConnectivity —
+/// the Watch calls the same `startNewSession()`, `logPrayer()`, and `clearLog()` methods.
 @Observable
 @MainActor
 final class SessionViewModel {
@@ -36,16 +36,10 @@ final class SessionViewModel {
 
     // MARK: - Derived State
 
-    /// The current app state, derived from whether a session exists and is active.
+    /// The current app state — a session always runs until it is cleared,
+    /// so existence of a session means ACTIVE.
     var appState: AppState {
-        guard let session = currentSession else { return .idle }
-        return session.isActive ? .active : .idle
-    }
-
-    /// Whether there is an existing log from a previous (or current) session.
-    /// Used to decide whether to show the "clear log?" confirmation when starting a new session.
-    var hasExistingLog: Bool {
-        currentSession != nil && !sortedEntries.isEmpty
+        currentSession == nil ? .idle : .active
     }
 
     /// The timestamp of the most recent prayer entry, if any.
@@ -91,7 +85,7 @@ final class SessionViewModel {
     /// Records the current timestamp and restarts the elapsed timer.
     /// Does nothing if there is no active session.
     func logPrayer() {
-        guard let session = currentSession, session.isActive else { return }
+        guard let session = currentSession else { return }
 
         let entry = PrayerEntry(
             timestamp: .now,
@@ -106,20 +100,8 @@ final class SessionViewModel {
         onStateChanged?()
     }
 
-    /// Stops the current active session.
-    ///
-    /// Records the stop timestamp (used to freeze the final duration display).
-    /// The session and its log remain visible in IDLE state.
-    /// Does nothing if there is no active session.
-    func stopSession() {
-        guard let session = currentSession, session.isActive else { return }
-        session.stoppedAt = .now
-        save()
-        amenAlarmManager.cancelAlarm()
-        onStateChanged?()
-    }
-
     /// Deletes the current session and all its entries.
+    /// This is the only way a session ends — both devices return to the welcome screen.
     func clearLog() {
         if let session = currentSession {
             modelContext.delete(session)
@@ -145,30 +127,19 @@ final class SessionViewModel {
 
     // MARK: - Elapsed Time Computation
 
-    /// Computes the elapsed time since the most recent prayer entry.
-    ///
-    /// - In ACTIVE state: returns live elapsed time (`now - lastPrayerTimestamp`).
-    /// - In IDLE state: returns frozen time (`stoppedAt - lastPrayerTimestamp`).
+    /// Computes the live elapsed time since the most recent prayer entry.
     ///
     /// The `now` parameter should come from `TimelineView`'s `context.date`,
     /// ensuring the source of truth is always a stored timestamp, never a counter.
     func elapsedSinceLastPrayer(at now: Date = .now) -> TimeInterval {
         guard let lastTimestamp = lastPrayerTimestamp else { return 0 }
-
-        // If session is stopped, freeze at stop time
-        if let session = currentSession, let stoppedAt = session.stoppedAt {
-            return stoppedAt.timeIntervalSince(lastTimestamp)
-        }
-
-        // Active session: live elapsed
         return now.timeIntervalSince(lastTimestamp)
     }
 
     /// Computes the duration for a specific prayer entry.
     ///
     /// - For entries that are NOT the last: duration = next entry's timestamp - this entry's timestamp.
-    /// - For the last entry in an ACTIVE session: live elapsed time.
-    /// - For the last entry in an IDLE session: frozen at stop time.
+    /// - For the last entry: live elapsed time.
     ///
     /// Returns nil if the index is out of bounds.
     func duration(for entryIndex: Int, at now: Date = .now) -> TimeInterval? {
@@ -181,12 +152,7 @@ final class SessionViewModel {
             return sortedEntries[entryIndex + 1].timestamp.timeIntervalSince(entry.timestamp)
         }
 
-        // Last entry in a stopped session: freeze at stop time
-        if let session = currentSession, let stoppedAt = session.stoppedAt {
-            return stoppedAt.timeIntervalSince(entry.timestamp)
-        }
-
-        // Last entry in an active session: live elapsed
+        // Last entry: live elapsed
         return now.timeIntervalSince(entry.timestamp)
     }
 

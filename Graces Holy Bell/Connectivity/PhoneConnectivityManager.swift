@@ -17,6 +17,11 @@ final class PhoneConnectivityManager: NSObject {
     private var viewModel: SessionViewModel?
     var amenAlarmSettings: AmenAlarmSettings?
 
+    /// Recently handled action ids — the Watch may deliver the same action
+    /// twice when a sendMessage reply fails and it falls back to
+    /// transferUserInfo. Only touched on the main actor (see handleAction).
+    private var handledActionIDs: [String] = []
+
     override init() {
         super.init()
         guard WCSession.isSupported() else { return }
@@ -32,13 +37,21 @@ final class PhoneConnectivityManager: NSObject {
         sendStateToWatch()
     }
 
-    /// Builds a SyncedSessionState from the current ViewModel and sends it to the Watch.
+    /// Sends the current ViewModel state to the Watch.
     /// Called after every ViewModel mutation.
     @MainActor
     func sendStateToWatch() {
         guard WCSession.default.activationState == .activated,
               WCSession.default.isPaired else { return }
-        guard let viewModel else { return }
+        guard let state = makeState() else { return }
+
+        try? WCSession.default.updateApplicationContext(state.toDictionary())
+    }
+
+    /// Builds a SyncedSessionState snapshot from the current ViewModel.
+    @MainActor
+    private func makeState() -> SyncedSessionState? {
+        guard let viewModel else { return nil }
 
         let entries = viewModel.sortedEntries.map { entry in
             SyncedEntry(
@@ -61,64 +74,49 @@ final class PhoneConnectivityManager: NSObject {
             return lastTimestamp.addingTimeInterval(settings.duration.rawValue)
         }()
 
-        let state = SyncedSessionState(
+        return SyncedSessionState(
             appState: viewModel.appState == .active ? "active" : "idle",
             entries: entries,
-            sessionStoppedAt: viewModel.currentSession?.stoppedAt,
-            hasExistingLog: viewModel.hasExistingLog,
             amenAlarmFireAt: amenAlarmFireAt
         )
-
-        try? WCSession.default.updateApplicationContext(state.toDictionary())
     }
 
     // MARK: - Handle Watch Actions
 
-    /// Processes an action received from the Watch.
+    /// Processes an action message received from the Watch, ignoring
+    /// duplicate deliveries of the same action id.
     @MainActor
-    private func handleAction(_ action: String) {
-        guard let viewModel else { return }
+    private func handleAction(_ message: [String: Any]) {
+        guard let viewModel,
+              let action = message["action"] as? String else { return }
+
+        if let id = message["id"] as? String {
+            guard !handledActionIDs.contains(id) else { return }
+            handledActionIDs.append(id)
+            if handledActionIDs.count > 32 {
+                handledActionIDs.removeFirst()
+            }
+        }
 
         switch action {
         case "START":
             viewModel.startNewSession()
         case "PRAY":
             viewModel.logPrayer()
-        case "STOP":
-            viewModel.stopSession()
         case "CLEAR_LOG":
             viewModel.clearLog()
         default:
             break
         }
-
-        sendStateToWatch()
+        // No explicit sendStateToWatch() here: each ViewModel mutation already
+        // triggers one via onStateChanged, and message senders get the fresh
+        // state back in their reply.
     }
 
     /// Builds the current state snapshot for sending back as a reply.
     @MainActor
     private func currentStateDictionary() -> [String: Any] {
-        guard let viewModel else { return [:] }
-
-        let entries = viewModel.sortedEntries.map { entry in
-            SyncedEntry(timestamp: entry.timestamp, sequenceIndex: entry.sequenceIndex)
-        }
-        let amenAlarmFireAt: Date? = {
-            guard let settings = amenAlarmSettings,
-                  settings.watchEnabled,
-                  viewModel.appState == .active,
-                  let lastTimestamp = viewModel.lastPrayerTimestamp else { return nil }
-            return lastTimestamp.addingTimeInterval(settings.duration.rawValue)
-        }()
-
-        let state = SyncedSessionState(
-            appState: viewModel.appState == .active ? "active" : "idle",
-            entries: entries,
-            sessionStoppedAt: viewModel.currentSession?.stoppedAt,
-            hasExistingLog: viewModel.hasExistingLog,
-            amenAlarmFireAt: amenAlarmFireAt
-        )
-        return state.toDictionary()
+        makeState()?.toDictionary() ?? [:]
     }
 }
 
@@ -154,13 +152,9 @@ extension PhoneConnectivityManager: WCSessionDelegate {
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
-        if let action = message["action"] as? String {
-            Task { @MainActor in
-                self.handleAction(action)
-                replyHandler(self.currentStateDictionary())
-            }
-        } else {
-            replyHandler([:])
+        Task { @MainActor in
+            self.handleAction(message)
+            replyHandler(self.currentStateDictionary())
         }
     }
 
@@ -169,10 +163,8 @@ extension PhoneConnectivityManager: WCSessionDelegate {
         _ session: WCSession,
         didReceiveMessage message: [String: Any]
     ) {
-        if let action = message["action"] as? String {
-            Task { @MainActor in
-                self.handleAction(action)
-            }
+        Task { @MainActor in
+            self.handleAction(message)
         }
     }
 
@@ -181,10 +173,8 @@ extension PhoneConnectivityManager: WCSessionDelegate {
         _ session: WCSession,
         didReceiveUserInfo userInfo: [String: Any]
     ) {
-        if let action = userInfo["action"] as? String {
-            Task { @MainActor in
-                self.handleAction(action)
-            }
+        Task { @MainActor in
+            self.handleAction(userInfo)
         }
     }
 

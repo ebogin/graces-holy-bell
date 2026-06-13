@@ -1,0 +1,20 @@
+appId: Boginfactory.Graces-Holy-Bell
+---
+# Verify the idle screen renders all expected elements.
+# Runs against a fresh install or a cleared session.
+
+- launchApp:
+    clearState: true
+
+# The title is a single two-line text element — match across the newline
+- assertVisible:
+    text: GRACE'S[\s\S]*HOLY BELL
+
+- assertVisible:
+    text: "SLIDE TO BEGIN"
+
+- assertVisible:
+    id: "pray-slider"
+
+- assertVisible:
+    id: "settings-button"
