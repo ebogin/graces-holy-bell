@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- This watch app does not track users across apps/websites owned by other companies. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- No tracking domains. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- No data is collected from the user or sent off the device. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!-- This target calls no required-reason APIs directly. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

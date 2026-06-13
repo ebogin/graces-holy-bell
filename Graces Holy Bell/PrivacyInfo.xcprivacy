@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- This app does not track users across apps/websites owned by other companies. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<!-- No tracking domains. -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- No data is collected from the user or sent off the device. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!-- Required-reason APIs used by this target. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!-- UserDefaults: stores the user's own Amen Alarm settings (AmenAlarmSettings). -->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!-- CA92.1: access info from UserDefaults to read/write only for the app itself. -->
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

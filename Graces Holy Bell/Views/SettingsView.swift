@@ -11,6 +11,7 @@ import UserNotifications
 struct SettingsView: View {
 
     @Bindable var settings: AmenAlarmSettings
+    @State private var showPrivacyPolicy = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -52,6 +53,11 @@ struct SettingsView: View {
 
                 // Save Log to Notes — disabled / coming soon
                 saveLogRow()
+
+                divider()
+
+                // Privacy Policy — opens the in-app policy sheet
+                privacyPolicyRow()
             }
             .background(Color.lcdLogInner)
             .overlay(
@@ -61,6 +67,9 @@ struct SettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .sheet(isPresented: $showPrivacyPolicy) {
+            PrivacyPolicyView()
+        }
     }
 
     // MARK: - Sub-views
@@ -154,6 +163,30 @@ struct SettingsView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .opacity(0.4)
+    }
+
+    @ViewBuilder
+    private func privacyPolicyRow() -> some View {
+        Button {
+            showPrivacyPolicy = true
+        } label: {
+            HStack {
+                Text("Privacy Policy")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdDark)
+
+                Spacer()
+
+                Text(">")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdMid)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("privacy-policy-row")
     }
 
     @ViewBuilder
