@@ -5,6 +5,18 @@ import SwiftUI
 /// Plain-language statement that the app collects no data. Keep the copy here in
 /// sync with the public web version (docs/privacy-policy.html) and the App Store
 /// Connect "App Privacy" answers ("Data Not Collected").
+///
+/// ───────────────────────────────────────────────────────────────────────────
+/// MAINTENANCE NOTE (for any human or AI editing this policy):
+/// This policy is also published publicly at:
+///     https://boginfactory.com/graces-privacy-policy.html
+/// (served from the source file `docs/privacy-policy.html` in this repo).
+///
+/// If you change the privacy policy text below, you MUST also update that
+/// hosted webpage so the in-app and public versions stay identical — update
+/// `docs/privacy-policy.html` and ensure the deployed page at the URL above
+/// reflects the same wording and effective date.
+/// ───────────────────────────────────────────────────────────────────────────
 struct PrivacyPolicyView: View {
 
     @Environment(\.dismiss) private var dismiss
