@@ -13,6 +13,9 @@ struct SettingsView: View {
     @Bindable var settings: AmenAlarmSettings
     @State private var showPrivacyPolicy = false
 
+    /// 1px outline around the toggle switches, matching the duration dropdown.
+    private let toggleBorder = Color(hex: "#4d6139")
+
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
 
@@ -140,6 +143,10 @@ struct SettingsView: View {
             Toggle("", isOn: isOn)
                 .labelsHidden()
                 .tint(Color.lcdSlider)
+                .overlay(
+                    Capsule()
+                        .stroke(toggleBorder, lineWidth: 1)
+                )
                 .onChange(of: isOn.wrappedValue) { _, newValue in onChange(newValue) }
         }
         .padding(.horizontal, 12)
@@ -158,6 +165,10 @@ struct SettingsView: View {
             Toggle("", isOn: .constant(false))
                 .labelsHidden()
                 .tint(Color.lcdSlider)
+                .overlay(
+                    Capsule()
+                        .stroke(toggleBorder, lineWidth: 1)
+                )
                 .disabled(true)
         }
         .padding(.horizontal, 12)
