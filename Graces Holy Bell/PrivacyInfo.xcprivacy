@@ -18,7 +18,8 @@
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>
-			<!-- UserDefaults: stores the user's own Amen Alarm settings (AmenAlarmSettings). -->
+			<!-- UserDefaults: stores the user's own Amen Alarm settings (AmenAlarmSettings)
+			     and the anonymous "Share with a Friend" referral code (WaitlistLink). -->
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>

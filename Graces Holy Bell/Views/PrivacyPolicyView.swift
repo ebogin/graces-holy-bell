@@ -22,11 +22,17 @@ struct PrivacyPolicyView: View {
     @Environment(\.dismiss) private var dismiss
 
     /// Last time the policy text changed. Update alongside the web version.
-    private let effectiveDate = "June 12, 2026"
+    private let effectiveDate = "June 18, 2026"
 
     private let sections: [(heading: String, body: [String])] = [
         ("WHAT WE COLLECT", [
-            "Nothing. Grace's Holy Bell has no servers and never sends your information anywhere. We don't ask for your name, email, contacts, or location, and there are no accounts or sign-ups."
+            "The app itself collects nothing. Grace's Holy Bell has no servers and never sends your information anywhere. We don't ask for your name, email, contacts, or location, and there are no accounts or sign-ups.",
+            "The one exception is our optional waitlist signup — see \"Waitlist Signup\" below. It lives on our website, separate from the app, and only ever has the information you choose to type into it."
+        ]),
+        ("WAITLIST SIGNUP", [
+            "If you use \"Share with a Friend\" and a friend opens your link, it takes them to a signup page on our website. This is the only place the project collects information, and only what is typed in.",
+            "The form asks for an email, name, country, and phone number. Every field is optional. We also record the anonymous referral code from the link that was used, so we know who to thank for the introduction — this code is not tied to your identity in the app.",
+            "What's submitted is stored privately and used only to send a confirmation and to reach out about the app's release. There is no public waiting list, and we never sell or share it with advertisers. To be removed, email gracesholybell@boginfactory.com."
         ]),
         ("WHAT STAYS ON YOUR DEVICE", [
             "Your prayer logs and Amen Alarm settings are saved only on your device.",
@@ -91,7 +97,7 @@ struct PrivacyPolicyView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
 
-                    Text("Grace's Holy Bell is built to respect your privacy. We do not collect, store, or share any personal data about you.")
+                    Text("Grace's Holy Bell is built to respect your privacy. The app does not collect, store, or share any personal data about you. The one exception is our optional waitlist signup, described below.")
                         .font(.pixelFont(10, relativeTo: .body))
                         .foregroundStyle(Color.lcdDark)
                         .lineSpacing(5)

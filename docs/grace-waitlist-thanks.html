@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<!--
+  Grace's Holy Bell — waitlist confirmation / thank-you page.
+  Public page, deployed at https://boginfactory.com/grace-waitlist-thanks.html
+
+  Reached after a successful form submission, with the new submitter's own
+  referral code in ?ref=. Shows their personal share link so referrals can chain.
+  Styling mirrors graces-privacy-policy.html (the app's LCD-green theme).
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're on the List — Grace's Holy Bell</title>
+  <meta name="description" content="You're on the waiting list for Grace's Holy Bell.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --lcd-bg-light: #d4e4bc;
+      --lcd-bg-dark:  #c4d4ac;
+      --lcd-surface:  #c0d0a8;
+      --lcd-inner:    #c8d8b0;
+      --lcd-border:   #a0b080;
+      --lcd-slider:   #8aaa6a;
+      --lcd-dark:     #1a2a0a;
+      --lcd-mid:      #4a6a3a;
+      --lcd-title:    #5f7c4d;
+      --lcd-on-dark:  #c8d8b0;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; padding: 0; min-height: 100%; }
+
+    body {
+      font-family: "Press Start 2P", monospace;
+      background: linear-gradient(135deg, var(--lcd-bg-light), var(--lcd-bg-dark));
+      background-attachment: fixed;
+      color: var(--lcd-dark);
+      line-height: 1.9;
+      -webkit-font-smoothing: none;
+      padding: 32px 20px 64px;
+    }
+
+    .card {
+      max-width: 560px;
+      margin: 0 auto;
+      background: var(--lcd-surface);
+      border: 4px solid var(--lcd-border);
+      border-radius: 10px;
+      padding: 32px 28px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--lcd-dark);
+      margin: 0 0 20px;
+    }
+
+    p {
+      font-size: 10px;
+      color: var(--lcd-mid);
+      line-height: 2.0;
+      margin: 0 0 18px;
+    }
+
+    .share-block {
+      margin: 28px 0 8px;
+      padding: 20px 16px;
+      background: var(--lcd-inner);
+      border: 2px solid var(--lcd-border);
+      border-radius: 6px;
+    }
+
+    .share-label {
+      font-size: 9px;
+      color: var(--lcd-title);
+      margin: 0 0 14px;
+    }
+
+    .share-link {
+      display: block;
+      word-break: break-all;
+      font-size: 9px;
+      color: var(--lcd-dark);
+      line-height: 1.8;
+      margin: 0 0 16px;
+    }
+
+    button {
+      font-family: "Press Start 2P", monospace;
+      font-size: 11px;
+      color: var(--lcd-on-dark);
+      background: var(--lcd-slider);
+      border: 2px solid var(--lcd-dark);
+      border-radius: 4px;
+      padding: 12px 18px;
+      cursor: pointer;
+      -webkit-font-smoothing: none;
+    }
+
+    .footer {
+      max-width: 560px;
+      margin: 24px auto 0;
+      text-align: center;
+      font-size: 8px;
+      color: var(--lcd-mid);
+      line-height: 1.8;
+    }
+
+    .footer a { color: var(--lcd-title); }
+
+    @media (max-width: 480px) {
+      body { padding: 20px 12px 48px; }
+      .card { padding: 24px 18px; }
+      h1 { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>YOU'RE ON<br>THE LIST</h1>
+    <p>
+      Thanks for joining the waiting list for Grace's Holy Bell. The app is still
+      in beta &mdash; we'll reach out as soon as it's released.
+    </p>
+    <p>
+      If you left an email, a confirmation is on its way.
+    </p>
+
+    <div class="share-block">
+      <p class="share-label">SHARE WITH A FRIEND</p>
+      <a class="share-link" id="share-link" href="#"></a>
+      <button type="button" id="copy-btn">COPY LINK</button>
+      <button type="button" id="share-btn" style="display:none;">SHARE</button>
+    </div>
+  </main>
+
+  <p class="footer">
+    Grace's Holy Bell &middot; Boginfactory &middot;
+    <a href="graces-privacy-policy.html">Privacy Policy</a>
+  </p>
+
+  <script>
+    const myCode = new URLSearchParams(location.search).get("ref") || "";
+    const shareURL = "https://boginfactory.com/grace-waitlist.html"
+      + (myCode ? "?ref=" + encodeURIComponent(myCode) : "");
+
+    const linkEl = document.getElementById("share-link");
+    linkEl.textContent = shareURL;
+    linkEl.href = shareURL;
+
+    const copyBtn = document.getElementById("copy-btn");
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(shareURL);
+        copyBtn.textContent = "COPIED!";
+        setTimeout(() => (copyBtn.textContent = "COPY LINK"), 2000);
+      } catch (e) {
+        copyBtn.textContent = "COPY FAILED";
+      }
+    });
+
+    // Native share sheet on supporting devices (mobile).
+    if (navigator.share) {
+      const shareBtn = document.getElementById("share-btn");
+      shareBtn.style.display = "";
+      shareBtn.addEventListener("click", () => {
+        navigator.share({
+          title: "Grace's Holy Bell",
+          text: "Join the waiting list for Grace's Holy Bell.",
+          url: shareURL,
+        }).catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
