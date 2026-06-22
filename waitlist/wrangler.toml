@@ -7,7 +7,7 @@ compatibility_date = "2024-11-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "grace-waitlist"
-database_id = "REPLACE_WITH_DATABASE_ID"
+database_id = "11f9f9ca-2db5-420d-8dca-f366c00c647f"
 
 [vars]
 ALLOWED_ORIGIN = "https://boginfactory.com,https://www.boginfactory.com"
