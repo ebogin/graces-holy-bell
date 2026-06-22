@@ -33,8 +33,9 @@ function makeDB() {
               name: this._args[2],
               country: this._args[3],
               phone: this._args[4],
-              referrer: this._args[5],
-              my_code: this._args[6],
+              sms_consent: this._args[5],
+              referrer: this._args[6],
+              my_code: this._args[7],
             });
           }
           return { success: true };
@@ -105,6 +106,7 @@ test("valid signup is stored and emails are sent", async () => {
         name: "Pat",
         country: "USA",
         phone: "555-1234",
+        smsConsent: true,
         referrer: "abc123xy",
         myCode: "newcode1",
       }),
@@ -112,9 +114,10 @@ test("valid signup is stored and emails are sent", async () => {
     );
     assert.equal(res.status, 200);
     assert.equal(env.DB.inserted.length, 1);
-    // referrer + my_code persisted
-    assert.equal(env.DB.inserted[0][5], "abc123xy");
-    assert.equal(env.DB.inserted[0][6], "newcode1");
+    // sms_consent + referrer + my_code persisted (column order matches INSERT)
+    assert.equal(env.DB.inserted[0][5], "yes");
+    assert.equal(env.DB.inserted[0][6], "abc123xy");
+    assert.equal(env.DB.inserted[0][7], "newcode1");
     // confirmation + admin email = 2 Resend calls
     assert.equal(calls.length, 2);
     assert.match(calls[0].url, /api\.resend\.com/);
@@ -193,7 +196,7 @@ test("CSV export returns stored rows with valid token", async () => {
   );
   assert.equal(res.status, 200);
   const text = await res.text();
-  assert.match(text, /created_at,email,name,country,phone,referrer,my_code/);
+  assert.match(text, /created_at,email,name,country,phone,sms_consent,referrer,my_code/);
   assert.match(text, /a@b\.com/);
   assert.match(text, /"A,B"/); // comma-containing cell is quoted
 });

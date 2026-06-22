@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS signups (
   name       TEXT,
   country    TEXT,
   phone      TEXT,
+  sms_consent TEXT,  -- "yes"/"no": did they authorize SMS messages
   referrer   TEXT,   -- referral code of whoever shared the link they used
   my_code    TEXT    -- this submitter's own referral code
 );
