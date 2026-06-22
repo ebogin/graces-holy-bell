@@ -93,37 +93,54 @@ export async function handleRequest(request, env) {
 
 async function sendEmails(env, data) {
   const apiKey = env.RESEND_API_KEY;
-  if (!apiKey) return;
+  if (!apiKey) {
+    console.error("RESEND_API_KEY missing — skipping email send");
+    return;
+  }
   const from = env.FROM_EMAIL || "Grace's Holy Bell <gracesholybell@boginfactory.com>";
 
-  const tasks = [];
+  const tasks = []; // { kind, to, send: Promise }
 
   if (data.email) {
     const shareURL =
       "https://boginfactory.com/grace-waitlist.html" +
       (data.myCode ? "?ref=" + encodeURIComponent(data.myCode) : "");
-    tasks.push(
-      sendEmail(apiKey, {
+    tasks.push({
+      kind: "confirmation",
+      to: data.email,
+      send: sendEmail(apiKey, {
         from,
         to: data.email,
         subject: "You're on the Grace's Holy Bell waitlist",
         html: confirmationHtml(data.name, shareURL),
-      })
-    );
+      }),
+    });
   }
 
   if (env.ADMIN_EMAIL) {
-    tasks.push(
-      sendEmail(apiKey, {
+    tasks.push({
+      kind: "admin",
+      to: env.ADMIN_EMAIL,
+      send: sendEmail(apiKey, {
         from,
         to: env.ADMIN_EMAIL,
         subject: "New Grace's Holy Bell waitlist signup",
         html: adminHtml(data),
-      })
-    );
+      }),
+    });
   }
 
-  await Promise.allSettled(tasks);
+  // Emails stay best-effort (storage already succeeded), but log every failure
+  // so a bad sender/domain/key is visible in `wrangler tail` instead of silent.
+  const results = await Promise.allSettled(tasks.map((t) => t.send));
+  results.forEach((r, i) => {
+    const { kind, to } = tasks[i];
+    if (r.status === "rejected") {
+      console.error(`EMAIL_FAIL ${kind} -> ${to}: ${String(r.reason)}`);
+    } else {
+      console.log(`EMAIL_OK ${kind} -> ${to}`);
+    }
+  });
 }
 
 async function sendEmail(apiKey, payload) {
