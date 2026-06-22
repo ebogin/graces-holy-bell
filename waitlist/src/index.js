@@ -160,22 +160,27 @@ async function sendEmail(apiKey, payload) {
 
 function confirmationHtml(name, shareURL) {
   const greeting = name ? `Hi ${escapeHtml(name)},` : "Hi there,";
+  // The app's pixel font (Press Start 2P) can't be relied on in email clients —
+  // Gmail and others strip @font-face — so the title is a pre-rendered image in
+  // that font (hosted alongside the web pages). Body text stays in a system
+  // font but is centered to match the app's "You're on the list" page.
   return `
   <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#c8d8b0;padding:24px;color:#1a2a0a;">
-    <div style="max-width:480px;margin:0 auto;background:#c0d0a8;border:3px solid #a0b080;border-radius:10px;padding:24px;">
-      <h1 style="font-size:18px;margin:0 0 16px;color:#1a2a0a;">You're on the list</h1>
-      <p style="font-size:14px;line-height:1.6;color:#4a6a3a;">${greeting}</p>
-      <p style="font-size:14px;line-height:1.6;color:#4a6a3a;">
+    <div style="max-width:480px;margin:0 auto;background:#c0d0a8;border:3px solid #a0b080;border-radius:10px;padding:28px 24px;text-align:center;">
+      <img src="https://boginfactory.com/grace-waitlist-title.png" alt="You're on the list"
+           width="252" style="display:block;margin:0 auto 22px;width:252px;max-width:100%;height:auto;">
+      <p style="font-size:14px;line-height:1.7;color:#4a6a3a;margin:0 0 14px;">${greeting}</p>
+      <p style="font-size:14px;line-height:1.7;color:#4a6a3a;margin:0 0 14px;">
         Thanks for joining the waiting list for <strong>Grace's Holy Bell</strong>.
         The app is still in beta &mdash; we'll reach out as soon as it's released.
       </p>
-      <p style="font-size:14px;line-height:1.6;color:#4a6a3a;">
+      <p style="font-size:14px;line-height:1.7;color:#4a6a3a;margin:0 0 8px;">
         Want to spread the word? Share your personal link:
       </p>
-      <p style="font-size:13px;line-height:1.6;">
+      <p style="font-size:13px;line-height:1.7;margin:0 0 22px;">
         <a href="${escapeAttr(shareURL)}" style="color:#5f7c4d;word-break:break-all;">${escapeHtml(shareURL)}</a>
       </p>
-      <p style="font-size:11px;color:#4a6a3a;margin-top:24px;">
+      <p style="font-size:11px;color:#4a6a3a;margin:0;">
         Grace's Holy Bell &middot; Boginfactory
       </p>
     </div>
