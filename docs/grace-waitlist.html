@@ -96,11 +96,9 @@
       -webkit-font-smoothing: none;
     }
 
-    /* The country dropdown carries flag emoji, so let the system font render
-       those glyphs while the rest of the page keeps the pixel font. */
+    /* The dropdown keeps the page's pixel font; flag emoji still render via
+       the browser's per-glyph emoji fallback. */
     select {
-      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-      font-size: 13px;
       appearance: none;
       -webkit-appearance: none;
     }
@@ -119,12 +117,40 @@
     }
 
     .check-field input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
       width: 18px;
       height: 18px;
       flex: 0 0 auto;
       margin: 0;
-      accent-color: var(--lcd-slider);
+      background: var(--lcd-inner);
+      border: 2px solid var(--lcd-border);
+      border-radius: 4px;
       cursor: pointer;
+      position: relative;
+    }
+
+    .check-field input[type="checkbox"]:focus {
+      outline: none;
+      border-color: var(--lcd-slider);
+    }
+
+    .check-field input[type="checkbox"]:checked {
+      background: var(--lcd-slider);
+      border-color: var(--lcd-dark);
+    }
+
+    /* Checkmark drawn as a rotated border so it needs no font or image. */
+    .check-field input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 0;
+      width: 4px;
+      height: 9px;
+      border: solid var(--lcd-on-dark);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
     }
 
     .check-field label {
