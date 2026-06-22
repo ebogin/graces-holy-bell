@@ -22,7 +22,7 @@ struct PrivacyPolicyView: View {
     @Environment(\.dismiss) private var dismiss
 
     /// Last time the policy text changed. Update alongside the web version.
-    private let effectiveDate = "June 18, 2026"
+    private let effectiveDate = "June 22, 2026"
 
     private let sections: [(heading: String, body: [String])] = [
         ("WHAT WE COLLECT", [
@@ -30,9 +30,9 @@ struct PrivacyPolicyView: View {
             "The one exception is our optional waitlist signup — see \"Waitlist Signup\" below. It lives on our website, separate from the app, and only ever has the information you choose to type into it."
         ]),
         ("WAITLIST SIGNUP", [
-            "If you use \"Share with a Friend\" and a friend opens your link, it takes them to a signup page on our website. This is the only place the project collects information, and only what is typed in.",
-            "The form asks for an email, name, country, and phone number. Every field is optional. We also record the anonymous referral code from the link that was used, so we know who to thank for the introduction — this code is not tied to your identity in the app.",
-            "What's submitted is stored privately and used only to send a confirmation and to reach out about the app's release. There is no public waiting list, and we never sell or share it with advertisers. To be removed, email gracesholybell@boginfactory.com."
+            "If you use \"Share with a Friend\" and a friend opens your link, it takes them to a signup page on our website. This is the only place the project collects information.",
+            "The form asks for an email, name, country, and phone number, and all of them are optional. If you check the box authorizing it, we use your phone number to send SMS text messages about the app; message and data rates may apply, and we keep a record of that consent. We also store the anonymous referral code from the link that was used, so we know who to thank for the introduction — this code is not tied to your identity in the app.",
+            "What's submitted is stored privately and used only to send a confirmation, to reach out about the app's release, and — if you authorized it — to text you about the app. There is no public waiting list, and we never sell or share it with advertisers. To be removed, or to stop the texts, email gracesholybell@boginfactory.com."
         ]),
         ("WHAT STAYS ON YOUR DEVICE", [
             "Your prayer logs and Amen Alarm settings are saved only on your device.",
@@ -54,7 +54,7 @@ struct PrivacyPolicyView: View {
             "If this policy ever changes — for example, if a future version adds a feature that needs data — we'll update this page and ask for your consent where required."
         ]),
         ("CONTACT", [
-            "Questions? Email eric@boginfactory.com."
+            "Questions? Email gracesholybell@boginfactory.com."
         ])
     ]
 
