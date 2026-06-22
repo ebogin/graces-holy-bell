@@ -21,6 +21,26 @@
 
 ---
 
+## ⚠️ Build & Release Gotchas
+
+**Bumping the build number? Bump BOTH targets.** `CURRENT_PROJECT_VERSION`
+(the build number / `CFBundleVersion`) appears for multiple targets in
+`Graces Holy Bell.xcodeproj/project.pbxproj`. The **iOS app** and the **embedded
+Watch app** (`...watchkitapp`) build numbers **must match** — App Store Connect
+rejects the upload with a `CFBundleVersion` mismatch otherwise. It's easy to bump
+only the iOS app (Xcode's "increment on archive" and manual edits often miss the
+Watch target). After any bump, verify all app+watch entries agree:
+
+```
+grep -n "CURRENT_PROJECT_VERSION" "Graces Holy Bell.xcodeproj/project.pbxproj"
+```
+
+The `GracesHolyBellTests` target never ships, so its value doesn't need to match.
+`MARKETING_VERSION` (the user-facing version, e.g. 1.42) is separate from the
+build number and changes only on a real release.
+
+---
+
 ## Figma File
 
 **File:** Grace's Holy Bell
