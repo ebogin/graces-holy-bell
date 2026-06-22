@@ -12,6 +12,7 @@ struct SettingsView: View {
 
     @Bindable var settings: AmenAlarmSettings
     @State private var showPrivacyPolicy = false
+    @State private var showShareWithFriend = false
 
     /// 1px outline around the toggle switches, matching the duration dropdown.
     private let toggleBorder = Color(hex: "#4d6139")
@@ -59,6 +60,11 @@ struct SettingsView: View {
 
                 divider()
 
+                // Share with a Friend — opens the personal QR / waitlist share sheet
+                shareWithFriendRow()
+
+                divider()
+
                 // Privacy Policy — opens the in-app policy sheet
                 privacyPolicyRow()
             }
@@ -72,6 +78,9 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .sheet(isPresented: $showPrivacyPolicy) {
             PrivacyPolicyView()
+        }
+        .sheet(isPresented: $showShareWithFriend) {
+            ShareWithFriendView()
         }
     }
 
@@ -174,6 +183,30 @@ struct SettingsView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .opacity(0.4)
+    }
+
+    @ViewBuilder
+    private func shareWithFriendRow() -> some View {
+        Button {
+            showShareWithFriend = true
+        } label: {
+            HStack {
+                Text("Share with a Friend")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdDark)
+
+                Spacer()
+
+                Text(">")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdMid)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("share-with-friend-row")
     }
 
     @ViewBuilder

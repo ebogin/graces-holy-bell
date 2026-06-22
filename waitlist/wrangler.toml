@@ -1,0 +1,19 @@
+name = "grace-waitlist"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# D1 database binding. Fill in database_id after running:
+#   npx wrangler d1 create grace-waitlist
+[[d1_databases]]
+binding = "DB"
+database_name = "grace-waitlist"
+database_id = "11f9f9ca-2db5-420d-8dca-f366c00c647f"
+
+[vars]
+ALLOWED_ORIGIN = "https://boginfactory.com,https://www.boginfactory.com"
+FROM_EMAIL = "Grace's Holy Bell <gracesholybell@boginfactory.com>"
+ADMIN_EMAIL = "gracesholybell@boginfactory.com"
+
+# Secrets are NOT stored here. Set them with:
+#   npx wrangler secret put RESEND_API_KEY
+#   npx wrangler secret put ADMIN_TOKEN
