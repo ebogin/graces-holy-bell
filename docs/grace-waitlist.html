@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<!--
+  Grace's Holy Bell — waitlist signup form.
+  Public page, deployed at https://boginfactory.com/grace-waitlist.html
+
+  Styling mirrors graces-privacy-policy.html (the app's LCD-green theme).
+
+  SETUP: set WORKER_ENDPOINT below to your deployed Cloudflare Worker URL.
+  See ../waitlist/SETUP.md for the full backend walkthrough.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join the Waitlist — Grace's Holy Bell</title>
+  <meta name="description" content="Join the waiting list for Grace's Holy Bell.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --lcd-bg-light: #d4e4bc;
+      --lcd-bg-dark:  #c4d4ac;
+      --lcd-surface:  #c0d0a8;
+      --lcd-inner:    #c8d8b0;
+      --lcd-border:   #a0b080;
+      --lcd-slider:   #8aaa6a;
+      --lcd-dark:     #1a2a0a;
+      --lcd-mid:      #4a6a3a;
+      --lcd-title:    #5f7c4d;
+      --lcd-on-dark:  #c8d8b0;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; padding: 0; min-height: 100%; }
+
+    body {
+      font-family: "Press Start 2P", monospace;
+      background: linear-gradient(135deg, var(--lcd-bg-light), var(--lcd-bg-dark));
+      background-attachment: fixed;
+      color: var(--lcd-dark);
+      line-height: 1.9;
+      -webkit-font-smoothing: none;
+      padding: 32px 20px 64px;
+    }
+
+    .card {
+      max-width: 560px;
+      margin: 0 auto;
+      background: var(--lcd-surface);
+      border: 4px solid var(--lcd-border);
+      border-radius: 10px;
+      padding: 32px 28px;
+    }
+
+    h1 {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--lcd-dark);
+      margin: 0 0 16px;
+    }
+
+    .intro {
+      font-size: 10px;
+      color: var(--lcd-mid);
+      line-height: 1.9;
+      margin: 0 0 28px;
+    }
+
+    label {
+      display: block;
+      font-size: 9px;
+      color: var(--lcd-title);
+      margin: 0 0 8px;
+    }
+
+    .field { margin: 0 0 22px; }
+
+    input {
+      width: 100%;
+      font-family: "Press Start 2P", monospace;
+      font-size: 11px;
+      color: var(--lcd-dark);
+      background: var(--lcd-inner);
+      border: 2px solid var(--lcd-border);
+      border-radius: 4px;
+      padding: 12px 10px;
+      -webkit-font-smoothing: none;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--lcd-slider);
+    }
+
+    button {
+      width: 100%;
+      font-family: "Press Start 2P", monospace;
+      font-size: 12px;
+      color: var(--lcd-on-dark);
+      background: var(--lcd-slider);
+      border: 2px solid var(--lcd-dark);
+      border-radius: 4px;
+      padding: 14px 10px;
+      margin-top: 8px;
+      cursor: pointer;
+      -webkit-font-smoothing: none;
+    }
+
+    button:disabled { opacity: 0.5; cursor: default; }
+
+    .status {
+      font-size: 9px;
+      color: var(--lcd-mid);
+      line-height: 1.8;
+      margin: 16px 0 0;
+      min-height: 1.2em;
+      text-align: center;
+    }
+
+    .status.error { color: #7a2a2a; }
+
+    .footer {
+      max-width: 560px;
+      margin: 24px auto 0;
+      text-align: center;
+      font-size: 8px;
+      color: var(--lcd-mid);
+      line-height: 1.8;
+    }
+
+    .footer a { color: var(--lcd-title); }
+
+    @media (max-width: 480px) {
+      body { padding: 20px 12px 48px; }
+      .card { padding: 24px 18px; }
+      h1 { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>JOIN THE<br>WAITLIST</h1>
+    <p class="intro">
+      Grace's Holy Bell is in beta. Leave your details and we'll reach out when
+      it's released. Every field is optional &mdash; but an email lets us tell
+      you when it's ready.
+    </p>
+
+    <form id="waitlist-form" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" autocomplete="email" inputmode="email">
+      </div>
+      <div class="field">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" autocomplete="name">
+      </div>
+      <div class="field">
+        <label for="country">Country</label>
+        <input type="text" id="country" name="country" autocomplete="country-name">
+      </div>
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input type="tel" id="phone" name="phone" autocomplete="tel" inputmode="tel">
+      </div>
+
+      <!-- Honeypot: hidden from people, tempting to bots. Leave blank. -->
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off"
+             aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+
+      <button type="submit" id="submit-btn">JOIN THE LIST</button>
+      <p class="status" id="status"></p>
+    </form>
+  </main>
+
+  <p class="footer">
+    Grace's Holy Bell &middot; Boginfactory &middot;
+    <a href="graces-privacy-policy.html">Privacy Policy</a>
+  </p>
+
+  <script>
+    // ── CONFIG ───────────────────────────────────────────────────────────
+    // Set this to your deployed Cloudflare Worker URL. See waitlist/SETUP.md.
+    const WORKER_ENDPOINT = "https://grace-waitlist.grace-waitlist.workers.dev";
+    // ─────────────────────────────────────────────────────────────────────
+
+    // Referrer code from the QR / shared link (?ref=...). May be empty.
+    const referrer = new URLSearchParams(location.search).get("ref") || "";
+
+    // Mint THIS submitter's own referral code client-side, so their thank-you
+    // page and confirmation email can carry a share link without any extra
+    // backend round-trip.
+    function newCode() {
+      const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+      let code = "";
+      const rnd = new Uint32Array(8);
+      crypto.getRandomValues(rnd);
+      for (let i = 0; i < 8; i++) code += alphabet[rnd[i] % alphabet.length];
+      return code;
+    }
+    const myCode = newCode();
+
+    const form = document.getElementById("waitlist-form");
+    const statusEl = document.getElementById("status");
+    const submitBtn = document.getElementById("submit-btn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      statusEl.className = "status";
+      statusEl.textContent = "Sending…";
+      submitBtn.disabled = true;
+
+      const payload = {
+        email:    document.getElementById("email").value.trim(),
+        name:     document.getElementById("name").value.trim(),
+        country:  document.getElementById("country").value.trim(),
+        phone:    document.getElementById("phone").value.trim(),
+        referrer: referrer,
+        myCode:   myCode,
+        website:  document.getElementById("website").value.trim(), // honeypot
+      };
+
+      try {
+        const res = await fetch(WORKER_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("Request failed: " + res.status);
+        // Success — hand off to the thank-you page with this submitter's code.
+        location.href = "grace-waitlist-thanks.html?ref=" + encodeURIComponent(myCode);
+      } catch (err) {
+        statusEl.className = "status error";
+        statusEl.textContent = "Something went wrong. Please try again.";
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
