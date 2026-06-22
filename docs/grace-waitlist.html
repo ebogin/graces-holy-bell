@@ -140,17 +140,19 @@
       border-color: var(--lcd-dark);
     }
 
-    /* Checkmark drawn as a rotated border so it needs no font or image. */
+    /* Checkmark drawn as a rotated border so it needs no font or image.
+       Centered via 50%/50% anchor; the -60% Y nudge accounts for the check's
+       visual weight sitting below its geometric center. */
     .check-field input[type="checkbox"]:checked::after {
       content: "";
       position: absolute;
-      left: 4px;
-      top: 0;
+      left: 50%;
+      top: 50%;
       width: 4px;
-      height: 9px;
+      height: 8px;
       border: solid var(--lcd-on-dark);
       border-width: 0 2px 2px 0;
-      transform: rotate(45deg);
+      transform: translate(-50%, -60%) rotate(45deg);
     }
 
     .check-field label {
@@ -336,13 +338,43 @@
     }
 
     const countrySelect = document.getElementById("country");
-    for (const [name, iso2, dial] of COUNTRIES) {
+    const byName = Object.fromEntries(COUNTRIES.map((c) => [c[0], c]));
+
+    // Our likely markets float to the top, then the EU bloc, then everyone else.
+    const TOP = ["United States", "Canada", "United Kingdom"];
+    // EU-27 member states (the UK is intentionally NOT here — it's pinned above).
+    const EU = [
+      "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia",
+      "Denmark", "Estonia", "Finland", "France", "Germany", "Greece",
+      "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg",
+      "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia",
+      "Slovenia", "Spain", "Sweden",
+    ];
+    const grouped = new Set([...TOP, ...EU]);
+
+    function addCountry(name) {
+      if (!byName[name]) return; // guard against a name typo in TOP/EU
+      const [n, iso2, dial] = byName[name];
       const opt = document.createElement("option");
       // Stored value stays plain text (no emoji) so the CSV reads cleanly.
-      opt.value = name + " (+" + dial + ")";
-      opt.textContent = flagEmoji(iso2) + "  " + name + " (+" + dial + ")";
+      opt.value = n + " (+" + dial + ")";
+      opt.textContent = flagEmoji(iso2) + "  " + n + " (+" + dial + ")";
       countrySelect.appendChild(opt);
     }
+
+    function addDivider() {
+      const opt = document.createElement("option");
+      opt.disabled = true;
+      opt.textContent = "──────────";
+      countrySelect.appendChild(opt);
+    }
+
+    TOP.forEach(addCountry);
+    addDivider();
+    EU.forEach(addCountry); // already alphabetical
+    addDivider();
+    // Remaining countries, alphabetical (COUNTRIES is already sorted by name).
+    COUNTRIES.map((c) => c[0]).filter((n) => !grouped.has(n)).forEach(addCountry);
 
     // Mint THIS submitter's own referral code client-side, so their thank-you
     // page and confirmation email can carry a share link without any extra
