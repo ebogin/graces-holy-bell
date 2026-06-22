@@ -43,8 +43,12 @@ A viral referral/waitlist flow for the (beta) app:
   (`?ref=<code>`). Eric maps codes → names himself (he knows current users).
 - **Email sender:** `gracesholybell@boginfactory.com` (a Google Workspace
   mailbox), sent via Resend after domain verification.
-- **Hosting:** static pages in `docs/` (GitHub Pages → boginfactory.com), same as
-  the existing privacy policy.
+- **Hosting:** static pages live in `docs/` here as the **source copy**, but
+  `boginfactory.com` is actually served by a **separate repo**
+  (`ebogin/Boginfactory-Landing-Page`). Pages must be **mirrored** into that
+  repo's root to go live — editing `docs/` here does nothing to the live site.
+  See the ⚠️ warning in `waitlist/SETUP.md` Step 6. (The privacy policy follows
+  this same mirror pattern.)
 
 ---
 
@@ -120,7 +124,10 @@ In `docs/grace-waitlist.html`, replace:
 ```js
 const WORKER_ENDPOINT = "https://REPLACE-ME.workers.dev";
 ```
-with the deployed Worker URL, then commit/push so Pages redeploys.
+with the deployed Worker URL and commit. **Then publish:** mirror
+`grace-waitlist.html` and `grace-waitlist-thanks.html` into the root of
+`ebogin/Boginfactory-Landing-Page` and push there — that repo (not this one)
+serves boginfactory.com. See the ⚠️ warning in `waitlist/SETUP.md` Step 6.
 
 ### 4. End-to-end test
 Open `https://boginfactory.com/grace-waitlist.html?ref=testcode`, submit your own

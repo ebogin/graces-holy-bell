@@ -120,8 +120,25 @@ In **`docs/grace-waitlist.html`**, find this line near the bottom:
 const WORKER_ENDPOINT = "https://REPLACE-ME.workers.dev";
 ```
 
-Replace it with your Worker URL from Step 5, then commit/push so GitHub Pages
-redeploys boginfactory.com.
+Replace it with your Worker URL from Step 5 and commit it here (this repo holds
+the source-of-truth copy). **Then publish it — see the warning below.**
+
+> ### ⚠️ IMPORTANT — boginfactory.com is NOT served by this repo
+> The pages under `docs/` here are the **source copy only**. The live site
+> `boginfactory.com` is served by GitHub Pages from a **separate repo**:
+> **`ebogin/Boginfactory-Landing-Page`** (it holds the `CNAME = boginfactory.com`
+> and a flat set of HTML files at its root). `graces-holy-bell` does **not** have
+> Pages pointed at boginfactory.com.
+>
+> To actually publish a web page (the waitlist form, the thank-you page, the
+> privacy policy), you must **mirror it into the root of
+> `Boginfactory-Landing-Page` and push there** — editing `docs/` in this repo
+> alone changes nothing on the live site. This is the same mirror pattern noted
+> for the privacy policy (`graces-privacy-policy.html` lives in both repos).
+>
+> So for the waitlist, copy **both** `grace-waitlist.html` and
+> `grace-waitlist-thanks.html` into `Boginfactory-Landing-Page`'s root, commit,
+> and push. Pages there typically publishes within a minute or two.
 
 ---
 
