@@ -1,0 +1,215 @@
+# Grace's Holy Bell — Analytics Plan (Component 1 of 2)
+
+> Status: planning. Nothing implemented yet. Last updated: 2026-06-23.
+> **This is the FIRST of two plans and is built first.** It instruments the app
+> and proves we get clean, trustworthy data with the beta testers *before* the
+> growth work begins. The viral-growth/sharing component is a separate document:
+> [`viral-growth-plan.md`](viral-growth-plan.md).
+> Project context & locked decisions: [`project-handoff.md`](project-handoff.md).
+
+## Goal
+
+Understand how people actually use the app — **maximally instrument behavior,
+minimally collect identity**. Anonymous, GDPR-compliant, App Store–clean.
+
+Headline questions:
+
+- How often do full prayer sessions happen? (daily / weekend / occasional)
+- How many prayers per session, and how long is each prayer?
+- What is a *genuinely activated* user vs. a curious explorer?
+- User base: installs (phone + watch), active users, cadence segments.
+- Retention across cyclical, weekend-heavy lifestyle intervals.
+
+(Viral K-factor and referral attribution are out of scope here — see the
+viral-growth plan.)
+
+## Platform
+
+- **PostHog (EU Cloud, full iOS SDK) = product analytics.** Out-of-the-box
+  funnels, retention, cohorts, Lifecycle & Stickiness — no SQL, no hand-built
+  dashboards. **EU region is permanent** (one project = one region; EU covers US +
+  EU users with no US downside). Signed DPA + anonymous-only `distinct_id` covers
+  GDPR.
+- **PostHog MCP** (`mcp.posthog.com/mcp`) = the read/manage companion for
+  plain-English insights, dashboards, and flags. Install via
+  `npx @posthog/wizard@latest mcp add` once the account + data exist.
+- Analytics talks to PostHog directly via the SDK. (Cloudflare runs the waitlist /
+  viral backend — that lives in the viral-growth plan.)
+
+---
+
+## 1. Identity & architecture
+
+- **One anonymous identity:** `install_id` = PostHog `distinct_id` (and, for the
+  viral plan, the referral code). Random, no PII. The retention/cohort key.
+  - **Shared across devices:** generated on iPhone, **synced to Watch** over the
+    existing WatchConnectivity link — the Watch must NOT mint its own, or one
+    person counts as two.
+  - **Persistence: UserDefaults** (not Keychain) — delete-and-reinstall yields a
+    new ID ("new install = new user"). Chosen for simplicity + honest anonymity.
+  - **Single key, not compound.** Everything else rides as PostHog *person/event
+    properties* (see below).
+- **Two data planes, bridged only by that code:**
+  - **Plane A — Waitlist PII** (Cloudflare D1, already live): email / name /
+    phone / country / SMS-consent. Identified, pre-install. (Owned by the viral
+    plan.)
+  - **Plane B — In-app analytics** (PostHog, this plan): anonymous behavioral
+    events, post-install.
+- **Wall between planes:** Plane B is keyed only by the anonymous code and is
+  **never joined** to waitlist email/phone.
+- **On-device derivation:** prayer logs already live on-device, so durations,
+  intervals, and session classification are computed locally and emitted only as
+  **buckets** — PostHog never receives raw seconds or prayer content.
+- **Client abstraction:** thin `Analytics` protocol in `Shared/`, no-op by
+  default, swappable; PostHog SDK behind it. View code never touches the SDK.
+
+## 2. Event taxonomy (Plane B — anonymous)
+
+Every event carries these **cross-device context properties**:
+
+- `device_source` — `phone` | `watch`.
+- `amen_alarm_status` — `phone` | `watch` | `both` | `off`.
+- `amen_alarm_duration_setting` — chosen interval (30m / 45m / 1h / 1h15 / 1h30 /
+  1h45 / 2h).
+
+Person/event properties also include: `first_seen` / `install_date`,
+`app_version`, `os_version`, `country` (geo, no IP), `consent_state`.
+
+### Events
+
+| Event | Fires when | Event-specific properties |
+|---|---|---|
+| `app_installed` | First iPhone launch (sets `first_seen`) | `app_version`, `install_date` (`referrer` is attached by the viral plan, when present) |
+| `watch_app_installed` | Watch app first seen (multi-device distribution) | `app_version` |
+| `app_opened` | Every foreground | `entry_point` (icon / notification / widget), `days_since_install` |
+| `session_started` | Prayer session begins | `entry_point`, `time_of_day_bucket`, `day_of_week` |
+| `prayer_logged` | Each prayer (Amen) within a session | `prayer_index_in_session` (incrementing count), `since_last_prayer_bucket` |
+| `session_ended` | User completes/ends a session normally | `prayers_in_session`, `session_value` (high / low), `session_duration_bucket`, `time_of_day_bucket`, `day_of_week` |
+| `session_abandoned` | Session left incomplete, **or** auto-fired when a prayer timer runs past **12h** | `prayers_so_far`, `reason` (`user_exit` \| `forgotten_timer`) |
+| `amen_alarm_set` | Alarm enabled/changed | (alarm props above carry the detail) |
+| `amen_alarm_fired` | Local notification delivered | `time_of_day_bucket` |
+| `notification_tapped` | App opened from the alarm | `time_of_day_bucket` |
+| `prayer_log_viewed` | History opened (Feature-to-Core signal) | — (`device_source` distinguishes watch vs phone) |
+
+**Forgotten-timer rule:** if a prayer timer runs continuously past 12 hours, fire
+`session_abandoned` with `reason = forgotten_timer` so it is *not* counted as
+churn or a UX failure — a user who walked away without ending the timer.
+
+**Session lifecycle — no double-close:** a session terminates exactly once. If a
+session already ended via `session_abandoned` (e.g. a forgotten timer), the next
+prayer days/weeks later starts a **fresh** `session_started` — it must **not**
+emit a retroactive `session_ended` first. Guard against a `session_ended` fired
+immediately before a `session_started`: that stale session already ended at its
+`session_abandoned` event, and its duration is measured to that abandon point.
+
+Pruned: `settings_opened`, pure navigation / scroll / impression noise, and
+`privacy_policy_viewed`. (Share/referral events live in the viral-growth plan.)
+
+## 3. Bucketing (GDPR-safe, derived on-device)
+
+Durations/intervals are computed locally and emitted only as buckets — never raw
+seconds, never prayer content. Buckets align to the **Amen Alarm interval
+boundaries** so prayer length, inter-prayer gap, and alarm cadence are directly
+comparable:
+
+- **`session_duration_bucket` / `since_last_prayer_bucket`:** 15-minute brackets
+  out to 4 hours, final `4h+` catch-all —
+  `<30m` · `30–45m` · `45–60m` · `1h–1h15` · `1h15–1h30` · `1h30–1h45` ·
+  `1h45–2h` · `2h–2h15` · `2h15–2h30` · `2h30–2h45` · `2h45–3h` · `3h–3h15` ·
+  `3h15–3h30` · `3h30–3h45` · `3h45–4h` · `4h+`
+- **`time_of_day_bucket`:** early-morning / morning / midday / afternoon /
+  evening / night
+- **`day_of_week`:** used to derive weekend vs. weekday behavior
+
+## 4. Activation & engagement quality
+
+### High-Value Session Density
+- **Low-Value / Explorer session:** 1 prayer, or multiple prayers in rapid
+  immediate succession.
+- **High-Value / Activated session:** **2+ prayers, each ≥30 minutes apart** —
+  proving the app is woven into the user's day, not just being tested.
+
+`session_value` (`high` | `low`) is computed on-device at `session_ended`; the
+crucial signal for **W1 cohort quality**.
+
+### Feature-to-Core Ratio
+% of active users who parse historical logs (`prayer_log_viewed`, especially on
+watch) vs. those who only execute raw prayer actions.
+
+## 5. Retention — weekly, bracketed (replaces D1/D7/D30/D90)
+
+The app is cyclical and weekend-heavy, so day-checkpoint retention generates false
+negatives. Use **unbounded, weekly-bracketed** cohorts:
+
+- **W1** — active during the week (incl. weekend) after install.
+- **W4 / M1** — active during week 4 / month 1.
+- **W12 / M3** — sustained engagement at week 12 / month 3.
+
+"Active in week N" counts a return at *any point* that week. PostHog **Retention**
++ **Lifecycle** insights produce these directly.
+
+## 6. User-base cadence segmentation
+
+Classify each user by cadence over a rolling 28-day window and count the
+populations:
+
+| Segment | Definition |
+|---|---|
+| **Daily / Habitual** | Active most days; sessions spread across the week |
+| **Weekend Warrior** | Activity concentrated Thu–Sun, sparse on weekdays |
+| **Occasional** | Active ~1–3 days/month |
+| **Dormant** | Previously active, now silent |
+
+Driven by (both native PostHog): (1) **active-days / active-weekends per trailing
+28 days** → segment buckets; (2) **Weekend Warrior Ratio** — per user, % of
+sessions landing Thu–Sun. Plus **DAU / WAU / MAU**, **Stickiness (DAU÷MAU)**, and
+a **phone vs. watch** split from `device_source`.
+
+## 7. What is NOT collected
+
+- **Never in Plane B:** prayer content, name, email, contacts, location, IDFA,
+  raw second-level durations.
+- **Bucketed, on-device-derived** timing only (§3).
+- **Country-level geo only** — keep country, **drop raw IP**.
+- **Erasure:** delete local `install_id` + purge by that ID in PostHog satisfies
+  GDPR right-to-erasure.
+
+## 8. Privacy & App Store (mandatory for distribution)
+
+- **Consent: geo-gated.** Anonymous analytics **opt-out (default ON, disclosed)**
+  for non-EU; **EU users get an opt-in consent banner**. A Settings toggle gates
+  transmission; `consent_state` rides as a property.
+- **Beta testers (<10 friends):** no in-app upgrade screen; handle via updated
+  privacy disclosure + TestFlight release notes. (Geo-gated consent ships for
+  App Store users.)
+- **Privacy policy:** rewrite **both** `docs/graces-privacy-policy.html` and
+  `Graces Holy Bell/Views/PrivacyPolicyView.swift` (kept in sync). Disclose the
+  waitlist PII + server + Resend + SMS consent (already true) and the PostHog
+  analytics. The current "no servers, nothing collected" text is inaccurate.
+- **App Store Connect "App Privacy":** "Data Not Collected" → Usage Data,
+  Diagnostics, Identifiers — *not linked to identity* in Plane B. (Contact Info
+  comes from the waitlist; "Data Used to Track You" only if Branch/ads are added —
+  viral plan.)
+- **`PrivacyInfo.xcprivacy`:** verify reason codes; extend for the PostHog SDK.
+
+## 9. Phasing (this plan, built first)
+
+0. **PostHog EU account** 🧍 — owner creates EU project, signs DPA, generates keys.
+1. **Foundation (no-op):** `install_id` (UserDefaults, iPhone→Watch sync);
+   `Analytics` protocol in `Shared/`; PostHog SDK (EU) behind it; debug/no-op
+   transport until keys + consent are wired.
+2. **Core instrumentation:** the §2 events + cross-device properties across iOS +
+   watchOS; §3 bucketing; `session_value` + the 12h/no-double-close rules. Verify
+   on the iPhone + Watch simulator and in PostHog live events.
+3. **Consent & privacy gating:** geo-gated consent, Settings toggle wired to gate
+   transmission, country-geo-without-IP config.
+4. **Privacy policy + App Store privacy:** rewrite both policy surfaces (mirror
+   the web policy to the public landing-page repo), update `PrivacyInfo.xcprivacy`,
+   provide the App Store Connect answer mapping. 🧍 (owner enters Connect answers)
+5. **Dashboards (PostHog MCP):** weekly retention (W1/W4/W12), cadence segments,
+   High-Value Session Density, Feature-to-Core, Weekend Warrior Ratio, DAU/WAU/MAU.
+6. **Beta rollout:** ship to the <10 TestFlight testers; confirm clean,
+   trustworthy data **before** starting the viral-growth plan.
+
+> Prayer *content* is out of scope — logs stay 100% on-device, never collected,
+> shared, or aggregated.
