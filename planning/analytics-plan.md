@@ -42,9 +42,9 @@ viral-growth plan.)
 
 - **One anonymous identity:** `install_id` = PostHog `distinct_id` (and, for the
   viral plan, the referral code). Random, no PII. The retention/cohort key.
-  - **Shared across devices:** generated on iPhone, **synced to Watch** over the
-    existing WatchConnectivity link — the Watch must NOT mint its own, or one
-    person counts as two.
+  - **Shared across devices:** generated on iPhone (canonical). The Watch never
+    mints its own *transmitted* identity — see **Watch transport & event timing**
+    below — so one person is never counted twice.
   - **Persistence: UserDefaults** (not Keychain) — delete-and-reinstall yields a
     new ID ("new install = new user"). Chosen for simplicity + honest anonymity.
   - **Single key, not compound.** Everything else rides as PostHog *person/event
@@ -62,6 +62,32 @@ viral-growth plan.)
   **buckets** — PostHog never receives raw seconds or prayer content.
 - **Client abstraction:** thin `Analytics` protocol in `Shared/`, no-op by
   default, swappable; PostHog SDK behind it. View code never touches the SDK.
+
+### Watch transport & event timing
+
+- **iPhone is the canonical `install_id` generator.** The Watch app is a dependent
+  companion, so the iPhone app always exists (it may simply not have launched yet).
+- **The Watch never transmits an event until it holds the canonical
+  `install_id`.** Until then it holds events in a local **pending queue**. On a
+  Watch-first cold start it requests the ID from the phone over WCSession; if
+  neither device has one yet, a **deterministic tie-break** decides (iPhone-minted
+  wins; if both mint one, earliest-timestamp / lexicographically-smaller wins and
+  the other device adopts it). Because nothing is sent before the ID resolves,
+  **no PostHog merge/alias is ever needed and there are no phantom users** — queued
+  events are simply re-tagged with the canonical ID.
+- **All Watch events proxy through the phone's PostHog SDK** (no separate watchOS
+  SDK instance): one queue, one config, one consent gate. Delivery uses WCSession
+  `transferUserInfo`, which the OS persists and delivers on reconnect — so
+  phone-less Watch sessions are **delayed, never lost** (acceptable: analytics is
+  not real-time).
+- **Origin device is preserved.** Every event sets `device_source` to the
+  **originating** device (`watch`) *before* queuing; the phone is only the
+  transport and must **not** overwrite it to `phone`. This is what lets PostHog
+  cleanly separate watch-based from iPhone-based usage.
+- **True event time is preserved.** Each proxied (and each next-launch-synthesized)
+  event carries its real capture timestamp, sent to PostHog via the SDK
+  **`timestamp` override**, so it lands at the correct chronological point — not at
+  sync or re-open time. See *Synthesized / backdated events* in §2.
 
 ## 2. Event taxonomy (Plane B — anonymous)
 
@@ -89,11 +115,13 @@ Person/event properties also include: `first_seen` / `install_date`,
 | `amen_alarm_set` | Alarm enabled/changed | (alarm props above carry the detail) |
 | `amen_alarm_fired` | Local notification delivered | `time_of_day_bucket` |
 | `notification_tapped` | App opened from the alarm | `time_of_day_bucket` |
-| `prayer_log_viewed` | History opened (Feature-to-Core signal) | — (`device_source` distinguishes watch vs phone) |
+| `prayer_log_viewed` | Log screen opened — **Watch only** (on iPhone the log is always visible on the main timer page, so there is no discrete view to track) | — (always `device_source = watch`) |
 
 **Forgotten-timer rule:** if a prayer timer runs continuously past 12 hours, fire
 `session_abandoned` with `reason = forgotten_timer` so it is *not* counted as
-churn or a UX failure — a user who walked away without ending the timer.
+churn or a UX failure — a user who walked away without ending the timer. The app
+cannot fire this while suspended/force-quit, so it is **synthesized on the next
+launch** and backdated — see *Synthesized / backdated events* below.
 
 **Session lifecycle — no double-close:** a session terminates exactly once. If a
 session already ended via `session_abandoned` (e.g. a forgotten timer), the next
@@ -101,6 +129,13 @@ prayer days/weeks later starts a **fresh** `session_started` — it must **not**
 emit a retroactive `session_ended` first. Guard against a `session_ended` fired
 immediately before a `session_started`: that stale session already ended at its
 `session_abandoned` event, and its duration is measured to that abandon point.
+
+**Synthesized / backdated events:** any event that can only be *computed at next
+launch* must be **backdated to its true time** via the PostHog `timestamp`
+override, not stamped at re-open/sync time. Two cases: (1) the forgotten-timer
+`session_abandoned` lands at **session start + 12h**; (2) late-delivered Watch
+events land at their **original capture time**. Without this, the user's PostHog
+timeline is distorted and retention/interval math breaks.
 
 Pruned: `settings_opened`, pure navigation / scroll / impression noise, and
 `privacy_policy_viewed`. (Share/referral events live in the viral-growth plan.)
@@ -132,9 +167,19 @@ comparable:
 `session_value` (`high` | `low`) is computed on-device at `session_ended`; the
 crucial signal for **W1 cohort quality**.
 
-### Feature-to-Core Ratio
-% of active users who parse historical logs (`prayer_log_viewed`, especially on
-watch) vs. those who only execute raw prayer actions.
+### Feature-to-Core Ratio (Watch-only)
+The log is a discrete, intentional screen **only on the Watch** (on iPhone it's
+always visible on the timer page), so this is a **Watch-specific** metric: among
+users who pray on the Watch, what share deliberately check their history
+(`prayer_log_viewed`) vs. only execute raw prayer actions.
+
+One event powers **three lenses** (all analysis-time in PostHog — no extra
+instrumentation), tracked together so the ratio doesn't drift toward 100% over a
+user's lifetime:
+- **Same-session** — did they open the log in the same Watch sitting as a prayer?
+- **24-hour** — within 24h of a prayer.
+- **Rolling 7-day** *(primary)* — log-viewers ÷ prayer-loggers over the trailing
+  7 days, matching the weekly-bracketed retention frame.
 
 ## 5. Retention — weekly, bracketed (replaces D1/D7/D30/D90)
 
