@@ -237,24 +237,47 @@ a **phone vs. watch** split from `device_source`.
   viral plan.)
 - **`PrivacyInfo.xcprivacy`:** verify reason codes; extend for the PostHog SDK.
 
-## 9. Phasing (this plan, built first)
+## 9. Phasing & task ownership (this plan, built first)
 
-0. **PostHog EU account** 🧍 — owner creates EU project, signs DPA, generates keys.
-1. **Foundation (no-op):** `install_id` (UserDefaults, iPhone→Watch sync);
-   `Analytics` protocol in `Shared/`; PostHog SDK (EU) behind it; debug/no-op
-   transport until keys + consent are wired.
-2. **Core instrumentation:** the §2 events + cross-device properties across iOS +
-   watchOS; §3 bucketing; `session_value` + the 12h/no-double-close rules. Verify
-   on the iPhone + Watch simulator and in PostHog live events.
-3. **Consent & privacy gating:** geo-gated consent, Settings toggle wired to gate
-   transmission, country-geo-without-IP config.
-4. **Privacy policy + App Store privacy:** rewrite both policy surfaces (mirror
-   the web policy to the public landing-page repo), update `PrivacyInfo.xcprivacy`,
-   provide the App Store Connect answer mapping. 🧍 (owner enters Connect answers)
-5. **Dashboards (PostHog MCP):** weekly retention (W1/W4/W12), cadence segments,
-   High-Value Session Density, Feature-to-Core, Weekend Warrior Ratio, DAU/WAU/MAU.
-6. **Beta rollout:** ship to the <10 TestFlight testers; confirm clean,
-   trustworthy data **before** starting the viral-growth plan.
+Tasks are one of two kinds, intended to run in **two parallel chat windows** so
+the coding agent isn't gated on human turnaround:
+
+- 🤖 **Agent** — autonomous coding (the agent build chat).
+- 🧍 **Human** — owner actions an AI must walk through step-by-step (the setup
+  chat): account creation, signing legal terms, anything in a vendor/Apple web UI,
+  physical-device/TestFlight actions.
+- 🤝 **Handoff** — an agent deliverable the human consumes, or vice-versa.
+
+### Frozen-code boundary (read first)
+"Core app frozen" means **no behavior, logic, UI, or WatchConnectivity changes**.
+Adding **additive, side-effect-free analytics hook calls** through the `Analytics`
+protocol at the right points is *expected and allowed* — that is the
+instrumentation. Hooks must not alter control flow, ordering, or output. If a hook
+seems to require a logic change, stop and raise it rather than modifying frozen
+code.
+
+### Phases
+
+| # | Phase | Owner | Notes |
+|---|---|---|---|
+| 0 | **PostHog EU account** | 🧍 | Create EU project, sign DPA, generate keys; configure project (autocapture off, disable IP/geo→country only). Output: keys → §0 handoff. |
+| 1 | **Foundation (no-op)** | 🤖 | `install_id` (UserDefaults, iPhone→Watch sync, pending queue + tie-break); `Analytics` protocol in `Shared/`; **mock/no-op transport**. Builds + tests green with **no real keys** — does not block on Phase 0. |
+| 2 | **Core instrumentation** | 🤖 | §2 events + cross-device props across iOS + watchOS; Watch→phone proxy + `device_source` preservation + `timestamp` overrides; §3 bucketing; `session_value`; 12h synth + no-double-close. Verify on iPhone + Watch sim. |
+| 0→2 | **Wire real PostHog SDK** | 🤝 | Agent swaps the mock transport for the PostHog SDK once the human delivers keys (Phase 0). Keys injected via xcconfig/secrets — **never committed**. |
+| 3 | **Consent & privacy gating** | 🤖 | Geo-gated consent, Settings toggle gates transmission, `consent_state`, country-geo-without-IP. |
+| 4 | **Privacy policy + App Store privacy** | 🤝 | Agent rewrites both policy surfaces (mirror web policy to the public landing-page repo) + `PrivacyInfo.xcprivacy` + produces the Connect answer mapping; 🧍 human enters answers in App Store Connect. |
+| 5 | **Dashboards (PostHog MCP)** | 🤝 | Agent builds insights via PostHog MCP (needs MCP installed in Phase 0); 🧍 human reviews. Weekly retention, cadence segments, High-Value Session Density, Feature-to-Core, Weekend Warrior Ratio, DAU/WAU/MAU. |
+| 6 | **Beta rollout** | 🧍 | Build → TestFlight → <10 testers; updated privacy disclosure + release notes. Confirm clean data **before** starting the viral-growth plan. |
+
+### Parallel-execution model
+The two chats meet at the **interface contract**: the agent (Phase 1) builds the
+whole abstraction + instrumentation + tests against a **mock transport**, so it can
+proceed immediately without waiting on the human. In parallel the human (Phase 0)
+provisions PostHog + MCP + (later) Connect/TestFlight. They converge at the
+**0→2 handoff**, where the agent swaps the mock for the real PostHog SDK using the
+keys the human produced. The only hard cross-dependencies: real-key wiring (needs
+Phase 0), dashboards (need the MCP + live data), Connect answers and TestFlight
+(human-only).
 
 > Prayer *content* is out of scope — logs stay 100% on-device, never collected,
 > shared, or aggregated.
