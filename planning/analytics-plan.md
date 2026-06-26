@@ -133,7 +133,8 @@ immediately before a `session_started`: that stale session already ended at its
 **Synthesized / backdated events:** any event that can only be *computed at next
 launch* must be **backdated to its true time** via the PostHog `timestamp`
 override, not stamped at re-open/sync time. Two cases: (1) the forgotten-timer
-`session_abandoned` lands at **session start + 12h**; (2) late-delivered Watch
+`session_abandoned` lands at **last prayer + 12h** (the moment the
+"time since last prayer" timer crosses 12h); (2) late-delivered Watch
 events land at their **original capture time**. Without this, the user's PostHog
 timeline is distorted and retention/interval math breaks.
 
