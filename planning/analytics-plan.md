@@ -152,17 +152,23 @@ comparable:
   `<30m` · `30–45m` · `45–60m` · `1h–1h15` · `1h15–1h30` · `1h30–1h45` ·
   `1h45–2h` · `2h–2h15` · `2h15–2h30` · `2h30–2h45` · `2h45–3h` · `3h–3h15` ·
   `3h15–3h30` · `3h30–3h45` · `3h45–4h` · `4h+`
-- **`time_of_day_bucket`:** early-morning / morning / midday / afternoon /
-  evening / night
+- **`time_of_day_bucket`:** eight equal 3-hour windows (local time), so every
+  part of the day — including overnight — gets equal resolution:
+  `late-night` (00–03) · `early-morning` (03–06) · `morning` (06–09) ·
+  `late-morning` (09–12) · `midday` (12–15) · `afternoon` (15–18) ·
+  `evening` (18–21) · `night` (21–24)
 - **`day_of_week`:** used to derive weekend vs. weekday behavior
 
 ## 4. Activation & engagement quality
 
 ### High-Value Session Density
-- **Low-Value / Explorer session:** 1 prayer, or multiple prayers in rapid
-  immediate succession.
-- **High-Value / Activated session:** **2+ prayers, each ≥30 minutes apart** —
-  proving the app is woven into the user's day, not just being tested.
+Rapid taps (<60s apart) are first **collapsed into one** "real" prayer, so an
+accidental double/triple tap (e.g. a slow display) cannot drag a session down.
+Then:
+- **Low-Value / Explorer session:** 1 distinct prayer, or multiple prayers in
+  rapid immediate succession.
+- **High-Value / Activated session:** **2+ distinct prayers, each ≥30 minutes
+  apart** — proving the app is woven into the user's day, not just being tested.
 
 `session_value` (`high` | `low`) is computed on-device at `session_ended`; the
 crucial signal for **W1 cohort quality**.
