@@ -2,9 +2,12 @@ import SwiftUI
 
 /// In-app privacy policy, presented as a sheet from SettingsView.
 ///
-/// Plain-language statement that the app collects no data. Keep the copy here in
-/// sync with the public web version (docs/graces-privacy-policy.html) and the App Store
-/// Connect "App Privacy" answers ("Data Not Collected").
+/// Plain-language statement: prayer logs stay on-device; the only thing the app
+/// sends is optional, anonymous PostHog usage analytics (consent-gated, off in
+/// the EU/UK/EEA until opt-in). Keep the copy here in sync with the public web
+/// version (docs/graces-privacy-policy.html) and the App Store Connect "App
+/// Privacy" answers (Identifiers + Usage Data, used for Analytics, not linked to
+/// identity, not used for tracking).
 ///
 /// ───────────────────────────────────────────────────────────────────────────
 /// MAINTENANCE NOTE (for any human or AI editing this policy):
@@ -22,12 +25,18 @@ struct PrivacyPolicyView: View {
     @Environment(\.dismiss) private var dismiss
 
     /// Last time the policy text changed. Update alongside the web version.
-    private let effectiveDate = "June 22, 2026"
+    private let effectiveDate = "June 27, 2026"
 
     private let sections: [(heading: String, body: [String])] = [
         ("WHAT WE COLLECT", [
-            "The app itself collects nothing. Grace's Holy Bell has no servers and never sends your information anywhere. We don't ask for your name, email, contacts, or location, and there are no accounts or sign-ups.",
-            "The one exception is our optional waitlist signup — see \"Waitlist Signup\" below. It lives on our website, separate from the app, and only ever has the information you choose to type into it."
+            "On your device, the app keeps your prayer logs and Amen Alarm settings (see \"What Stays on Your Device\"). There are no accounts and no sign-ups.",
+            "The only information the app sends off your device is anonymous usage analytics, and only while analytics are turned on — see \"Anonymous Analytics\" below. We don't ask for your name, email, contacts, or GPS location. The one place we collect contact details is our optional waitlist signup — see \"Waitlist Signup\" below."
+        ]),
+        ("ANONYMOUS ANALYTICS", [
+            "To learn how the app is used — and, true to its purpose, whether it actually helps people stay mindful of how often and how long they pray — we collect anonymous usage analytics through PostHog, an analytics service. The data for this app is processed on PostHog's servers in the European Union.",
+            "It's tied only to a random ID created on your device when you install the app — not your name, Apple ID, email, or phone number — and it isn't linked to your identity. We record events like when a prayer session starts and ends, roughly how long sessions last and how they're spaced (in broad time ranges), which features you use, and your app, device, and operating-system version. We never record the content of your prayers.",
+            "When your device sends this data, PostHog's servers can see its IP address and use it to estimate an approximate location, such as your country or city. We don't use this to identify you, and you can stop all of it by turning analytics off.",
+            "You control this in Settings, under Privacy. Outside the European Union, the United Kingdom, and the EEA, analytics are on by default and you can opt out at any time. Within them, analytics stay off until you choose to opt in."
         ]),
         ("WAITLIST SIGNUP", [
             "If you use \"Share with a Friend\" and a friend opens your link, it takes them to a signup page on our website. This is the only place the project collects information.",
@@ -42,13 +51,13 @@ struct PrivacyPolicyView: View {
             "If you turn on the Amen Alarm, the app schedules local notifications on your iPhone and/or Apple Watch. These are created and delivered entirely on your device."
         ]),
         ("THIRD PARTIES", [
-            "The app includes no third-party analytics, advertising, or tracking tools. We don't share data with anyone — because we don't have any to share."
+            "The app uses one third-party service: PostHog, for the anonymous analytics described above. It includes no advertising and no cross-app tracking tools. Our waitlist signup (on our website) uses Resend to send its confirmation email. We don't sell your information or share it with advertisers."
         ]),
         ("TRACKING", [
             "We do not track you across other apps or websites."
         ]),
         ("CHILDREN", [
-            "The app collects no data from anyone, including children."
+            "The app isn't directed at children, and the analytics it collects are anonymous and not tied to anyone's identity. We don't knowingly collect personal information from children."
         ]),
         ("CHANGES", [
             "If this policy ever changes — for example, if a future version adds a feature that needs data — we'll update this page and ask for your consent where required."
@@ -97,7 +106,7 @@ struct PrivacyPolicyView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
 
-                    Text("Grace's Holy Bell is built to respect your privacy. The app does not collect, store, or share any personal data about you. The one exception is our optional waitlist signup, described below.")
+                    Text("Grace's Holy Bell is built to respect your privacy. Your prayer logs stay on your device. The only thing the app sends anywhere is optional, anonymous usage analytics — which you can turn off at any time. It never records the content of your prayers, and never your name, email, or account. Two optional things are described below: the anonymous analytics, and our waitlist signup.")
                         .font(.pixelFont(10, relativeTo: .body))
                         .foregroundStyle(Color.lcdDark)
                         .lineSpacing(5)

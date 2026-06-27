@@ -3,14 +3,16 @@
 > For the next session/engineer. Source of truth for the plan itself remains
 > [`analytics-plan.md`](analytics-plan.md) and [`project-handoff.md`](project-handoff.md);
 > this doc records **what is built, how, and what's left**.
-> Last updated: 2026-06-26.
+> Last updated: 2026-06-27.
 
 ## TL;DR
-Phases **1, 2, 3, and the 0→2 real-PostHog handoff are DONE** on branch
-`claude/awesome-ellis-c6415f`. Real PostHog SDK is wired and consent-gated.
-**126 unit tests pass; iPhone app + Watch app both build clean.** Nothing pushed,
-no PR opened. Remaining: live event verification, Phase 4 (privacy policy + App
-Store privacy), Phase 5 (dashboards), Phase 6 (beta).
+Phases **1, 2, 3, the 0→2 real-PostHog handoff, AND live event verification are
+DONE** on branch `claude/awesome-ellis-c6415f`. Real PostHog SDK is wired and
+consent-gated, and the full prayer lifecycle has been **confirmed received in
+PostHog project 210049** (see "Live verification — DONE" below). **126 unit tests
+pass; iPhone app + Watch app both build clean.** Nothing pushed, no PR opened.
+Remaining: Phase 4 (privacy policy + App Store privacy), Phase 5 (dashboards),
+Phase 6 (beta).
 
 ## Build / test commands (USE DIRECT xcodebuild)
 The `xcodebuild` **MCP is unreliable on long ops** (it crashed repeatedly mid-run;
@@ -77,27 +79,66 @@ that path and set `POSTHOG_API_KEY` (the `phc_...` project key) + `POSTHOG_HOST`
 (`https://eu.i.posthog.com`). The real key was provided by Eric in chat and is in
 the local (uncommitted) `Secrets.plist`.
 
+## Live verification — DONE (2026-06-27)
+Confirmed end-to-end against **real** PostHog (project 210049, EU Cloud) with the
+real key. Drove the iPhone 17 sim (iOS 26.4) through a full prayer lifecycle using
+the existing Maestro flows (slider swipe + stop→Clear Log); no UI-automation MCP
+was available, and the xcodebuild MCP's UI tools are not enabled, so Maestro
+(`~/.maestro/bin/maestro`) was the driver. One fresh-install run (`clearState`)
+emitted, all received under one install_id:
+`app_installed`, `app_opened`, `session_started`, `prayer_logged`×3,
+`session_ended`. Properties verified correct: `consent_state=granted` and
+`device_source=phone` on every event; opening prayer omits `since_last_prayer_bucket`
+while idx 2–3 carry `<30m`; `session_ended` had `session_duration_bucket=<30m`,
+`session_value=low` (rapid taps correctly collapsed), `prayers_in_session=3`,
+`time_of_day_bucket`/`day_of_week` taken at session start. `app_version=1.42`.
+- **Test data note:** this left a synthetic dev person (`F3405BD1-…`) plus earlier
+  install/open/abandon events in 210049. Harmless pre-beta, but filter it out of
+  Phase-5 dashboards (test-account filter / exclude these install_ids).
+- **Repro:** the throwaway flow lived at `/tmp/analytics_verify_flow.yaml`
+  (launch+clearState → 3× swipe `8%,82%→92%,82%` → tap `stop-button` → tap
+  `Clear Log`). PostHog defaults flush ~30s, so wait before querying.
+
+## Phase 4 — DRAFTED 2026-06-27 (pending Eric review + two decisions)
+Both privacy surfaces rewritten **in sync** to disclose the PostHog analytics and
+drop the now-false "no servers / nothing collected / no analytics" claims (effective
+date bumped to June 27, 2026); waitlist PII + Resend + SMS were already covered and
+kept:
+- `docs/graces-privacy-policy.html` and `Graces Holy Bell/Views/PrivacyPolicyView.swift`
+  — new "ANONYMOUS ANALYTICS" section (PostHog, EU servers, random install ID, coarse
+  buckets, never prayer content, IP→approximate region, off switch + EU opt-in);
+  THIRD PARTIES now names PostHog + Resend; CHILDREN reworded. Text verified identical
+  across both; in-app view compiles.
+- `Graces Holy Bell/PrivacyInfo.xcprivacy` — now declares **Device ID + Product
+  Interaction** (Linked=false, Tracking=false, purpose Analytics). Watch xcprivacy
+  **correctly unchanged** (PostHog is iPhone-target only; Watch is a thin proxy).
+- `planning/app-store-privacy-answers.md` — exact App Store Connect "App Privacy"
+  answers (Identifiers→Device ID, Usage Data→Product Interaction; not linked, not
+  tracking, Analytics). Replaces the old "Data Not Collected" answer.
+- Consent banner (`AnalyticsConsentBanner.swift`) wording already aligns with the
+  new policy and links to it — no change needed.
+
+**Decisions made (2026-06-27):**
+1. **Published.** Eric approved "mirror now, as written." The updated web policy was
+   mirrored to `ebogin/Boginfactory-Landing-Page` (commit `7345f67`) and the **live
+   site is confirmed updated** at https://boginfactory.com/graces-privacy-policy.html.
+2. **GeoIP stays ON** (disclosed in the policy, not in the Apple label since IP-geo
+   isn't from location services). The "Discard client IP data" option remains
+   available later — see `app-store-privacy-answers.md`; if flipped, soften the IP
+   paragraph in both policy surfaces.
+
+**Still open:** the Phase-4 working-tree changes (privacy HTML, `PrivacyPolicyView.swift`,
+`PrivacyInfo.xcprivacy`, the two planning docs, this doc) are **uncommitted** on
+`claude/awesome-ellis-c6415f` — so the public mirror is briefly ahead of the committed
+source. Commit when ready. Also: App Store Connect "App Privacy" answers still need to
+be entered by hand (doc drafted), and the App Store privacy update ships with the next
+build submission.
+
 ## NOT done yet / next steps (in plan order)
-1. **Live verification (do this first).** Build/run the iPhone app in the sim,
-   perform a prayer (slider), background→foreground, etc., then confirm events land
-   in PostHog project 210049 via the PostHog MCP (`query-trends`/`read-data-schema`
-   over the event names) or the dashboard. The wiring is build/test-verified but
-   **no real event has been confirmed received yet.** Note: a sim/dev build counts
-   as non-EU → consent default granted, so events should flow.
-2. **Phase 4 (🤝, agent-doable now):** rewrite BOTH privacy surfaces —
-   `docs/graces-privacy-policy.html` and `Graces Holy Bell/Views/PrivacyPolicyView.swift`
-   (keep in sync) — to disclose waitlist PII + server + Resend + SMS + PostHog
-   analytics (current "no servers / nothing collected" text is inaccurate). Also
-   update `Graces Holy Bell/PrivacyInfo.xcprivacy` (+ the Watch one) for the PostHog
-   SDK reason codes, and produce the App Store Connect "App Privacy" answer mapping
-   (Usage Data / Diagnostics / Identifiers, not linked to identity). **Mirror the
-   web policy to ebogin/Boginfactory-Landing-Page** (see memory: docs/ auto-mirror).
-   Align banner/policy wording (banner copy chosen: Title "EU PRIVACY NOTICE", the
-   "what anonymous means" body, "Read our Privacy Policy" link).
-3. **Phase 5 (🤝):** build PostHog insights/dashboards via the PostHog MCP — weekly
+1. **Phase 5 (🤝):** build PostHog insights/dashboards via the PostHog MCP — weekly
    retention, cadence segments, High-Value Session Density, Feature-to-Core,
    Weekend Warrior Ratio, DAU/WAU/MAU. Needs live data first.
-4. **Phase 6 (🧍):** TestFlight beta to <10 friends; confirm clean data before the
+2. **Phase 6 (🧍):** TestFlight beta to <10 friends; confirm clean data before the
    viral-growth plan.
 
 ## Open product items Eric may want to revisit (documented assumptions)
