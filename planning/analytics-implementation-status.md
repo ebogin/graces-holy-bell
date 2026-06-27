@@ -122,16 +122,16 @@ kept:
 1. **Published.** Eric approved "mirror now, as written." The updated web policy was
    mirrored to `ebogin/Boginfactory-Landing-Page` (commit `7345f67`) and the **live
    site is confirmed updated** at https://boginfactory.com/graces-privacy-policy.html.
-2. **GeoIP stays ON** for now (disclosed in the policy, not in the Apple label since
-   IP-geo isn't from location services). **⚠️ Deviation from plan found:** the live
-   events carry **city-level** geo (`$geoip_city_name`, e.g. Los Angeles), but
-   `analytics-plan.md` §7 + Phase 0 call for **country-level geo only, raw IP
-   dropped**. Raw `$ip` is already not stored, but city is — so the Phase-0 PostHog
-   config ("disable IP/geo → country only") was not fully applied. Recommended fix:
-   enable **"Discard client IP data"** in PostHog Project Settings (drops geo
-   entirely; PostHog can't keep country-only while dropping city). If done, soften
-   the policy's "country or city" to "country" (or drop the location line) in both
-   surfaces. See `app-store-privacy-answers.md`.
+2. **GeoIP — KEEP country + city** (Eric's decision: the geo is useful to him).
+   This **supersedes** `analytics-plan.md` §7 / Phase 0 ("country-only, drop raw
+   IP"); plan intent was minimization, Eric chose to keep city too. Live events
+   carry `$geoip_country_name` + `$geoip_city_name` (raw `$ip` still not stored —
+   fine). Disclosures updated to match: both privacy surfaces now state PostHog
+   uses the IP for an approximate **country + city** (never precise/GPS), used only
+   to understand where the app is used; the iPhone `PrivacyInfo.xcprivacy` and the
+   App Store mapping now declare **Coarse Location** (Analytics, not linked, not
+   tracking) alongside Device ID + Product Interaction. No PostHog config change.
+   See `app-store-privacy-answers.md`.
 
 **Committed:** the Phase-4 changes are committed on `claude/awesome-ellis-c6415f`
 as `21b5d0a` (privacy HTML, `PrivacyPolicyView.swift`, `PrivacyInfo.xcprivacy`, the

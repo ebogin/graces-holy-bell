@@ -16,6 +16,7 @@ only**, both **not linked to identity** and **not used for tracking**, purpose
 |---|---|---|---|---|
 | **Device ID** | Identifiers | No | No | Analytics |
 | **Product Interaction** | Usage Data | No | No | Analytics |
+| **Coarse Location** | Location | No | No | Analytics |
 
 Everything else (prayer logs, Amen Alarm settings) stays on device and is **not
 collected**. The waitlist is a separate website form — see "Waitlist" below for
@@ -28,6 +29,7 @@ why it is not part of the app's privacy label.
 2. Select these data types:
    - **Identifiers → Device ID**
    - **Usage Data → Product Interaction**
+   - **Location → Coarse Location**
 
 3. For **Device ID**:
    - *Used to track you?* **No** (no cross-app/website tracking; `NSPrivacyTracking = false`).
@@ -43,10 +45,16 @@ why it is not part of the app's privacy label.
    - *Linked to your identity?* **No.**
    - *Purpose:* **Analytics.**
 
-That's the whole label. Do **not** add Location (see GeoIP note), Contact Info,
-Health, Financial, Browsing History, Search History, or Sensitive Info.
+5. For **Coarse Location** (country + city that PostHog derives from the request
+   IP — **never precise/GPS**; the app uses no location services):
+   - *Used to track you?* **No.**
+   - *Linked to your identity?* **No.**
+   - *Purpose:* **Analytics.**
 
-## Why these two, and not others
+Do **not** add Precise Location, Contact Info, Health, Financial, Browsing
+History, Search History, or Sensitive Info.
+
+## Why these, and not others
 
 - **Device ID, not "User ID":** the install_id is device/install-scoped and not
   tied to an account, so Apple's *Device ID* is the right bucket. PostHog also
@@ -62,27 +70,29 @@ Health, Financial, Browsing History, Search History, or Sensitive Info.
   add is *Diagnostics → Other Diagnostic Data*, same answers: not linked, not
   tracking, Analytics.)
 
-## GeoIP / approximate location — important, please decide
+## GeoIP / approximate location — DECIDED: keep it, declare it
 
 PostHog's servers derive an **approximate location from the IP address** at
 ingestion. Verified empirically on the live test events: they carried
 `$geoip_country_name = United States` and **`$geoip_city_name = Los Angeles`**
 (the raw `$ip` is not stored as a queryable property, but the city/country are).
 
-- **Apple label:** this is **not** declared under *Location*. Apple's *Coarse/
-  Precise Location* data types refer to location from the device's **location
-  services**, which this app never uses. IP-derived geo from a third party falls
-  outside that definition, so the label stays as the two types above. The
-  human-readable **privacy policy does disclose it** (the "Anonymous Analytics"
-  section says PostHog's servers may estimate an approximate country/city from
-  the IP), which is the honest, broader standard.
-- **Recommendation (Eric's call):** if you'd rather the analytics store **no
-  location at all** — which fits this app's ethos and removes any ambiguity —
-  turn on **"Discard client IP data"** in PostHog → *Project Settings* (and/or
-  set `$geoip_disable`). City-level geo on a prayer app is more than we need. If
-  you do this, no policy/label change is required (the policy already covers the
-  off switch), but I can soften the IP paragraph to match. Leaving GeoIP on is
-  also defensible given the disclosure — your choice.
+**Eric's decision (2026-06-27): keep country + city geo — it's useful — and make
+sure the disclosures match.** So:
+- **GeoIP stays ON** (no "Discard client IP data"). Country + city ride on events.
+- **Apple label includes `Coarse Location`** (step 5 above): Analytics, not linked,
+  not tracking. Whether IP-derived geo strictly falls under Apple's "Location" is
+  debatable, but since we **deliberately collect and use** approximate city/country,
+  declaring Coarse Location is the honest, review-safe choice and keeps the App
+  Store label consistent with the `Coarse Location` entry now in
+  `PrivacyInfo.xcprivacy`.
+- **Privacy policy matches:** the "Anonymous Analytics" section states PostHog's
+  servers use the IP to determine an approximate location — **your country and
+  city, never precise/GPS** — used only to understand where the app is used.
+- **Note:** this supersedes `analytics-plan.md` §7 / Phase 0 ("country-level geo
+  only, drop raw IP"). The plan's intent was minimization; Eric has chosen to keep
+  city too. Raw `$ip` still isn't stored as a property (fine). No further config
+  change needed.
 
 ## Waitlist (email / name / phone / country / SMS consent)
 
@@ -100,9 +110,10 @@ publish at the same URL). The in-app/web policy already discloses it in full.
 
 ## xcprivacy manifests (already updated in this branch)
 
-- **`Graces Holy Bell/PrivacyInfo.xcprivacy`** — now declares `Device ID` +
-  `Product Interaction`, both `Linked = false`, `Tracking = false`, purpose
-  `Analytics`. Keeps the existing `UserDefaults` (CA92.1) required-reason API.
+- **`Graces Holy Bell/PrivacyInfo.xcprivacy`** — now declares `Device ID`,
+  `Product Interaction`, and `Coarse Location`, all `Linked = false`,
+  `Tracking = false`, purpose `Analytics`. Keeps the existing `UserDefaults`
+  (CA92.1) required-reason API.
 - **`Graces Holy Bell Watch App Watch App/PrivacyInfo.xcprivacy`** — unchanged
   (no collection). Correct: PostHog is **iPhone-target only**; under Option A the
   Watch is a thin proxy and never transmits to PostHog itself.

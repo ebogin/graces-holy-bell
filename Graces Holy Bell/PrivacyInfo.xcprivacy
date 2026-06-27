@@ -44,6 +44,22 @@
 				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
+		<dict>
+			<!-- Approximate (country/city) location that PostHog derives from the
+			     request IP server-side. No on-device location API is used (no GPS).
+			     Declared for consistency with the App Store "App Privacy" label,
+			     since we deliberately keep and use this coarse geo for analytics. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCoarseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
 	</array>
 
 	<!-- Required-reason APIs used by this target. -->

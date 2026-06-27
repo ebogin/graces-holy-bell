@@ -35,7 +35,7 @@ struct PrivacyPolicyView: View {
         ("ANONYMOUS ANALYTICS", [
             "To learn how the app is used — and, true to its purpose, whether it actually helps people stay mindful of how often and how long they pray — we collect anonymous usage analytics through PostHog, an analytics service. The data for this app is processed on PostHog's servers in the European Union.",
             "It's tied only to a random ID created on your device when you install the app — not your name, Apple ID, email, or phone number — and it isn't linked to your identity. We record events like when a prayer session starts and ends, roughly how long sessions last and how they're spaced (in broad time ranges), which features you use, and your app, device, and operating-system version. We never record the content of your prayers.",
-            "When your device sends this data, PostHog's servers can see its IP address and use it to estimate an approximate location, such as your country or city. We don't use this to identify you, and you can stop all of it by turning analytics off.",
+            "When your device sends this data, PostHog's servers use its IP address to determine an approximate location — your country and city, never your precise GPS location. We use this only to understand where the app is being used; we never use it to identify you, and you can stop it entirely by turning analytics off.",
             "You control this in Settings, under Privacy. Outside the European Union, the United Kingdom, and the EEA, analytics are on by default and you can opt out at any time. Within them, analytics stay off until you choose to opt in."
         ]),
         ("WAITLIST SIGNUP", [
