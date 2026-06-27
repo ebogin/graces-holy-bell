@@ -58,14 +58,16 @@ struct ContentView: View {
                     }
                     connectivityManager.configure(with: vm)
                 }
-                // Analytics (additive, no-op transport): resolve/persist the
-                // canonical install_id and wire the service.
-                _ = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
+                // Analytics: resolve/persist the canonical install_id.
+                let installID = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
 
-                // Consent gate: transmission only flows when granted. Wraps the
-                // no-op today and the real PostHog transport later. `consent`
+                // Real PostHog transport when a key is present (Secrets.plist),
+                // otherwise the no-op transport (fresh checkout / no secrets).
+                let backend: Analytics = PostHogTransport.make(installID: installID) ?? NoOpAnalytics()
+
+                // Consent gate: transmission only flows when granted. `consent`
                 // already applied the geo-gated default on first launch.
-                let transport = ConsentGatingAnalytics(wrapping: NoOpAnalytics()) { [consent] in
+                let transport = ConsentGatingAnalytics(wrapping: backend) { [consent] in
                     consent.isGranted
                 }
 

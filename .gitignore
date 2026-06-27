@@ -10,6 +10,8 @@ build/
 *.dSYM.zip
 *.dSYM
 
+# Secrets — real keys live here, never committed (see Secrets.example.xcconfig)
+
 # Swift Package Manager
 .build/
 .swiftpm/
@@ -21,3 +23,6 @@ Pods/
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Secrets plist (bundled resource, gitignored — see Secrets.example.plist)
+Graces Holy Bell/Secrets.plist
