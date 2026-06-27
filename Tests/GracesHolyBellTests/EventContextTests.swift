@@ -37,6 +37,7 @@ final class EventContextTests: XCTestCase {
             deviceSource: .watch,
             alarmStatus: .both,
             alarmDurationSeconds: 5400,
+            consentState: .granted,
             environment: env
         )
 
@@ -45,6 +46,7 @@ final class EventContextTests: XCTestCase {
         XCTAssertEqual(props["device_source"], .string("watch"))
         XCTAssertEqual(props["amen_alarm_status"], .string("both"))
         XCTAssertEqual(props["amen_alarm_duration_setting"], .string("1h30"))
+        XCTAssertEqual(props["consent_state"], .string("granted"))
         XCTAssertEqual(props["app_version"], .string("1.4.2"))
         XCTAssertEqual(props["os_version"], .string("26.4.0"))
     }

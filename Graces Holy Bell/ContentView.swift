@@ -51,8 +51,18 @@ struct ContentView: View {
                 // Analytics (additive, no-op transport): resolve/persist the
                 // canonical install_id and wire the service.
                 _ = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
+
+                // Consent: apply the geo-gated default on first launch (non-EU
+                // opt-out / EU opt-in), then gate transmission on it. The gate
+                // wraps the no-op today and the real PostHog transport later.
+                let consentStore = UserDefaultsConsentStore()
+                RegionConsentPolicy.ensureInitialState(in: consentStore)
+                let transport = ConsentGatingAnalytics(wrapping: NoOpAnalytics()) {
+                    consentStore.consentState == .granted
+                }
+
                 let analytics = AnalyticsService(
-                    transport: NoOpAnalytics(),
+                    transport: transport,
                     stateStore: UserDefaultsAnalyticsStateStore(),
                     contextProvider: {
                         EventContext(
@@ -61,7 +71,8 @@ struct ContentView: View {
                                 phoneEnabled: amenAlarmSettings.phoneEnabled,
                                 watchEnabled: amenAlarmSettings.watchEnabled
                             ),
-                            alarmDurationSeconds: amenAlarmSettings.duration.rawValue
+                            alarmDurationSeconds: amenAlarmSettings.duration.rawValue,
+                            consentState: consentStore.consentState ?? .pending
                         )
                     }
                 )

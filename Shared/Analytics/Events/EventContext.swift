@@ -41,17 +41,20 @@ struct EventContext {
     var deviceSource: DeviceSource
     let alarmStatus: AmenAlarmStatus
     let alarmDurationSeconds: TimeInterval
+    let consentState: ConsentState
     let environment: AppEnvironment
 
     init(
         deviceSource: DeviceSource,
         alarmStatus: AmenAlarmStatus,
         alarmDurationSeconds: TimeInterval,
+        consentState: ConsentState = .granted,
         environment: AppEnvironment = LiveAppEnvironment()
     ) {
         self.deviceSource = deviceSource
         self.alarmStatus = alarmStatus
         self.alarmDurationSeconds = alarmDurationSeconds
+        self.consentState = consentState
         self.environment = environment
     }
 
@@ -61,6 +64,7 @@ struct EventContext {
             "device_source": .string(deviceSource.rawValue),
             "amen_alarm_status": .string(alarmStatus.rawValue),
             "amen_alarm_duration_setting": .string(AmenAlarmDurationLabel.label(forSeconds: alarmDurationSeconds)),
+            "consent_state": .string(consentState.rawValue),
             "app_version": .string(environment.appVersion),
             "os_version": .string(environment.osVersion)
         ]
