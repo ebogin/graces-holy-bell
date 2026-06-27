@@ -6,13 +6,16 @@
 > Last updated: 2026-06-27.
 
 ## TL;DR
-Phases **1, 2, 3, the 0→2 real-PostHog handoff, AND live event verification are
-DONE** on branch `claude/awesome-ellis-c6415f`. Real PostHog SDK is wired and
-consent-gated, and the full prayer lifecycle has been **confirmed received in
-PostHog project 210049** (see "Live verification — DONE" below). **126 unit tests
-pass; iPhone app + Watch app both build clean.** Nothing pushed, no PR opened.
-Remaining: Phase 4 (privacy policy + App Store privacy), Phase 5 (dashboards),
-Phase 6 (beta).
+Phases **1–5 are DONE and MERGED TO `main` (pushed, commit `07587e9`)**: real
+PostHog SDK wired + consent-gated, full prayer lifecycle **confirmed received in
+PostHog 210049**, privacy policy rewritten + published, App Store privacy answers
+published (Device ID + Product Interaction + Coarse Location), and the core
+analytics dashboard (id 778293) + 8 insights built. Tests green; iPhone + Watch
+build clean. **Beta-prep DONE (2026-06-27):** build number → **5** (iOS + Watch in
+sync), every event tagged `build_channel` (debug/release) so dev testing is
+filterable, and `Secrets.plist` copied into the `main` checkout — **ready for Eric
+to archive from Xcode (Release).** Only **Phase 6 (TestFlight beta)** remains, plus
+the data-gated Phase 5 bespoke per-user metrics.
 
 ## Build / test commands (USE DIRECT xcodebuild)
 The `xcodebuild` **MCP is unreliable on long ops** (it crashed repeatedly mid-run;
