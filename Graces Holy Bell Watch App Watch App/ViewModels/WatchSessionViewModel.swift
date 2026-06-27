@@ -99,6 +99,12 @@ final class WatchSessionViewModel {
         connectivityManager.sendClearLog()
     }
 
+    /// Analytics (additive): the Watch log screen was opened. Proxied to the
+    /// iPhone, which emits `prayer_log_viewed` (device_source = watch).
+    func recordLogViewed() {
+        connectivityManager.sendPrayerLogViewed()
+    }
+
     // MARK: - Elapsed Time Computation (same timestamp math as iPhone)
 
     /// Computes the live elapsed time since the most recent prayer entry.

@@ -128,6 +128,24 @@ final class AnalyticsServiceTests: XCTestCase {
         XCTAssertNotNil(spy.captured.first?.properties["time_of_day_bucket"])
     }
 
+    // MARK: - Watch proxy (2e-ii)
+
+    func test_recordWatchPrayerLogViewed_taggedWatch_withTrueTimestamp() {
+        let spy = SpyAnalytics()
+        let svc = service(spy, store: InMemoryAnalyticsStateStore())
+        XCTAssertEqual(svc.deviceSource, .phone, "service default is phone")
+
+        let tapped = Date(timeIntervalSince1970: 1_650_000_000)
+        svc.recordWatchPrayerLogViewed(at: tapped)
+
+        let event = spy.captured.first
+        XCTAssertEqual(event?.name, "prayer_log_viewed")
+        XCTAssertEqual(event?.deviceSource, .watch, "proxied event keeps watch origin")
+        XCTAssertEqual(event?.properties["device_source"], .string("watch"))
+        XCTAssertEqual(event?.captureTimestamp, tapped, "true capture time preserved")
+        XCTAssertEqual(svc.deviceSource, .phone, "service device source unchanged after")
+    }
+
     func test_sessionEnded_carriesValueAndDuration_andNoDoubleClose() {
         let spy = SpyAnalytics()
         let store = InMemoryAnalyticsStateStore()

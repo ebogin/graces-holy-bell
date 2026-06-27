@@ -114,7 +114,7 @@ Person/event properties also include: `first_seen` / `install_date`,
 | `session_abandoned` | Session left incomplete, **or** auto-fired when a prayer timer runs past **12h** | `prayers_so_far`, `reason` (`user_exit` \| `forgotten_timer`) |
 | `amen_alarm_set` | Alarm enabled/changed | (alarm props above carry the detail) |
 | `amen_alarm_tapped` | App opened from the Amen Alarm notification (renamed from `notification_tapped`) | `time_of_day_bucket` |
-| `prayer_log_viewed` | Log screen opened — **Watch only** (on iPhone the log is always visible on the main timer page, so there is no discrete view to track) | — (always `device_source = watch`) |
+| `prayer_log_viewed` | Log screen opened — **Watch only** (on iPhone the log is always visible on the main timer page, so there is no discrete view to track). Proxied Watch→phone over WCSession (`transferUserInfo`) and emitted by the phone's transport with the Watch's true capture time. | — (always `device_source = watch`) |
 
 **Forgotten-timer rule:** if a prayer timer runs continuously past 12 hours, fire
 `session_abandoned` with `reason = forgotten_timer` so it is *not* counted as

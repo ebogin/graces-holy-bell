@@ -114,6 +114,19 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     func sendClearLog() {
         sendAction("CLEAR_LOG")
     }
+
+    /// Analytics (additive): notifies the iPhone that the Watch log screen was
+    /// opened, so the phone can emit `prayer_log_viewed` (device_source = watch)
+    /// through its analytics transport. Uses `transferUserInfo` (queued,
+    /// guaranteed delivery) and a distinct key so the phone routes it to
+    /// analytics rather than the action handler. Carries the true capture time.
+    func sendPrayerLogViewed() {
+        guard session.activationState == .activated else { return }
+        session.transferUserInfo([
+            "analyticsEvent": "prayer_log_viewed",
+            "timestamp": Date()
+        ])
+    }
 }
 
 // MARK: - WCSessionDelegate

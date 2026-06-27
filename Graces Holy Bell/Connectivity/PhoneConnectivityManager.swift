@@ -179,7 +179,26 @@ extension PhoneConnectivityManager: WCSessionDelegate {
         didReceiveUserInfo userInfo: [String: Any]
     ) {
         Task { @MainActor in
-            self.handleAction(userInfo)
+            // Analytics proxies (e.g. prayer_log_viewed) ride the same queue but
+            // carry a distinct key, so route them to analytics, not the action path.
+            if let event = userInfo["analyticsEvent"] as? String {
+                self.handleProxiedAnalytics(event: event, userInfo: userInfo)
+            } else {
+                self.handleAction(userInfo)
+            }
+        }
+    }
+
+    /// Forwards a Watch-originated analytics event to the phone's transport,
+    /// preserving its origin (`watch`) and true capture timestamp.
+    @MainActor
+    private func handleProxiedAnalytics(event: String, userInfo: [String: Any]) {
+        let timestamp = (userInfo["timestamp"] as? Date) ?? Date()
+        switch event {
+        case "prayer_log_viewed":
+            viewModel?.analytics?.recordWatchPrayerLogViewed(at: timestamp)
+        default:
+            break
         }
     }
 

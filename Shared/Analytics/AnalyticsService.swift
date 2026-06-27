@@ -32,9 +32,9 @@ final class AnalyticsService {
         self.contextProvider = contextProvider
     }
 
-    private func factory() -> AnalyticsEventFactory {
+    private func factory(deviceSource override: DeviceSource? = nil) -> AnalyticsEventFactory {
         var context = contextProvider()
-        context.deviceSource = deviceSource
+        context.deviceSource = override ?? deviceSource
         return AnalyticsEventFactory(context: context)
     }
 
@@ -87,6 +87,16 @@ final class AnalyticsService {
     /// The app was opened from an Amen Alarm notification.
     func recordAmenAlarmTapped(at timestamp: Date = Date()) {
         transport.capture(factory().amenAlarmTapped(timeOfDay: TimeOfDayBucket.label(for: timestamp), at: timestamp))
+    }
+
+    // MARK: - Watch proxy
+
+    /// A Watch-only `prayer_log_viewed`, proxied to the phone over WCSession.
+    /// Always tagged `device_source = watch` and stamped with the Watch's true
+    /// capture time — the phone is only the transport host and must not overwrite
+    /// either (regardless of the current `deviceSource`).
+    func recordWatchPrayerLogViewed(at timestamp: Date) {
+        transport.capture(factory(deviceSource: .watch).prayerLogViewed(at: timestamp))
     }
 
     // MARK: - Session lifecycle
