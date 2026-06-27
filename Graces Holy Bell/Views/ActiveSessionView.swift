@@ -8,6 +8,7 @@ struct ActiveSessionView: View {
 
     let viewModel: SessionViewModel
     let amenAlarmSettings: AmenAlarmSettings
+    let consent: AnalyticsConsent
     @State private var showStopConfirmation = false
     @State private var showSettings = false
 
@@ -58,7 +59,7 @@ struct ActiveSessionView: View {
 
                 // Settings panel (slides in from left)
                 if showSettings {
-                    SettingsView(settings: amenAlarmSettings)
+                    SettingsView(settings: amenAlarmSettings, consent: consent)
                         .transition(.move(edge: .leading))
                 }
             }
@@ -151,6 +152,7 @@ struct ActiveSessionView: View {
     let container = try! ModelContainer(for: PrayerSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     ActiveSessionView(
         viewModel: SessionViewModel(modelContext: container.mainContext),
-        amenAlarmSettings: AmenAlarmSettings()
+        amenAlarmSettings: AmenAlarmSettings(),
+        consent: AnalyticsConsent()
     )
 }

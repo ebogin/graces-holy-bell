@@ -11,6 +11,7 @@ import UserNotifications
 struct SettingsView: View {
 
     @Bindable var settings: AmenAlarmSettings
+    let consent: AnalyticsConsent
     @State private var showPrivacyPolicy = false
     @State private var showShareWithFriend = false
 
@@ -64,6 +65,10 @@ struct SettingsView: View {
                 shareWithFriendRow()
 
                 divider()
+
+                // PRIVACY section — anonymous analytics opt-out + policy link
+                settingsSectionHeader("PRIVACY")
+                analyticsToggleRow()
 
                 // Privacy Policy — opens the in-app policy sheet
                 privacyPolicyRow()
@@ -163,6 +168,33 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
+    private func analyticsToggleRow() -> some View {
+        HStack {
+            Text("  Anonymous Analytics")
+                .font(.pixelFont(9))
+                .foregroundStyle(Color.lcdDark)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Spacer(minLength: 8)
+
+            Toggle("", isOn: Binding(
+                get: { consent.enabled },
+                set: { consent.enabled = $0 }
+            ))
+            .labelsHidden()
+            .tint(Color.lcdSlider)
+            .overlay(
+                Capsule()
+                    .stroke(toggleBorder, lineWidth: 1)
+            )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .accessibilityIdentifier("analytics-consent-row")
+    }
+
+    @ViewBuilder
     private func saveLogRow() -> some View {
         HStack {
             Text("Save Log to Notes")
@@ -257,7 +289,7 @@ struct SettingsView: View {
 #Preview {
     ZStack {
         Color.lcdBackground.ignoresSafeArea()
-        SettingsView(settings: AmenAlarmSettings())
+        SettingsView(settings: AmenAlarmSettings(), consent: AnalyticsConsent())
             .padding(16)
     }
 }

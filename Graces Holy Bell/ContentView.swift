@@ -19,6 +19,9 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: SessionViewModel?
     @State private var amenAlarmSettings = AmenAlarmSettings()
+    // Analytics consent — applies the geo-gated default on first launch. Single
+    // source of truth behind the Settings toggle and the EU opt-in banner.
+    @State private var consent = AnalyticsConsent()
     // Retains the notification-tap delegate for the app's lifetime (analytics only).
     @State private var notificationForwarder: NotificationEventForwarder?
     var connectivityManager: PhoneConnectivityManager?
@@ -28,13 +31,20 @@ struct ContentView: View {
             if let viewModel {
                 switch viewModel.appState {
                 case .idle:
-                    IdleView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings)
+                    IdleView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings, consent: consent)
                 case .active:
-                    ActiveSessionView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings)
+                    ActiveSessionView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings, consent: consent)
                 }
             } else {
                 ProgressView()
             }
+        }
+        // First-launch EU/EEA/UK opt-in (only while consent is pending).
+        .fullScreenCover(isPresented: Binding(
+            get: { consent.needsConsentDecision },
+            set: { _ in }
+        )) {
+            AnalyticsConsentBanner(consent: consent)
         }
         .task {
             if viewModel == nil {
@@ -52,19 +62,17 @@ struct ContentView: View {
                 // canonical install_id and wire the service.
                 _ = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
 
-                // Consent: apply the geo-gated default on first launch (non-EU
-                // opt-out / EU opt-in), then gate transmission on it. The gate
-                // wraps the no-op today and the real PostHog transport later.
-                let consentStore = UserDefaultsConsentStore()
-                RegionConsentPolicy.ensureInitialState(in: consentStore)
-                let transport = ConsentGatingAnalytics(wrapping: NoOpAnalytics()) {
-                    consentStore.consentState == .granted
+                // Consent gate: transmission only flows when granted. Wraps the
+                // no-op today and the real PostHog transport later. `consent`
+                // already applied the geo-gated default on first launch.
+                let transport = ConsentGatingAnalytics(wrapping: NoOpAnalytics()) { [consent] in
+                    consent.isGranted
                 }
 
                 let analytics = AnalyticsService(
                     transport: transport,
                     stateStore: UserDefaultsAnalyticsStateStore(),
-                    contextProvider: {
+                    contextProvider: { [consent] in
                         EventContext(
                             deviceSource: .phone,
                             alarmStatus: .from(
@@ -72,7 +80,7 @@ struct ContentView: View {
                                 watchEnabled: amenAlarmSettings.watchEnabled
                             ),
                             alarmDurationSeconds: amenAlarmSettings.duration.rawValue,
-                            consentState: consentStore.consentState ?? .pending
+                            consentState: consent.state
                         )
                     }
                 )
