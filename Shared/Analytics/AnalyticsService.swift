@@ -17,6 +17,11 @@ final class AnalyticsService {
     private let contextProvider: () -> EventContext
     private let stateStore: AnalyticsStateStore
 
+    /// The device an event currently originates on. Defaults to `.phone`; the
+    /// connectivity layer sets this to `.watch` while it processes a Watch action
+    /// so those events are attributed to the Watch (the phone is only the host).
+    var deviceSource: DeviceSource = .phone
+
     init(
         transport: Analytics,
         stateStore: AnalyticsStateStore,
@@ -28,7 +33,9 @@ final class AnalyticsService {
     }
 
     private func factory() -> AnalyticsEventFactory {
-        AnalyticsEventFactory(context: contextProvider())
+        var context = contextProvider()
+        context.deviceSource = deviceSource
+        return AnalyticsEventFactory(context: context)
     }
 
     // MARK: - Launch

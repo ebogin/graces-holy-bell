@@ -98,6 +98,11 @@ final class PhoneConnectivityManager: NSObject {
             }
         }
 
+        // Analytics (additive): this action originated on the Watch, so tag the
+        // events the ViewModel emits with device_source = watch, then restore.
+        viewModel.analytics?.deviceSource = .watch
+        defer { viewModel.analytics?.deviceSource = .phone }
+
         switch action {
         case "START":
             viewModel.startNewSession()

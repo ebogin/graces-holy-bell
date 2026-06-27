@@ -79,6 +79,30 @@ final class AnalyticsServiceTests: XCTestCase {
         XCTAssertEqual(spy.captured.first?.properties["since_last_prayer_bucket"], .string("30–45m"))
     }
 
+    // MARK: - device_source origin tagging (2e-i)
+
+    func test_deviceSource_defaultsToPhone() {
+        let spy = SpyAnalytics()
+        service(spy, store: InMemoryAnalyticsStateStore()).recordSessionStarted(at: now)
+        XCTAssertEqual(spy.captured.first?.properties["device_source"], .string("phone"))
+        XCTAssertEqual(spy.captured.first?.deviceSource, .phone)
+    }
+
+    func test_settingDeviceSourceWatch_tagsSubsequentEvents() {
+        let spy = SpyAnalytics()
+        let svc = service(spy, store: InMemoryAnalyticsStateStore())
+
+        svc.deviceSource = .watch
+        svc.recordSessionStarted(at: now)
+        XCTAssertEqual(spy.captured.first?.properties["device_source"], .string("watch"))
+        XCTAssertEqual(spy.captured.first?.deviceSource, .watch)
+
+        // Restoring to phone re-tags later events.
+        svc.deviceSource = .phone
+        svc.recordPrayerLogged(index: 2, sinceLast: 2000, at: now)
+        XCTAssertEqual(spy.captured.last?.properties["device_source"], .string("phone"))
+    }
+
     // MARK: - Foreground / alarm
 
     func test_recordAppOpened_emitsWithDaysSinceInstall() {

@@ -36,7 +36,9 @@ enum AmenAlarmDurationLabel {
 
 /// Cross-device context attached to every event (§2). Anonymous only.
 struct EventContext {
-    let deviceSource: DeviceSource
+    /// Var (not let) so the service can stamp the originating device per emit —
+    /// e.g. tagging `watch` for a prayer the phone processed on the Watch's behalf.
+    var deviceSource: DeviceSource
     let alarmStatus: AmenAlarmStatus
     let alarmDurationSeconds: TimeInterval
     let environment: AppEnvironment
