@@ -113,8 +113,7 @@ Person/event properties also include: `first_seen` / `install_date`,
 | `session_ended` | User completes/ends a session normally | `prayers_in_session`, `session_value` (high / low), `session_duration_bucket`, `time_of_day_bucket`, `day_of_week` |
 | `session_abandoned` | Session left incomplete, **or** auto-fired when a prayer timer runs past **12h** | `prayers_so_far`, `reason` (`user_exit` \| `forgotten_timer`) |
 | `amen_alarm_set` | Alarm enabled/changed | (alarm props above carry the detail) |
-| `amen_alarm_fired` | Local notification delivered | `time_of_day_bucket` |
-| `notification_tapped` | App opened from the alarm | `time_of_day_bucket` |
+| `amen_alarm_tapped` | App opened from the Amen Alarm notification (renamed from `notification_tapped`) | `time_of_day_bucket` |
 | `prayer_log_viewed` | Log screen opened — **Watch only** (on iPhone the log is always visible on the main timer page, so there is no discrete view to track) | — (always `device_source = watch`) |
 
 **Forgotten-timer rule:** if a prayer timer runs continuously past 12 hours, fire
@@ -140,6 +139,10 @@ timeline is distorted and retention/interval math breaks.
 
 Pruned: `settings_opened`, pure navigation / scroll / impression noise, and
 `privacy_policy_viewed`. (Share/referral events live in the viral-growth plan.)
+Also dropped `amen_alarm_fired`: iOS gives no delivery callback for a
+backgrounded local notification (the normal alarm case), so it could only ever
+capture rare foreground deliveries — biasing the data. `amen_alarm_tapped`
+plus scheduling is the honest engagement signal instead.
 
 ## 3. Bucketing (GDPR-safe, derived on-device)
 

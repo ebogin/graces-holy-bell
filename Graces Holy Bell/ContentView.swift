@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 /// Root view that routes between IDLE and ACTIVE screens based on the ViewModel's state.
 ///
@@ -15,8 +16,11 @@ import SwiftData
 struct ContentView: View {
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: SessionViewModel?
     @State private var amenAlarmSettings = AmenAlarmSettings()
+    // Retains the notification-tap delegate for the app's lifetime (analytics only).
+    @State private var notificationForwarder: NotificationEventForwarder?
     var connectivityManager: PhoneConnectivityManager?
 
     var body: some View {
@@ -44,15 +48,8 @@ struct ContentView: View {
                     }
                     connectivityManager.configure(with: vm)
                 }
-                // Settings changes apply immediately: reschedule the phone alarm
-                // and push the new fire date (or nil) to the Watch.
-                amenAlarmSettings.onChange = { [weak vm, weak connectivityManager] in
-                    vm?.refreshAmenAlarm()
-                    connectivityManager?.sendStateToWatch()
-                }
-
                 // Analytics (additive, no-op transport): resolve/persist the
-                // canonical install_id, wire the service, and record launch.
+                // canonical install_id and wire the service.
                 _ = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
                 let analytics = AnalyticsService(
                     transport: NoOpAnalytics(),
@@ -69,6 +66,23 @@ struct ContentView: View {
                     }
                 )
                 vm.analytics = analytics
+
+                // Settings changes apply immediately: reschedule the phone alarm
+                // and push the new fire date (or nil) to the Watch.
+                amenAlarmSettings.onChange = { [weak vm, weak connectivityManager, weak analytics] in
+                    vm?.refreshAmenAlarm()
+                    connectivityManager?.sendStateToWatch()
+                    analytics?.recordAmenAlarmSet() // additive
+                }
+
+                // Forward Amen Alarm notification taps into analytics (additive;
+                // only implements didReceive, so presentation behavior is unchanged).
+                let forwarder = NotificationEventForwarder { [weak analytics] in
+                    analytics?.recordAmenAlarmTapped()
+                }
+                UNUserNotificationCenter.current().delegate = forwarder
+                notificationForwarder = forwarder
+
                 analytics.recordLaunch(
                     currentSessionStart: vm.currentSession?.startedAt,
                     lastPrayerAt: vm.lastPrayerTimestamp,
@@ -76,6 +90,13 @@ struct ContentView: View {
                 )
 
                 viewModel = vm
+            }
+        }
+        // Analytics (additive): record app_opened on return to the foreground.
+        // The launch open is recorded by recordLaunch; this catches reopens.
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if oldPhase == .background, newPhase == .active {
+                viewModel?.analytics?.recordAppOpened()
             }
         }
     }

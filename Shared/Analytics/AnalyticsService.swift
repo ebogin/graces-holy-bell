@@ -60,8 +60,26 @@ final class AnalyticsService {
             }
         }
 
+        recordAppOpened(now: now)
+    }
+
+    /// Records a foreground open (`app_opened`). Called once at launch by
+    /// `recordLaunch`, and again on each background→foreground return.
+    func recordAppOpened(now: Date = Date()) {
         let days = stateStore.installDate.map { Self.daysBetween($0, now) } ?? 0
         transport.capture(factory().appOpened(entryPoint: .icon, daysSinceInstall: days, at: now))
+    }
+
+    // MARK: - Amen Alarm
+
+    /// The alarm was enabled, disabled, or its duration changed.
+    func recordAmenAlarmSet(at timestamp: Date = Date()) {
+        transport.capture(factory().amenAlarmSet(at: timestamp))
+    }
+
+    /// The app was opened from an Amen Alarm notification.
+    func recordAmenAlarmTapped(at timestamp: Date = Date()) {
+        transport.capture(factory().amenAlarmTapped(timeOfDay: TimeOfDayBucket.label(for: timestamp), at: timestamp))
     }
 
     // MARK: - Session lifecycle

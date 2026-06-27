@@ -89,10 +89,10 @@ final class AnalyticsEventsTests: XCTestCase {
         XCTAssertEqual(factory().amenAlarmSet().name, "amen_alarm_set")
     }
 
-    func test_amenAlarmFired_and_notificationTapped() {
-        XCTAssertEqual(factory().amenAlarmFired(timeOfDay: "night").name, "amen_alarm_fired")
-        XCTAssertEqual(factory().amenAlarmFired(timeOfDay: "night").properties["time_of_day_bucket"], .string("night"))
-        XCTAssertEqual(factory().notificationTapped(timeOfDay: "morning").name, "notification_tapped")
+    func test_amenAlarmTapped() {
+        let event = factory().amenAlarmTapped(timeOfDay: "morning")
+        XCTAssertEqual(event.name, "amen_alarm_tapped")
+        XCTAssertEqual(event.properties["time_of_day_bucket"], .string("morning"))
     }
 
     func test_prayerLogViewed_isWatchOnly() {

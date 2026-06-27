@@ -104,12 +104,11 @@ struct AnalyticsEventFactory {
         event("amen_alarm_set", at: timestamp)
     }
 
-    func amenAlarmFired(timeOfDay: String, at timestamp: Date = Date()) -> AnalyticsEvent {
-        event("amen_alarm_fired", ["time_of_day_bucket": .string(timeOfDay)], at: timestamp)
-    }
-
-    func notificationTapped(timeOfDay: String, at timestamp: Date = Date()) -> AnalyticsEvent {
-        event("notification_tapped", ["time_of_day_bucket": .string(timeOfDay)], at: timestamp)
+    /// Fired when the app is opened from an Amen Alarm notification. (Renamed
+    /// from `notification_tapped` for clarity; `amen_alarm_fired` is intentionally
+    /// not emitted — backgrounded delivery has no observable callback on iOS.)
+    func amenAlarmTapped(timeOfDay: String, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("amen_alarm_tapped", ["time_of_day_bucket": .string(timeOfDay)], at: timestamp)
     }
 
     // MARK: - Watch-only

@@ -79,6 +79,31 @@ final class AnalyticsServiceTests: XCTestCase {
         XCTAssertEqual(spy.captured.first?.properties["since_last_prayer_bucket"], .string("30–45m"))
     }
 
+    // MARK: - Foreground / alarm
+
+    func test_recordAppOpened_emitsWithDaysSinceInstall() {
+        let spy = SpyAnalytics()
+        let store = InMemoryAnalyticsStateStore()
+        store.installDate = now.addingTimeInterval(-5 * 86_400)
+        service(spy, store: store).recordAppOpened(now: now)
+
+        XCTAssertEqual(spy.captured.map(\.name), ["app_opened"])
+        XCTAssertEqual(spy.captured.first?.properties["days_since_install"], .int(5))
+    }
+
+    func test_recordAmenAlarmSet() {
+        let spy = SpyAnalytics()
+        service(spy, store: InMemoryAnalyticsStateStore()).recordAmenAlarmSet(at: now)
+        XCTAssertEqual(spy.captured.map(\.name), ["amen_alarm_set"])
+    }
+
+    func test_recordAmenAlarmTapped_carriesTimeOfDay() {
+        let spy = SpyAnalytics()
+        service(spy, store: InMemoryAnalyticsStateStore()).recordAmenAlarmTapped(at: now)
+        XCTAssertEqual(spy.captured.first?.name, "amen_alarm_tapped")
+        XCTAssertNotNil(spy.captured.first?.properties["time_of_day_bucket"])
+    }
+
     func test_sessionEnded_carriesValueAndDuration_andNoDoubleClose() {
         let spy = SpyAnalytics()
         let store = InMemoryAnalyticsStateStore()
