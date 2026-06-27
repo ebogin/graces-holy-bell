@@ -122,22 +122,49 @@ kept:
 1. **Published.** Eric approved "mirror now, as written." The updated web policy was
    mirrored to `ebogin/Boginfactory-Landing-Page` (commit `7345f67`) and the **live
    site is confirmed updated** at https://boginfactory.com/graces-privacy-policy.html.
-2. **GeoIP stays ON** (disclosed in the policy, not in the Apple label since IP-geo
-   isn't from location services). The "Discard client IP data" option remains
-   available later — see `app-store-privacy-answers.md`; if flipped, soften the IP
-   paragraph in both policy surfaces.
+2. **GeoIP stays ON** for now (disclosed in the policy, not in the Apple label since
+   IP-geo isn't from location services). **⚠️ Deviation from plan found:** the live
+   events carry **city-level** geo (`$geoip_city_name`, e.g. Los Angeles), but
+   `analytics-plan.md` §7 + Phase 0 call for **country-level geo only, raw IP
+   dropped**. Raw `$ip` is already not stored, but city is — so the Phase-0 PostHog
+   config ("disable IP/geo → country only") was not fully applied. Recommended fix:
+   enable **"Discard client IP data"** in PostHog Project Settings (drops geo
+   entirely; PostHog can't keep country-only while dropping city). If done, soften
+   the policy's "country or city" to "country" (or drop the location line) in both
+   surfaces. See `app-store-privacy-answers.md`.
 
-**Still open:** the Phase-4 working-tree changes (privacy HTML, `PrivacyPolicyView.swift`,
-`PrivacyInfo.xcprivacy`, the two planning docs, this doc) are **uncommitted** on
-`claude/awesome-ellis-c6415f` — so the public mirror is briefly ahead of the committed
-source. Commit when ready. Also: App Store Connect "App Privacy" answers still need to
-be entered by hand (doc drafted), and the App Store privacy update ships with the next
+**Committed:** the Phase-4 changes are committed on `claude/awesome-ellis-c6415f`
+as `21b5d0a` (privacy HTML, `PrivacyPolicyView.swift`, `PrivacyInfo.xcprivacy`, the
+two planning docs). Branch still unpushed, no PR. Still needs a human: App Store
+Connect "App Privacy" answers entered by hand (doc drafted), shipping with the next
 build submission.
 
+## Phase 5 — STARTED 2026-06-27 (dashboard + 8 core insights live; charts fill at beta)
+Built the **"Grace's Holy Bell — Core Analytics"** dashboard (id **778293**,
+pinned) via the PostHog MCP, with 8 saved insights encoding the plan's metrics
+(definitions are the reviewable deliverable; numbers are ~empty until beta):
+- Active Users DAU/WAU/MAU (`m9WPLKvc`), Stickiness DAU÷MAU (`XQT5bbeO`),
+  Weekly Retention first-prayer→return (`zcps5xMN`), Session Quality high/low
+  `session_value` (`Mv9LC6zM`), Sessions by Day of Week (`PgYfxfMI`),
+  Phone vs Watch `device_source` (`lilK2Vtv`), Session Duration distribution
+  (`1wkuqR0i`), Lifecycle new/returning/resurrecting/dormant (`eSG3UDrJ`).
+- Dashboard: https://eu.posthog.com/project/210049/dashboard/778293
+- **"Active" = logged a prayer** (real engagement, not just app open).
+- **Test-data caveat:** all insights are `filterTestAccounts:false`, and the
+  project still contains the synthetic dev person(s) (`F3405BD1-…`). Before
+  trusting absolute numbers, configure PostHog's internal/test-accounts filter to
+  exclude pre-beta install_ids (or purge them), then flip insights to
+  `filterTestAccounts:true`.
+- **Not yet built (need real data + SQL/cohorts to validate):** per-user
+  **Weekend Warrior Ratio** (% sessions Thu–Sun), **Feature-to-Core Ratio**
+  (Watch-only, rolling-7d `prayer_log_viewed ÷ prayer_logger`), and the
+  **cadence-population** counts (active-days per trailing 28d → Daily/Weekend/
+  Occasional/Dormant). The Lifecycle + Day-of-Week insights approximate these for
+  now.
+
 ## NOT done yet / next steps (in plan order)
-1. **Phase 5 (🤝):** build PostHog insights/dashboards via the PostHog MCP — weekly
-   retention, cadence segments, High-Value Session Density, Feature-to-Core,
-   Weekend Warrior Ratio, DAU/WAU/MAU. Needs live data first.
+1. **Phase 5 remainder (🤝):** the bespoke per-user ratios above, once beta data
+   exists to validate them; plus the test-account filter.
 2. **Phase 6 (🧍):** TestFlight beta to <10 friends; confirm clean data before the
    viral-growth plan.
 
