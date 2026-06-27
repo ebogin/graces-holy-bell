@@ -21,17 +21,7 @@ struct WatchActiveSessionView: View {
         WatchScreenLayout(figurePose: .praying) {
 
             // Header: small title over the live timer + "SINCE LAST PRAYER"
-            VStack(spacing: 2) {
-                Text("GRACE'S HOLY BELL")
-                    .font(.pixelFont(8))
-                    .foregroundStyle(DesignSystem.Colors.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .multilineTextAlignment(.center)
-
-                WatchLiveTimerView(viewModel: viewModel, now: now)
-            }
-            .frame(maxWidth: .infinity)
+            WatchSessionHeader(viewModel: viewModel, now: now)
 
         } slider: {
 
@@ -62,6 +52,10 @@ struct WatchActiveSessionView: View {
                 .buttonStyle(.plain)
 
                 HStack {
+                    ShareButton {
+                        viewModel.showingShare = true
+                    }
+                    .accessibilityIdentifier("watch-share-button")
                     Spacer()
                     LogBadgeButton(count: viewModel.sortedEntries.count) {
                         viewModel.showingLog = true

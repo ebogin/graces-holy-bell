@@ -267,6 +267,12 @@
     // Referrer code from the QR / shared link (?ref=...). May be empty.
     const referrer = new URLSearchParams(location.search).get("ref") || "";
 
+    // Which surface the share link came from (?src=phone|watch). Lets us tell
+    // whether a scan originated from the iPhone's share sheet or the watch's
+    // "Join us in prayer" screen. Anything unexpected is recorded as "".
+    const rawSource = new URLSearchParams(location.search).get("src") || "";
+    const source = (rawSource === "phone" || rawSource === "watch") ? rawSource : "";
+
     // ── Country dropdown ──────────────────────────────────────────────────
     // Standard ISO 3166 country list with calling codes. Flags are rendered as
     // emoji derived from the two-letter code (no image assets needed).
@@ -430,6 +436,7 @@
         phone:      phone,
         smsConsent: smsConsent,
         referrer:   referrer,
+        source:     source,
         myCode:     myCode,
         website:    document.getElementById("website").value.trim(), // honeypot
       };

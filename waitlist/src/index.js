@@ -58,6 +58,9 @@ export async function handleRequest(request, env) {
     phone: sanitize(body.phone),
     referrer: sanitize(body.referrer),
     myCode: sanitize(body.myCode),
+    // Which app surface produced the shared link ("phone"/"watch"), or "" if
+    // unknown. Whitelisted so only the expected values are ever stored.
+    source: body.source === "phone" || body.source === "watch" ? body.source : "",
     // Boolean from the form's SMS-authorization checkbox. Stored as "yes"/"no"
     // so the CSV is self-explanatory and the consent record is unambiguous.
     smsConsent: body.smsConsent === true || body.smsConsent === "yes" ? "yes" : "no",
@@ -72,10 +75,10 @@ export async function handleRequest(request, env) {
 
   const createdAt = new Date().toISOString();
   await env.DB.prepare(
-    `INSERT INTO signups (created_at, email, name, country, phone, sms_consent, referrer, my_code)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO signups (created_at, email, name, country, phone, sms_consent, referrer, my_code, source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(createdAt, data.email, data.name, data.country, data.phone, data.smsConsent, data.referrer, data.myCode)
+    .bind(createdAt, data.email, data.name, data.country, data.phone, data.smsConsent, data.referrer, data.myCode, data.source)
     .run();
 
   // Emails are best-effort — storage already succeeded, so never fail the
@@ -201,6 +204,7 @@ function adminHtml(data) {
       ${row("SMS consent", data.smsConsent)}
       ${row("Referrer code", data.referrer)}
       ${row("Their code", data.myCode)}
+      ${row("Source", data.source)}
     </table>
   </div>`;
 }
@@ -213,11 +217,11 @@ async function exportCsv(url, env) {
     return new Response("Unauthorized", { status: 401 });
   }
   const { results } = await env.DB.prepare(
-    `SELECT created_at, email, name, country, phone, sms_consent, referrer, my_code
+    `SELECT created_at, email, name, country, phone, sms_consent, referrer, my_code, source
      FROM signups ORDER BY id DESC`
   ).all();
 
-  const header = ["created_at", "email", "name", "country", "phone", "sms_consent", "referrer", "my_code"];
+  const header = ["created_at", "email", "name", "country", "phone", "sms_consent", "referrer", "my_code", "source"];
   const lines = [header.join(",")];
   for (const r of results || []) {
     lines.push(header.map((h) => csvCell(r[h])).join(","));

@@ -5,6 +5,7 @@ enum WatchRoute: Hashable {
     case firstLaunch
     case active
     case log
+    case share
 }
 
 /// Watch-side ViewModel that mirrors the iPhone's session state.
@@ -37,6 +38,9 @@ final class WatchSessionViewModel {
     /// Local-only flag — not synced to iPhone.
     var showingLog = false
 
+    /// Local-only flag — shows the "JOIN US IN PRAYER?" QR share screen.
+    var showingShare = false
+
     // MARK: - Derived State
 
     /// The timestamp of the most recent prayer entry, if any.
@@ -49,7 +53,9 @@ final class WatchSessionViewModel {
         // Any idle state returns to the welcome screen — matches the iPhone,
         // which always shows IdleView when idle. There is no separate "ended" page.
         case .idle:   return .firstLaunch
-        case .active: return showingLog ? .log : .active
+        case .active:
+            if showingShare { return .share }
+            return showingLog ? .log : .active
         }
     }
 
@@ -68,7 +74,10 @@ final class WatchSessionViewModel {
     /// Applies a synced state snapshot received from the iPhone.
     func apply(_ state: SyncedSessionState) {
         let newAppState = state.appState == "active" ? AppState.active : AppState.idle
-        if newAppState == .idle { showingLog = false }
+        if newAppState == .idle {
+            showingLog = false
+            showingShare = false
+        }
         appState = newAppState
         sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
         amenAlarmFireAt = state.amenAlarmFireAt

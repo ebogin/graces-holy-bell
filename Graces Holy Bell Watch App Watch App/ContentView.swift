@@ -19,6 +19,9 @@ struct WatchContentView: View {
                 case .log:
                     WatchLogView(viewModel: viewModel)
                         .transition(.opacity)
+                case .share:
+                    WatchShareView(viewModel: viewModel)
+                        .transition(.opacity)
                 }
             }
             .animation(.spring(duration: 0.4), value: viewModel.route)

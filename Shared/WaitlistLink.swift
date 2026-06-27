@@ -10,6 +10,15 @@ import Foundation
 /// to whoever shared the link.
 enum WaitlistLink {
 
+    /// Which device surface produced a share link, recorded as `src` on the URL
+    /// so scans can be attributed to where the QR was shown (the phone's Settings
+    /// share sheet vs. the watch's "Join us in prayer" screen). The referral
+    /// `ref` code stays opaque and unchanged.
+    enum ShareSource: String {
+        case phone
+        case watch
+    }
+
     /// Public, green-styled waitlist form (served from `docs/` at boginfactory.com).
     static let baseURL = "https://boginfactory.com/grace-waitlist.html"
 
@@ -26,10 +35,14 @@ enum WaitlistLink {
     }
 
     /// The full URL a friend opens (or scans) to reach the waitlist form,
-    /// carrying this install's referral code.
-    static func shareURL(for code: String = referralCode) -> URL {
+    /// carrying this install's referral code and the sharing `source` surface.
+    static func shareURL(for code: String = referralCode,
+                         source: ShareSource = .phone) -> URL {
         var components = URLComponents(string: baseURL)!
-        components.queryItems = [URLQueryItem(name: "ref", value: code)]
+        components.queryItems = [
+            URLQueryItem(name: "ref", value: code),
+            URLQueryItem(name: "src", value: source.rawValue),
+        ]
         return components.url!
     }
 
