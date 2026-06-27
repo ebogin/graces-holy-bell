@@ -8,8 +8,8 @@
 > `Shared/Analytics/Events/`, and the consent gate in `Shared/Analytics/Consent/`.
 
 ## TL;DR
-The app now collects exactly two Apple data types, **both via PostHog analytics
-only**, both **not linked to identity** and **not used for tracking**, purpose
+The app now collects three Apple data types, **all via PostHog analytics only**,
+all **not linked to identity** and **not used for tracking**, purpose
 **Analytics**:
 
 | Apple data type | Category | Linked to identity? | Tracking? | Purpose |
@@ -77,8 +77,10 @@ ingestion. Verified empirically on the live test events: they carried
 `$geoip_country_name = United States` and **`$geoip_city_name = Los Angeles`**
 (the raw `$ip` is not stored as a queryable property, but the city/country are).
 
-**Eric's decision (2026-06-27): keep country + city geo — it's useful — and make
-sure the disclosures match.** So:
+**Eric's decision (2026-06-27): keep country + city geo — it's a core product
+signal.** The app is used by specific religious denominations that are geographically
+concentrated in certain US regions; city-level data is needed to understand where
+the app is actually gaining traction. So:
 - **GeoIP stays ON** (no "Discard client IP data"). Country + city ride on events.
 - **Apple label includes `Coarse Location`** (step 5 above): Analytics, not linked,
   not tracking. Whether IP-derived geo strictly falls under Apple's "Location" is

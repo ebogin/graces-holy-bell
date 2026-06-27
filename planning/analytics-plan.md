@@ -225,7 +225,11 @@ a **phone vs. watch** split from `device_source`.
 - **Never in Plane B:** prayer content, name, email, contacts, location, IDFA,
   raw second-level durations.
 - **Bucketed, on-device-derived** timing only (§3).
-- **Country-level geo only** — keep country, **drop raw IP**.
+- **Approximate geo (country + city)** — kept deliberately as a product signal
+  (target denominations cluster in specific US regions); derived server-side from
+  the request IP. Raw `$ip` is not stored as a queryable property. **(Updated
+  2026-06-27, supersedes the original "country-only, drop raw IP" intent — see
+  `app-store-privacy-answers.md` "GeoIP" and `analytics-implementation-status.md`.)**
 - **Erasure:** delete local `install_id` + purge by that ID in PostHog satisfies
   GDPR right-to-erasure.
 
@@ -270,7 +274,7 @@ code.
 
 | # | Phase | Owner | Notes |
 |---|---|---|---|
-| 0 | **PostHog EU account** | 🧍 | Create EU project, sign DPA, generate keys; configure project (autocapture off, disable IP/geo→country only). Output: keys → §0 handoff. |
+| 0 | **PostHog EU account** | 🧍 | Create EU project, sign DPA, generate keys; configure project (autocapture off). **Geo:** keep approximate country **+ city** (a deliberate product signal — updated 2026-06-27; the original "IP/geo→country only" was superseded, "Discard client IP data" stays OFF). Output: keys → §0 handoff. |
 | 1 | **Foundation (no-op)** | 🤖 | `install_id` (UserDefaults, iPhone→Watch sync, pending queue + tie-break); `Analytics` protocol in `Shared/`; **mock/no-op transport**. Builds + tests green with **no real keys** — does not block on Phase 0. |
 | 2 | **Core instrumentation** | 🤖 | §2 events + cross-device props across iOS + watchOS; Watch→phone proxy + `device_source` preservation + `timestamp` overrides; §3 bucketing; `session_value`; 12h synth + no-double-close. Verify on iPhone + Watch sim. |
 | 0→2 | **Wire real PostHog SDK** | 🤝 | Agent swaps the mock transport for the PostHog SDK once the human delivers keys (Phase 0). Keys injected via xcconfig/secrets — **never committed**. |

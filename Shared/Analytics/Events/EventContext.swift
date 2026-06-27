@@ -66,7 +66,8 @@ struct EventContext {
             "amen_alarm_duration_setting": .string(AmenAlarmDurationLabel.label(forSeconds: alarmDurationSeconds)),
             "consent_state": .string(consentState.rawValue),
             "app_version": .string(environment.appVersion),
-            "os_version": .string(environment.osVersion)
+            "os_version": .string(environment.osVersion),
+            "build_channel": .string(environment.buildChannel)
         ]
     }
 }

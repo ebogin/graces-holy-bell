@@ -32,7 +32,7 @@ final class EventContextTests: XCTestCase {
     // MARK: - baseProperties
 
     func test_baseProperties_carriesAllContextKeys() {
-        let env = StubAppEnvironment(appVersion: "1.4.2", osVersion: "26.4.0")
+        let env = StubAppEnvironment(appVersion: "1.4.2", osVersion: "26.4.0", buildChannel: "release")
         let context = EventContext(
             deviceSource: .watch,
             alarmStatus: .both,
@@ -49,6 +49,7 @@ final class EventContextTests: XCTestCase {
         XCTAssertEqual(props["consent_state"], .string("granted"))
         XCTAssertEqual(props["app_version"], .string("1.4.2"))
         XCTAssertEqual(props["os_version"], .string("26.4.0"))
+        XCTAssertEqual(props["build_channel"], .string("release"))
     }
 }
 
@@ -56,4 +57,6 @@ final class EventContextTests: XCTestCase {
 struct StubAppEnvironment: AppEnvironment {
     let appVersion: String
     let osVersion: String
+    /// Defaults to `release` so existing call sites stay unchanged; override per test.
+    var buildChannel: String = "release"
 }
