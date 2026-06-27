@@ -23,6 +23,10 @@ final class SessionViewModel {
     /// Injected settings — used to decide whether / when to fire the phone alarm.
     var amenAlarmSettings: AmenAlarmSettings?
 
+    /// Optional analytics sink. Additive, side-effect-free instrumentation — when
+    /// nil (e.g. in tests) the app behaves exactly as before.
+    var analytics: AnalyticsService?
+
     /// Manages phone-side UNUserNotification scheduling for the Amen Alarm.
     let amenAlarmManager = AmenAlarmManager()
 
@@ -63,6 +67,11 @@ final class SessionViewModel {
     func startNewSession() {
         // Delete old session if one exists
         if let old = currentSession {
+            // Analytics (additive): close the replaced session before it is deleted.
+            analytics?.recordSessionEnded(
+                sessionStart: old.startedAt,
+                prayerTimestamps: old.entries.map(\.timestamp)
+            )
             modelContext.delete(old)
         }
 
@@ -78,6 +87,9 @@ final class SessionViewModel {
         refreshEntries()
         scheduleAmenAlarmIfNeeded()
         onStateChanged?()
+
+        // Analytics (additive): session_started + opening prayer_logged.
+        analytics?.recordSessionStarted(at: session.startedAt)
     }
 
     /// Logs a new prayer in the current active session.
@@ -98,12 +110,28 @@ final class SessionViewModel {
         refreshEntries()
         scheduleAmenAlarmIfNeeded()
         onStateChanged?()
+
+        // Analytics (additive): a subsequent prayer (index >= 2) with its gap.
+        if sortedEntries.count >= 2 {
+            let last = sortedEntries[sortedEntries.count - 1].timestamp
+            let prev = sortedEntries[sortedEntries.count - 2].timestamp
+            analytics?.recordPrayerLogged(
+                index: sortedEntries.count,
+                sinceLast: last.timeIntervalSince(prev),
+                at: last
+            )
+        }
     }
 
     /// Deletes the current session and all its entries.
     /// This is the only way a session ends — both devices return to the welcome screen.
     func clearLog() {
         if let session = currentSession {
+            // Analytics (additive): close the session before it is deleted.
+            analytics?.recordSessionEnded(
+                sessionStart: session.startedAt,
+                prayerTimestamps: sortedEntries.map(\.timestamp)
+            )
             modelContext.delete(session)
             save()
         }

@@ -64,11 +64,14 @@ struct AnalyticsEventFactory {
         ], at: timestamp)
     }
 
-    func prayerLogged(prayerIndexInSession: Int, sinceLastPrayerBucket: String, at timestamp: Date = Date()) -> AnalyticsEvent {
-        event("prayer_logged", [
-            "prayer_index_in_session": .int(prayerIndexInSession),
-            "since_last_prayer_bucket": .string(sinceLastPrayerBucket)
-        ], at: timestamp)
+    /// `sinceLastPrayerBucket` is nil for the opening prayer of a session (no
+    /// predecessor) — the property is then omitted rather than faked.
+    func prayerLogged(prayerIndexInSession: Int, sinceLastPrayerBucket: String?, at timestamp: Date = Date()) -> AnalyticsEvent {
+        var extra: [String: AnalyticsValue] = ["prayer_index_in_session": .int(prayerIndexInSession)]
+        if let bucket = sinceLastPrayerBucket {
+            extra["since_last_prayer_bucket"] = .string(bucket)
+        }
+        return event("prayer_logged", extra, at: timestamp)
     }
 
     func sessionEnded(

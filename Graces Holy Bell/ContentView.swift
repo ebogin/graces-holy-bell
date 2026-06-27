@@ -50,6 +50,31 @@ struct ContentView: View {
                     vm?.refreshAmenAlarm()
                     connectivityManager?.sendStateToWatch()
                 }
+
+                // Analytics (additive, no-op transport): resolve/persist the
+                // canonical install_id, wire the service, and record launch.
+                _ = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
+                let analytics = AnalyticsService(
+                    transport: NoOpAnalytics(),
+                    stateStore: UserDefaultsAnalyticsStateStore(),
+                    contextProvider: {
+                        EventContext(
+                            deviceSource: .phone,
+                            alarmStatus: .from(
+                                phoneEnabled: amenAlarmSettings.phoneEnabled,
+                                watchEnabled: amenAlarmSettings.watchEnabled
+                            ),
+                            alarmDurationSeconds: amenAlarmSettings.duration.rawValue
+                        )
+                    }
+                )
+                vm.analytics = analytics
+                analytics.recordLaunch(
+                    currentSessionStart: vm.currentSession?.startedAt,
+                    lastPrayerAt: vm.lastPrayerTimestamp,
+                    prayersSoFar: vm.sortedEntries.count
+                )
+
                 viewModel = vm
             }
         }
