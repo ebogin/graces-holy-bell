@@ -1,97 +1,110 @@
 import XCTest
 @testable import Graces_Holy_Bell
 
-final class SyncedSessionStateTests: XCTestCase {
+/// Tests for SyncSnapshot and the event/clear wire-message types.
+/// (Replaces SyncedSessionStateTests after Stage 3 removes SyncedSessionState.)
+final class SyncSnapshotTests: XCTestCase {
 
-    // MARK: - Round-trip
+    private let t0 = Date(timeIntervalSince1970: 1_000_000)
+    private let t1 = Date(timeIntervalSince1970: 1_001_000)
 
-    func test_toDictionary_fromDictionary_roundTrip() throws {
-        let t0 = Date(timeIntervalSince1970: 1_000_000)
-        let t1 = Date(timeIntervalSince1970: 1_001_000)
-        let alarmFireAt = Date(timeIntervalSince1970: 1_003_600)
+    // MARK: - SyncSnapshot round-trip
 
-        let original = SyncedSessionState(
-            appState: "active",
-            entries: [
-                SyncedEntry(timestamp: t0, sequenceIndex: 0),
-                SyncedEntry(timestamp: t1, sequenceIndex: 1)
+    func test_toDictionary_fromDictionary_roundTrip() {
+        let original = SyncSnapshot(
+            events: [
+                PrayerEvent(id: UUID(), timestamp: t0, origin: .phone),
+                PrayerEvent(id: UUID(), timestamp: t1, origin: .watch)
             ],
-            amenAlarmFireAt: alarmFireAt
+            lastClearedAt: t0,
+            amenAlarmFireAt: t1
         )
-
-        let dict = original.toDictionary()
-        let restored = SyncedSessionState.fromDictionary(dict)
-
+        let restored = SyncSnapshot.fromDictionary(original.toDictionary())
         XCTAssertNotNil(restored)
-        XCTAssertEqual(restored?.appState, "active")
-        XCTAssertEqual(restored?.entries.count, 2)
-        XCTAssertEqual(restored?.entries[0].sequenceIndex, 0)
-        XCTAssertEqual(restored?.entries[1].sequenceIndex, 1)
-        let restoredFireAt = try XCTUnwrap(restored?.amenAlarmFireAt)
-        XCTAssertEqual(restoredFireAt.timeIntervalSince1970,
-                       alarmFireAt.timeIntervalSince1970, accuracy: 0.001)
+        XCTAssertEqual(restored?.events.count, 2)
+        XCTAssertEqual(restored?.lastClearedAt, t0)
+        XCTAssertEqual(restored?.amenAlarmFireAt, t1)
     }
 
     func test_toDictionary_fromDictionary_nilOptionals() {
-        let original = SyncedSessionState(
-            appState: "idle",
-            entries: [],
-            amenAlarmFireAt: nil
-        )
-
-        let dict = original.toDictionary()
-        let restored = SyncedSessionState.fromDictionary(dict)
-
+        let original = SyncSnapshot(events: [], lastClearedAt: nil, amenAlarmFireAt: nil)
+        let restored = SyncSnapshot.fromDictionary(original.toDictionary())
         XCTAssertNotNil(restored)
-        XCTAssertEqual(restored?.appState, "idle")
-        XCTAssertTrue(restored?.entries.isEmpty == true)
+        XCTAssertTrue(restored!.events.isEmpty)
+        XCTAssertNil(restored?.lastClearedAt)
         XCTAssertNil(restored?.amenAlarmFireAt)
     }
 
-    // MARK: - Wire format
-
     func test_toDictionary_isPropertyListCompatible() {
-        // updateApplicationContext only accepts property-list types.
-        let dict = SyncedSessionState(
-            appState: "active",
-            entries: [SyncedEntry(timestamp: .now, sequenceIndex: 0)],
-            amenAlarmFireAt: .now
+        let dict = SyncSnapshot(
+            events: [PrayerEvent(id: UUID(), timestamp: t0, origin: .watch)],
+            lastClearedAt: t1,
+            amenAlarmFireAt: nil
         ).toDictionary()
-        XCTAssertTrue(PropertyListSerialization.propertyList(
-            dict, isValidFor: .binary
-        ))
+        XCTAssertTrue(PropertyListSerialization.propertyList(dict, isValidFor: .binary))
     }
 
-    // MARK: - fromDictionary — malformed input
-
     func test_fromDictionary_emptyDictionary_returnsNil() {
-        XCTAssertNil(SyncedSessionState.fromDictionary([:]))
+        XCTAssertNil(SyncSnapshot.fromDictionary([:]))
     }
 
     func test_fromDictionary_wrongPayloadType_returnsNil() {
-        XCTAssertNil(SyncedSessionState.fromDictionary(["state": "not data"]))
+        XCTAssertNil(SyncSnapshot.fromDictionary(["snapshot": "not data"]))
     }
 
     func test_fromDictionary_garbageData_returnsNil() {
         let garbage = Data([0xDE, 0xAD, 0xBE, 0xEF])
-        XCTAssertNil(SyncedSessionState.fromDictionary(["state": garbage]))
+        XCTAssertNil(SyncSnapshot.fromDictionary(["snapshot": garbage]))
     }
 
-    // MARK: - Entry timestamp fidelity
-
-    func test_entryTimestampPreservedThroughDictionary() throws {
-        let timestamp = Date(timeIntervalSince1970: 1_718_000_000)
-        let state = SyncedSessionState(
-            appState: "active",
-            entries: [SyncedEntry(timestamp: timestamp, sequenceIndex: 0)],
+    func test_eventTimestampPreservedThroughDictionary() {
+        let timestamp = Date(timeIntervalSince1970: 999_888.5)
+        let snapshot = SyncSnapshot(
+            events: [PrayerEvent(id: UUID(), timestamp: timestamp, origin: .phone)],
+            lastClearedAt: nil,
             amenAlarmFireAt: nil
         )
-        let restored = SyncedSessionState.fromDictionary(state.toDictionary())
-        let restoredTimestamp = try XCTUnwrap(restored?.entries.first?.timestamp)
-        XCTAssertEqual(
-            restoredTimestamp.timeIntervalSince1970,
-            timestamp.timeIntervalSince1970,
-            accuracy: 0.001
-        )
+        let restored = SyncSnapshot.fromDictionary(snapshot.toDictionary())
+        XCTAssertEqual(restored?.events.first?.timestamp, timestamp)
+    }
+
+    func test_originPreservedThroughDictionary() {
+        let watch = PrayerEvent(id: UUID(), timestamp: t0, origin: .watch)
+        let phone = PrayerEvent(id: UUID(), timestamp: t1, origin: .phone)
+        let snapshot = SyncSnapshot(events: [watch, phone], lastClearedAt: nil, amenAlarmFireAt: nil)
+        let restored = SyncSnapshot.fromDictionary(snapshot.toDictionary())!
+        let byID = Dictionary(uniqueKeysWithValues: restored.events.map { ($0.id, $0) })
+        XCTAssertEqual(byID[watch.id]?.origin, .watch)
+        XCTAssertEqual(byID[phone.id]?.origin, .phone)
+    }
+
+    // MARK: - EventMessage
+
+    func test_eventMessage_roundTrip() {
+        let event = PrayerEvent(id: UUID(), timestamp: t0, origin: .watch)
+        let restored = EventMessage.fromUserInfo(EventMessage(event: event).toUserInfo())
+        XCTAssertEqual(restored?.event.id, event.id)
+        XCTAssertEqual(restored?.event.timestamp, event.timestamp)
+        XCTAssertEqual(restored?.event.origin, event.origin)
+    }
+
+    func test_eventMessage_wrongMsg_returnsNil() {
+        XCTAssertNil(EventMessage.fromUserInfo(["msg": "clear", "id": UUID().uuidString]))
+    }
+
+    func test_eventMessage_missingFields_returnsNil() {
+        XCTAssertNil(EventMessage.fromUserInfo([:]))
+    }
+
+    // MARK: - ClearMessage
+
+    func test_clearMessage_roundTrip() {
+        let msg = ClearMessage(clearedAt: t0)
+        let restored = ClearMessage.fromUserInfo(msg.toUserInfo())
+        XCTAssertEqual(restored?.clearedAt, t0)
+    }
+
+    func test_clearMessage_wrongMsg_returnsNil() {
+        XCTAssertNil(ClearMessage.fromUserInfo(["msg": "event"]))
     }
 }

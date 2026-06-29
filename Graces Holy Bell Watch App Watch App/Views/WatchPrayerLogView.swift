@@ -11,7 +11,7 @@ struct WatchPrayerLogView: View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(
                 Array(viewModel.sortedEntries.enumerated()),
-                id: \.element.sequenceIndex
+                id: \.element.id
             ) { index, entry in
                 WatchPrayerEntryRow(
                     viewModel: viewModel,
@@ -30,7 +30,7 @@ struct WatchPrayerLogView: View {
 struct WatchPrayerEntryRow: View {
 
     let viewModel: WatchSessionViewModel
-    let entry: SyncedEntry
+    let entry: PrayerEvent
     let index: Int
     let isLastEntry: Bool
     let now: Date

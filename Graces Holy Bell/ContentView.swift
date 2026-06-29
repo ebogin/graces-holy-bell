@@ -54,7 +54,7 @@ struct ContentView: View {
                 if let connectivityManager {
                     connectivityManager.amenAlarmSettings = amenAlarmSettings
                     vm.onStateChanged = { [weak connectivityManager] in
-                        connectivityManager?.sendStateToWatch()
+                        connectivityManager?.sendSnapshotToWatch()
                     }
                     connectivityManager.configure(with: vm)
                 }
@@ -92,7 +92,7 @@ struct ContentView: View {
                 // and push the new fire date (or nil) to the Watch.
                 amenAlarmSettings.onChange = { [weak vm, weak connectivityManager, weak analytics] in
                     vm?.refreshAmenAlarm()
-                    connectivityManager?.sendStateToWatch()
+                    connectivityManager?.sendSnapshotToWatch()
                     analytics?.recordAmenAlarmSet() // additive
                 }
 

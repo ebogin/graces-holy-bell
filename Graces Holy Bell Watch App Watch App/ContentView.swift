@@ -29,9 +29,9 @@ struct WatchContentView: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .persistentSystemOverlays(.hidden)
-        .onReceive(connectivityManager.$latestState) { state in
-            if let state {
-                viewModel.apply(state)
+        .onReceive(connectivityManager.$latestSnapshot) { snapshot in
+            if let snapshot {
+                viewModel.applySnapshot(snapshot)
             }
         }
     }

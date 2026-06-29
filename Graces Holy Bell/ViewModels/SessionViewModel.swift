@@ -133,6 +133,55 @@ final class SessionViewModel {
         }
     }
 
+    // MARK: - Cross-device Merge (called by PhoneConnectivityManager; never emits analytics)
+
+    /// Merges an incoming Watch snapshot into the local SwiftData store.
+    /// Inserts new watch-origin events, advances lastClearedAt if needed.
+    /// Never emits analytics — each prayer is counted exactly once at its origin.
+    func mergeIncoming(snapshot: SyncSnapshot) {
+        let localPrayerEvents = allEvents.map {
+            PrayerEvent(id: $0.id, timestamp: $0.timestamp, origin: PrayerEvent.Origin(rawValue: $0.origin) ?? .phone)
+        }
+        let (merged, mergedClearedAt) = SyncEngine.merge(
+            localEvents: localPrayerEvents,
+            localClearedAt: lastClearedAt,
+            incomingEvents: snapshot.events,
+            incomingClearedAt: snapshot.lastClearedAt
+        )
+
+        // Advance the clear epoch if the incoming one is later.
+        if let newCleared = mergedClearedAt, newCleared != lastClearedAt {
+            applyAndSaveClearedAt(newCleared)
+        }
+
+        // Insert new events that came from the Watch.
+        let existingIDs = Set(allEvents.map(\.id))
+        for event in merged where !existingIDs.contains(event.id) {
+            let entry = PrayerEntry(id: event.id, timestamp: event.timestamp, origin: event.origin.rawValue)
+            modelContext.insert(entry)
+            allEvents.append(entry)
+        }
+
+        pruneAndRefresh()
+        scheduleAmenAlarmIfNeeded()
+        onStateChanged?()
+    }
+
+    /// Builds a SyncSnapshot from the current active state for sending to the Watch.
+    func makeSnapshot(amenAlarmSettings: AmenAlarmSettings?) -> SyncSnapshot {
+        let events = sortedEntries.map {
+            PrayerEvent(id: $0.id, timestamp: $0.timestamp, origin: PrayerEvent.Origin(rawValue: $0.origin) ?? .phone)
+        }
+        let amenAlarmFireAt: Date? = {
+            guard let settings = amenAlarmSettings,
+                  settings.watchEnabled,
+                  appState == .active,
+                  let last = lastPrayerTimestamp else { return nil }
+            return last.addingTimeInterval(settings.duration.rawValue)
+        }()
+        return SyncSnapshot(events: events, lastClearedAt: lastClearedAt, amenAlarmFireAt: amenAlarmFireAt)
+    }
+
     // MARK: - Elapsed Time Computation
 
     func elapsedSinceLastPrayer(at now: Date = .now) -> TimeInterval {
