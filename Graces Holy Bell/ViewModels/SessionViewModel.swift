@@ -149,9 +149,16 @@ final class SessionViewModel {
             incomingClearedAt: snapshot.lastClearedAt
         )
 
+        // Track whether the merge actually altered local state. If nothing
+        // changed we must NOT notify/re-send: onStateChanged → sendSnapshotToWatch
+        // would bounce a message back to the Watch, which replies, which merges
+        // again — an unbounded ping-pong even though state has converged.
+        var changed = false
+
         // Advance the clear epoch if the incoming one is later.
         if let newCleared = mergedClearedAt, newCleared != lastClearedAt {
             applyAndSaveClearedAt(newCleared)
+            changed = true
         }
 
         // Insert new events that came from the Watch.
@@ -160,7 +167,10 @@ final class SessionViewModel {
             let entry = PrayerEntry(id: event.id, timestamp: event.timestamp, origin: event.origin.rawValue)
             modelContext.insert(entry)
             allEvents.append(entry)
+            changed = true
         }
+
+        guard changed else { return }
 
         pruneAndRefresh()
         scheduleAmenAlarmIfNeeded()

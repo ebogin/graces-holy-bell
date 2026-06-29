@@ -113,11 +113,16 @@ struct ContentView: View {
                 viewModel = vm
             }
         }
-        // Analytics (additive): record app_opened on return to the foreground.
-        // The launch open is recorded by recordLaunch; this catches reopens.
+        // On every foreground, proactively reconcile with the Watch so opening
+        // the app shows fresh state instead of waiting for opportunistic delivery.
+        // Analytics app_opened is still only the background→active reopen
+        // (launch open is recorded by recordLaunch).
         .onChange(of: scenePhase) { oldPhase, newPhase in
-            if oldPhase == .background, newPhase == .active {
-                viewModel?.analytics?.recordAppOpened()
+            if newPhase == .active {
+                connectivityManager?.sendSnapshotToWatch()
+                if oldPhase == .background {
+                    viewModel?.analytics?.recordAppOpened()
+                }
             }
         }
     }

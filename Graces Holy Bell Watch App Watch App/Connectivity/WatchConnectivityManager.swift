@@ -23,10 +23,32 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     private let session = WCSession.default
     private static let alarmNotificationID = "watchAmenAlarm"
 
+    // Latest local snapshot, kept current by the ViewModel. Lets us reply to a
+    // phone-initiated sendMessage without hopping back to the @MainActor
+    // ViewModel from this background delegate queue. Guarded by a lock since the
+    // ViewModel (main) writes it and the WC delegate (background) reads it.
+    private let snapshotLock = NSLock()
+    private var cachedLocalSnapshot: [String: Any]?
+
     override init() {
         super.init()
         session.delegate = self
         session.activate()
+    }
+
+    /// Called by the ViewModel whenever local state changes, so a reply to a
+    /// phone-initiated reconcile always carries the Watch's current state.
+    func cacheLocalSnapshot(_ snapshot: SyncSnapshot) {
+        let dict = snapshot.toDictionary()
+        snapshotLock.lock()
+        cachedLocalSnapshot = dict
+        snapshotLock.unlock()
+    }
+
+    private func cachedSnapshotDictionary() -> [String: Any] {
+        snapshotLock.lock()
+        defer { snapshotLock.unlock() }
+        return cachedLocalSnapshot ?? [:]
     }
 
     // MARK: - Send: event
@@ -51,18 +73,24 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     /// Always updates applicationContext; also tries sendMessage when reachable
     /// (the phone replies with its own snapshot which we merge).
     func sendSnapshot(_ snapshot: SyncSnapshot) {
+        cacheLocalSnapshot(snapshot)
         guard session.activationState == .activated else { return }
         let dict = snapshot.toDictionary()
         try? session.updateApplicationContext(dict)
+        reconcileIfReachable(dict)
+    }
 
-        if session.isReachable {
-            session.sendMessage(dict, replyHandler: { [weak self] reply in
-                guard let phoneSnapshot = SyncSnapshot.fromDictionary(reply) else { return }
-                DispatchQueue.main.async {
-                    self?.latestSnapshot = phoneSnapshot
-                }
-            }, errorHandler: nil)
-        }
+    /// When the phone is reachable, send our snapshot and merge its reply — an
+    /// immediate two-way reconcile. Used on app open and reachability changes so
+    /// the Watch shows fresh state instead of waiting for background delivery.
+    private func reconcileIfReachable(_ dict: [String: Any]) {
+        guard session.isReachable else { return }
+        session.sendMessage(dict, replyHandler: { [weak self] reply in
+            guard let phoneSnapshot = SyncSnapshot.fromDictionary(reply) else { return }
+            DispatchQueue.main.async {
+                self?.latestSnapshot = phoneSnapshot
+            }
+        }, errorHandler: nil)
     }
 
     // MARK: - Analytics proxy (unchanged)
@@ -145,9 +173,41 @@ extension WatchConnectivityManager: WCSessionDelegate {
         }
     }
 
+    /// Receives a snapshot the phone sent via sendMessage (immediate path).
+    /// Publishes it for the ViewModel to merge, and replies with our own cached
+    /// snapshot so the phone reconciles too — one round trip, both converge.
+    func session(
+        _ session: WCSession,
+        didReceiveMessage message: [String: Any],
+        replyHandler: @escaping ([String: Any]) -> Void
+    ) {
+        if let snapshot = SyncSnapshot.fromDictionary(message) {
+            DispatchQueue.main.async {
+                self.latestSnapshot = snapshot
+            }
+        }
+        replyHandler(cachedSnapshotDictionary())
+    }
+
+    /// Receives a phone snapshot via sendMessage with no reply expected.
+    func session(
+        _ session: WCSession,
+        didReceiveMessage message: [String: Any]
+    ) {
+        guard let snapshot = SyncSnapshot.fromDictionary(message) else { return }
+        DispatchQueue.main.async {
+            self.latestSnapshot = snapshot
+        }
+    }
+
     func sessionReachabilityDidChange(_ session: WCSession) {
         DispatchQueue.main.async {
             self.isReachable = session.isReachable
+        }
+        // The phone just became reachable — pull/reconcile immediately rather
+        // than waiting for the next local mutation or background delivery.
+        if session.isReachable {
+            reconcileIfReachable(cachedSnapshotDictionary())
         }
     }
 }

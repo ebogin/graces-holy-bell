@@ -86,6 +86,12 @@ final class WatchSessionViewModel {
         connectivityManager.sendSnapshot(makeSnapshot())
     }
 
+    /// Proactively reconcile with the phone (called on app open / foreground).
+    /// Pushes our current state and merges the phone's reply when reachable.
+    func syncNow() {
+        connectivityManager.sendSnapshot(makeSnapshot())
+    }
+
     // MARK: - Sync: Receive and merge incoming snapshot
 
     /// Merges an incoming phone snapshot with the local Watch state.
@@ -157,6 +163,9 @@ final class WatchSessionViewModel {
         )
         if appState == .idle { showingLog = false }
         recomputeAlarm()
+        // Keep the manager's cached snapshot current so it can reply to a
+        // phone-initiated reconcile with up-to-date Watch state.
+        connectivityManager.cacheLocalSnapshot(makeSnapshot())
     }
 
     private func recomputeAlarm() {

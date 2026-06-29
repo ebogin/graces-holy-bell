@@ -51,7 +51,21 @@ final class PhoneConnectivityManager: NSObject {
               let viewModel else { return }
         let snapshot = viewModel.makeSnapshot(amenAlarmSettings: amenAlarmSettings)
         let dict = snapshot.toDictionary()
+
+        // Durable background channel — always queue the latest state so it
+        // arrives even if the Watch is asleep/unreachable right now.
         try? WCSession.default.updateApplicationContext(dict)
+
+        // Immediate two-way reconcile when the Watch is reachable: it merges our
+        // snapshot and replies with its own, which we merge back. This is what
+        // makes "open the app → state is fresh" work instead of waiting for the
+        // opportunistic background delivery.
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(dict, replyHandler: { [weak self] reply in
+                guard let snapshot = SyncSnapshot.fromDictionary(reply) else { return }
+                Task { @MainActor in self?.handleSnapshot(snapshot) }
+            }, errorHandler: nil)
+        }
     }
 
     @MainActor
@@ -109,6 +123,12 @@ extension PhoneConnectivityManager: WCSessionDelegate {
         error: Error?
     ) {
         Task { @MainActor in
+            // Merge the Watch's last pushed snapshot (it updates applicationContext
+            // on every mutation, including offline ones), then push ours. On a cold
+            // launch this reconciles immediately even if the Watch isn't reachable.
+            if let snapshot = SyncSnapshot.fromDictionary(session.receivedApplicationContext) {
+                self.handleSnapshot(snapshot)
+            }
             self.sendSnapshotToWatch()
         }
     }
@@ -153,6 +173,20 @@ extension PhoneConnectivityManager: WCSessionDelegate {
     ) {
         Task { @MainActor in
             self.handleUserInfo(userInfo)
+        }
+    }
+
+    /// Receives a full snapshot pushed by the Watch via updateApplicationContext
+    /// (the durable background channel — e.g. the Watch synced while we were
+    /// backgrounded). Merges it; the merge is idempotent so duplicates are safe.
+    func session(
+        _ session: WCSession,
+        didReceiveApplicationContext applicationContext: [String: Any]
+    ) {
+        Task { @MainActor in
+            if let snapshot = SyncSnapshot.fromDictionary(applicationContext) {
+                self.handleSnapshot(snapshot)
+            }
         }
     }
 
