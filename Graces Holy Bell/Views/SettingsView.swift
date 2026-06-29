@@ -27,7 +27,9 @@ struct SettingsView: View {
                 .foregroundStyle(Color.lcdMid)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            // ── Settings container box ───────────────────────────────────
+            // ── Settings container box (scrolls so the build row at the
+            //    bottom is always reachable on shorter screens) ────────────
+            ScrollView {
             VStack(spacing: 0) {
 
                 // AMEN Alarm section heading
@@ -72,6 +74,12 @@ struct SettingsView: View {
 
                 // Privacy Policy — opens the in-app policy sheet
                 privacyPolicyRow()
+
+                divider()
+
+                // Build/version marker — last item; lets a tester confirm this
+                // device's build matches the paired Watch (sync has no back-compat).
+                buildVersionRow()
             }
             .background(Color.lcdLogInner)
             .overlay(
@@ -79,6 +87,7 @@ struct SettingsView: View {
                     .stroke(Color.lcdLogBorder, lineWidth: 4)
             )
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .sheet(isPresented: $showPrivacyPolicy) {
@@ -263,6 +272,17 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("privacy-policy-row")
+    }
+
+    @ViewBuilder
+    private func buildVersionRow() -> some View {
+        Text(AppVersion.label)
+            .font(.pixelFont(7))
+            .foregroundStyle(Color.lcdMid)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .accessibilityIdentifier("build-version-row")
     }
 
     @ViewBuilder

@@ -17,6 +17,14 @@ final class PhoneConnectivityManager: NSObject {
     private var viewModel: SessionViewModel?
     var amenAlarmSettings: AmenAlarmSettings?
 
+    // Messages can arrive from the Watch on a cold launch (queued transferUserInfo /
+    // applicationContext) *before* ContentView's .task wires up the ViewModel via
+    // configure(with:). Buffer them here and replay in FIFO order once configured,
+    // so re-launching the phone never drops prayers the Watch logged while it was dead.
+    // All accesses are on the MainActor.
+    @MainActor private var pendingUserInfos: [[String: Any]] = []
+    @MainActor private var pendingSnapshots: [SyncSnapshot] = []
+
     override init() {
         super.init()
         guard WCSession.isSupported() else { return }
@@ -27,6 +35,10 @@ final class PhoneConnectivityManager: NSObject {
     @MainActor
     func configure(with viewModel: SessionViewModel) {
         self.viewModel = viewModel
+        for info in pendingUserInfos { handleUserInfo(info) }
+        pendingUserInfos.removeAll()
+        for snapshot in pendingSnapshots { handleSnapshot(snapshot) }
+        pendingSnapshots.removeAll()
         sendSnapshotToWatch()
     }
 
@@ -51,7 +63,10 @@ final class PhoneConnectivityManager: NSObject {
 
     @MainActor
     private func handleUserInfo(_ userInfo: [String: Any]) {
-        guard let viewModel else { return }
+        guard let viewModel else {
+            pendingUserInfos.append(userInfo)
+            return
+        }
 
         // Analytics proxy (prayer_log_viewed from Watch)
         if let timestamp = WatchAnalyticsProxy.isPrayerLogViewed(userInfo) {
@@ -76,7 +91,11 @@ final class PhoneConnectivityManager: NSObject {
 
     @MainActor
     private func handleSnapshot(_ snapshot: SyncSnapshot) {
-        viewModel?.mergeIncoming(snapshot: snapshot)
+        guard let viewModel else {
+            pendingSnapshots.append(snapshot)
+            return
+        }
+        viewModel.mergeIncoming(snapshot: snapshot)
     }
 }
 
