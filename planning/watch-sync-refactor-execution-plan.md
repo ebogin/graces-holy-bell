@@ -198,7 +198,9 @@ groups.
 |-------|--------|------|--------|-------|
 | 1 — Merge engine + value types | DONE | 2026-06-29 | 02d0c8b | 143/143 tests pass; both schemes build |
 | 2 — Phone model + ViewModel rewrite | DONE | 2026-06-29 | 402ab7c | 147/147 pass; both schemes build |
-| 3 — The flip (protocol + Watch store + merge) | DONE | 2026-06-29 | 1456ced | 153/153 pass; both schemes build; awaiting real-device groups A–F |
+| 3 — The flip (protocol + Watch store + merge) | DONE | 2026-06-29 | 1456ced | 153/153 pass; both schemes build |
+| 3a — Build marker + bump + cold-launch buffer | DONE | 2026-06-29 | ec711c9 | build 6; visible version marker (iPhone Settings / Watch log) so testers confirm matched builds |
+| 3b — Reconcile on app open (proactive two-way pull) | DONE | 2026-06-29 | f75a8ee | build 7; fixes the "no sync on open / ~30s lag" that failed device tests 1, 9 and slowed 4; needs device re-test of A–F on build 7 |
 | 4 — Re-wire SYNCING WITH WATCH dialog | NOT STARTED | | | real-device group I |
 | 5 — Sync Up row + settings tweaks | NOT STARTED | | | real-device H + scenario 14 |
 | 6 — Analytics verify + cleanup + build bump | NOT STARTED | | | real-device G + regression |
@@ -206,3 +208,14 @@ groups.
 Real-device scenario results (fill PASS/FAIL as Eric reports):
 `A:1__ 2__ 3__ · B:4__ 5__ 6__ · C:7__ 8__ · D:9__ 10__ 11__ · E:12__ 13__ 14__ 15__ ·
 F:16__ 17__ 18__ · G:19__ · H:20__ · I:21__ 22__ 23__ 24__`
+
+**Build 6 device pass (2026-06-29, before sync-on-open fix):**
+A: 1 FAIL (synced only after a phone prayer triggered it — no sync on open) · 2 PASS · 3 PASS
+B: 4 PASS (slow, ~30s) · 5 PASS · 6 PASS
+C: 7 PASS · 8 PASS
+D: 9 FAIL (Watch didn't clear on reopen; cleared only after a prayer triggered sync) · 10 PASS · 11 not run
+E: 12 PASS · 13 PASS · 14 skipped (Stage 5) · 15 PASS
+F: skipped pending sync-on-open.
+Root cause: protocol pulled nothing on app open; everything synced only on the
+next mutation or slow background delivery. Fixed in build 7 (commit f75a8ee).
+**Re-test A–F on build 7.**
