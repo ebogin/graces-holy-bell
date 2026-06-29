@@ -201,7 +201,7 @@ groups.
 | 3 — The flip (protocol + Watch store + merge) | DONE | 2026-06-29 | 1456ced | 153/153 pass; both schemes build |
 | 3a — Build marker + bump + cold-launch buffer | DONE | 2026-06-29 | ec711c9 | build 6; visible version marker (iPhone Settings / Watch log) so testers confirm matched builds |
 | 3b — Reconcile on app open (proactive two-way pull) | DONE | 2026-06-29 | f75a8ee | build 7; fixes the "no sync on open / ~30s lag" that failed device tests 1, 9 and slowed 4 |
-| 3c — "SYNCING…" badge (perceived-latency UX) | DONE | 2026-06-29 | a511b34 | build 8; bounded badge (0.6s delay, 12s cap) shown while post-offline reconnect is reconciling, so the slow power-cycle/airplane window reads as working not broken |
+| 3c — "SYNCING…" badge (perceived-latency UX) | REVERTED | 2026-06-29 | a511b34 → 5952962 | build 8 added it, build 9 removed it: fired too eagerly on device (showed whenever Watch lost contact / phone off). Eric's call to drop it and live with the post-offline delay; sync-on-open (build 7) is unchanged |
 | 4 — Re-wire SYNCING WITH WATCH dialog | NOT STARTED | | | real-device group I |
 | 5 — Sync Up row + settings tweaks | NOT STARTED | | | real-device H + scenario 14 |
 | 6 — Analytics verify + cleanup + build bump | NOT STARTED | | | real-device G + regression |
