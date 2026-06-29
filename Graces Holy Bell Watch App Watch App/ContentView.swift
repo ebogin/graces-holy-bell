@@ -22,13 +22,6 @@ struct WatchContentView: View {
                         .transition(.opacity)
                 }
             }
-            .overlay(alignment: .top) {
-                if connectivityManager.isSyncing {
-                    SyncingBadge(fontSize: 9)
-                        .padding(.top, DesignSystem.Metrics.clockClearance)
-                }
-            }
-            .animation(.easeInOut(duration: 0.25), value: connectivityManager.isSyncing)
             .animation(.spring(duration: 0.4), value: viewModel.route)
             .containerBackground(Color.lcdBackground, for: .navigation)
             // The navigation bar is hidden so screens can use the full height.

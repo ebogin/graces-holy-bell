@@ -119,7 +119,7 @@ struct ContentView: View {
         // (launch open is recorded by recordLaunch).
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
-                connectivityManager?.syncOnForeground()
+                connectivityManager?.sendSnapshotToWatch()
                 if oldPhase == .background {
                     viewModel?.analytics?.recordAppOpened()
                 }
