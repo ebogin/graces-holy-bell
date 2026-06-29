@@ -62,7 +62,9 @@
   ordering, count-guard, action-buffering.
 - **Clocks trusted as-is** (drift = accepted non-issue; keep only light clamping that
   prevents negative intervals).
-- **"SYNCING WITH WATCH" dialog: KEEP**, re-integrated into `main` and re-wired (Stage 4).
+- **"SYNCING WITH WATCH" dialog: CUT** (2026-06-29, Eric's call). Not building the takeover —
+  its trigger/edge-case surface outweighs the benefit now that the phone and Watch eventually
+  converge on their own. A transient out-of-sync state is itself an acceptable edge case.
 - **Sync Up** Settings row (permanent, on-theme, grayed when no Watch) + the four settings
   tweaks (vision §9).
 - **Analytics:** count each prayer once at origin (`device_source`); never emit on merge;
@@ -110,21 +112,13 @@ locally-storing Watch on the old action protocol would double-log).
 **Acceptance:** unit tests green; both build. **Cross-device behavior verified on real devices
 via §3 walkthrough, scenario groups A–F.** Do not mark complete on sim evidence alone.
 
-### Stage 4 — Re-integrate + re-wire the "SYNCING WITH WATCH" dialog
-**Goal:** keep the takeover, working against the new merge.
-**Tasks:**
-- Port the takeover UI from branch `claude/admiring-raman-1db15d` (commits `c3aafce`,
-  `4c7f669`; design doc at repo-root `WatchSyncIndicator_Proposal.md`) into `main`. It is
-  **not** in `main` today.
-- **Re-wire its trigger** to the new flow: `WCSession.hasContentPending` for "watch data is
-  queued", driving an observable `isSyncingFromWatch` on `SessionViewModel`; reveal the real
-  merged state when the queue drains. Keep the standalone `WatchSyncingView` so Scenario B
-  (session started on the Watch while phone idle) works. Keep min-display (~1–1.5s) and
-  timeout (~8–10s).
-- Keep the `#if DEBUG` "TEST SYNC" button (with `accessibilityIdentifier`) for sim-testable
-  visuals.
-**Acceptance:** `#Preview` + TEST SYNC button exercise the visuals on sim; dialog scenarios
-**verified on real devices via §3, group I**.
+### Stage 4 — CUT (was: re-integrate the "SYNCING WITH WATCH" dialog)
+**Removed 2026-06-29 (Eric's call).** The takeover dialog is not being built. A bounded
+"SYNCING…" badge was tried as a lighter alternative (build 8) and reverted (build 9) — it
+fired too eagerly on device. Decision: ship without any sync-in-progress UI; the phone and
+Watch converge on their own (sync-on-open + eventual background delivery), and a transient
+out-of-sync window is an acceptable edge case. Stage numbers below are kept stable so existing
+cross-references and git history stay valid.
 
 ### Stage 5 — Sync Up Settings row + Settings UI tweaks
 **Goal:** manual force-sync + the settings cleanups.
@@ -161,15 +155,14 @@ The unit and single-device tests in vision §14 are yours to run on the Simulato
 real-device scenarios are NOT something you can run** — the Simulator has no
 `transferUserInfo`, so true cross-device sync only exists on **Eric's physical paired iPhone +
 Watch.** When a stage's acceptance calls for real-device verification (Stage 3 = groups A–F;
-Stage 4 = group I; Stage 5 = groups H + scenario 14; Stage 6 = group G + full regression),
+Stage 5 = groups H + scenario 14; Stage 6 = group G + full regression),
 **you must walk Eric through the scenarios — he performs them on his devices and reports back.**
 
 **Walkthrough protocol — for each scenario:**
 1. **Tell Eric exactly what to do**, step by step, in plain language (which device, what to
    tap, how to disconnect — e.g. "put the iPhone in Airplane Mode" or "power the iPhone off",
    what to log, in what order).
-2. **State the expected result** on *both* devices (log contents + order, timer source,
-   whether the SYNCING dialog should appear).
+2. **State the expected result** on *both* devices (log contents + order, timer source).
 3. **Ask Eric to report what he actually saw** on each device.
 4. **Record PASS/FAIL** for that scenario in the Progress log (§4).
 5. **On FAIL: stop and diagnose** before moving on — do not continue down the list papering
@@ -177,15 +170,15 @@ Stage 4 = group I; Stage 5 = groups H + scenario 14; Stage 6 = group G + full re
    and have Eric re-run that scenario.
 6. Go **one scenario at a time** — do not dump all 24 at once. Confirm each before the next.
 
-The 24 scenarios, with exact setup/expected outcomes, are in **vision §14, groups A–I**. Use
-them verbatim as the script. Summary of what each group proves:
+The scenarios, with exact setup/expected outcomes, are in **vision §14, groups A–H** (group I —
+the cut dialog — is no longer in scope). Use them verbatim as the script. Summary of what each
+group proves:
 - **A** connected baseline (1–3) · **B** disconnected independent logging + union on reconnect
   (4–6) · **C** phone fully off, Watch alone, offline alarm (7–8) · **D** clear-across-the-gap,
   both directions + double-clear (9–11) · **E** idempotency: force-quit mid-delivery, repeated
   Sync Up, no-watch-installed, fresh install (12–15) · **F** Amen alarm offline + recompute on
   merge + settings propagation (16–18) · **G** analytics single-count in PostHog (19) ·
-  **H** Sync Up forces convergence (20) · **I** the kept dialog's scenarios A/B/C + timing
-  (21–24).
+  **H** Sync Up forces convergence (20). *(Group I — the dialog scenarios 21–24 — is cut.)*
 
 Only mark a stage complete once Eric has confirmed PASS on that stage's required scenario
 groups.
@@ -202,13 +195,13 @@ groups.
 | 3a — Build marker + bump + cold-launch buffer | DONE | 2026-06-29 | ec711c9 | build 6; visible version marker (iPhone Settings / Watch log) so testers confirm matched builds |
 | 3b — Reconcile on app open (proactive two-way pull) | DONE | 2026-06-29 | f75a8ee | build 7; fixes the "no sync on open / ~30s lag" that failed device tests 1, 9 and slowed 4 |
 | 3c — "SYNCING…" badge (perceived-latency UX) | REVERTED | 2026-06-29 | a511b34 → 5952962 | build 8 added it, build 9 removed it: fired too eagerly on device (showed whenever Watch lost contact / phone off). Eric's call to drop it and live with the post-offline delay; sync-on-open (build 7) is unchanged |
-| 4 — Re-wire SYNCING WITH WATCH dialog | NOT STARTED | | | real-device group I |
+| 4 — SYNCING WITH WATCH dialog | CUT | 2026-06-29 | — | not building it (Eric's call); sync converges on its own, edge-case surface not worth it. Group I scenarios dropped |
 | 5 — Sync Up row + settings tweaks | NOT STARTED | | | real-device H + scenario 14 |
 | 6 — Analytics verify + cleanup + build bump | NOT STARTED | | | real-device G + regression |
 
 Real-device scenario results (fill PASS/FAIL as Eric reports):
 `A:1__ 2__ 3__ · B:4__ 5__ 6__ · C:7__ 8__ · D:9__ 10__ 11__ · E:12__ 13__ 14__ 15__ ·
-F:16__ 17__ 18__ · G:19__ · H:20__ · I:21__ 22__ 23__ 24__`
+F:16__ 17__ 18__ · G:19__ · H:20__`
 
 **Build 6 device pass (2026-06-29, before sync-on-open fix):**
 A: 1 FAIL (synced only after a phone prayer triggered it — no sync on open) · 2 PASS · 3 PASS
