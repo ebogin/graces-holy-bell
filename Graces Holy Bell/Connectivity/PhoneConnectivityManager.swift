@@ -53,10 +53,10 @@ final class PhoneConnectivityManager: NSObject {
     private func makeState() -> SyncedSessionState? {
         guard let viewModel else { return nil }
 
-        let entries = viewModel.sortedEntries.map { entry in
+        let entries = viewModel.sortedEntries.enumerated().map { (index, entry) in
             SyncedEntry(
                 timestamp: entry.timestamp,
-                sequenceIndex: entry.sequenceIndex
+                sequenceIndex: index
             )
         }
 

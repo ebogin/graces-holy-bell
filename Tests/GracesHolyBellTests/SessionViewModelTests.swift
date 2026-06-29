@@ -16,7 +16,9 @@ final class SessionViewModelTests: XCTestCase {
         viewModel = SessionViewModel(modelContext: container.mainContext)
     }
 
-    override func tearDown() async throws {
+    override func tearDown() {
+        // Clear persisted epoch so tests don't bleed into each other.
+        UserDefaults.standard.removeObject(forKey: "prayer.lastClearedAt")
         viewModel = nil
         container = nil
     }
@@ -25,16 +27,16 @@ final class SessionViewModelTests: XCTestCase {
 
     func test_initialState_isIdle() {
         XCTAssertEqual(viewModel.appState, .idle)
-        XCTAssertNil(viewModel.currentSession)
         XCTAssertTrue(viewModel.sortedEntries.isEmpty)
         XCTAssertNil(viewModel.lastPrayerTimestamp)
+        XCTAssertNil(viewModel.sessionStartedAt)
     }
 
     func test_elapsedSinceLastPrayer_returnsZero_whenNoSession() {
         XCTAssertEqual(viewModel.elapsedSinceLastPrayer(), 0)
     }
 
-    // MARK: - startNewSession
+    // MARK: - startNewSession / logPrayer
 
     func test_startNewSession_transitionsToActive() {
         viewModel.startNewSession()
@@ -44,7 +46,6 @@ final class SessionViewModelTests: XCTestCase {
     func test_startNewSession_createsOneEntry() {
         viewModel.startNewSession()
         XCTAssertEqual(viewModel.sortedEntries.count, 1)
-        XCTAssertEqual(viewModel.sortedEntries.first?.sequenceIndex, 0)
     }
 
     func test_startNewSession_setsLastPrayerTimestamp() {
@@ -54,14 +55,13 @@ final class SessionViewModelTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(viewModel.lastPrayerTimestamp!, before)
     }
 
-    func test_startNewSession_replacesExistingSession() {
-        viewModel.startNewSession()
-        let firstSessionId = viewModel.currentSession?.persistentModelID
-        viewModel.startNewSession()
-        XCTAssertNotEqual(viewModel.currentSession?.persistentModelID, firstSessionId)
+    func test_startNewSession_whenActive_startsOver() {
+        viewModel.startNewSession()  // first session
+        viewModel.logPrayer()        // two entries
+        viewModel.startNewSession()  // replaces with a single-entry new session
+        XCTAssertEqual(viewModel.sortedEntries.count, 1)
+        XCTAssertEqual(viewModel.appState, .active)
     }
-
-    // MARK: - logPrayer
 
     func test_logPrayer_addsEntry() {
         viewModel.startNewSession()
@@ -69,33 +69,54 @@ final class SessionViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.sortedEntries.count, 2)
     }
 
-    func test_logPrayer_incrementsSequenceIndex() {
+    func test_logPrayer_entriesSortedAscending() {
         viewModel.startNewSession()
         viewModel.logPrayer()
         viewModel.logPrayer()
-        let indices = viewModel.sortedEntries.map { $0.sequenceIndex }
-        XCTAssertEqual(indices, [0, 1, 2])
+        let timestamps = viewModel.sortedEntries.map(\.timestamp)
+        XCTAssertEqual(timestamps, timestamps.sorted())
     }
 
-    func test_logPrayer_doesNothing_whenNoSession() {
+    func test_logPrayer_setsOriginToPhone() {
         viewModel.logPrayer()
-        XCTAssertTrue(viewModel.sortedEntries.isEmpty)
+        XCTAssertEqual(viewModel.sortedEntries.first?.origin, PrayerEvent.Origin.phone.rawValue)
+    }
+
+    func test_logPrayer_assignsStableUUID() {
+        viewModel.startNewSession()
+        viewModel.logPrayer()
+        let ids = viewModel.sortedEntries.map(\.id)
+        XCTAssertEqual(ids.count, Set(ids).count)  // all unique
     }
 
     // MARK: - clearLog
 
-    func test_clearLog_resetsToEmpty() {
+    func test_clearLog_resetsToIdle() {
         viewModel.startNewSession()
         viewModel.logPrayer()
         viewModel.clearLog()
-        XCTAssertNil(viewModel.currentSession)
         XCTAssertTrue(viewModel.sortedEntries.isEmpty)
         XCTAssertEqual(viewModel.appState, .idle)
     }
 
     func test_clearLog_safeWhenNoSession() {
         viewModel.clearLog()
-        XCTAssertNil(viewModel.currentSession)
+        XCTAssertEqual(viewModel.appState, .idle)
+    }
+
+    func test_clearLog_setsLastClearedAt() {
+        viewModel.startNewSession()
+        XCTAssertNil(viewModel.lastClearedAt)
+        viewModel.clearLog()
+        XCTAssertNotNil(viewModel.lastClearedAt)
+    }
+
+    func test_prayerAfterClear_formsFreshSession() {
+        viewModel.startNewSession()
+        viewModel.clearLog()
+        viewModel.startNewSession()
+        XCTAssertEqual(viewModel.sortedEntries.count, 1)
+        XCTAssertEqual(viewModel.appState, .active)
     }
 
     // MARK: - elapsedSinceLastPrayer
@@ -125,21 +146,29 @@ final class SessionViewModelTests: XCTestCase {
     }
 
     func test_duration_nonLastEntry_isGapToNextEntry() {
-        // Insert session with known timestamps directly into model context
         let ctx = container.mainContext
-        let session = PrayerSession(startedAt: Date(timeIntervalSince1970: 1000))
-        let e0 = PrayerEntry(timestamp: Date(timeIntervalSince1970: 1000), sequenceIndex: 0)
-        let e1 = PrayerEntry(timestamp: Date(timeIntervalSince1970: 1060), sequenceIndex: 1)
-        e0.session = session
-        e1.session = session
-        session.entries = [e0, e1]
-        ctx.insert(session)
+        let t0 = Date(timeIntervalSince1970: 1000)
+        let t1 = Date(timeIntervalSince1970: 1060)
+        let e0 = PrayerEntry(id: UUID(), timestamp: t0, origin: "phone")
+        let e1 = PrayerEntry(id: UUID(), timestamp: t1, origin: "phone")
+        ctx.insert(e0)
+        ctx.insert(e1)
         try? ctx.save()
 
-        // Fresh VM loads from context
         let vm = SessionViewModel(modelContext: ctx)
         let dur = vm.duration(for: 0, at: .now)!
         XCTAssertEqual(dur, 60, accuracy: 0.001)
+    }
+
+    // MARK: - sessionStartedAt
+
+    func test_sessionStartedAt_isFirstEntryTimestamp() {
+        let before = Date.now
+        viewModel.startNewSession()
+        let started = viewModel.sessionStartedAt
+        XCTAssertNotNil(started)
+        XCTAssertGreaterThanOrEqual(started!, before)
+        XCTAssertEqual(started, viewModel.sortedEntries.first?.timestamp)
     }
 
     // MARK: - onStateChanged callback

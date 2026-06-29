@@ -105,7 +105,7 @@ struct ContentView: View {
                 notificationForwarder = forwarder
 
                 analytics.recordLaunch(
-                    currentSessionStart: vm.currentSession?.startedAt,
+                    currentSessionStart: vm.sessionStartedAt,
                     lastPrayerAt: vm.lastPrayerTimestamp,
                     prayersSoFar: vm.sortedEntries.count
                 )
