@@ -200,7 +200,8 @@ groups.
 | 2 — Phone model + ViewModel rewrite | DONE | 2026-06-29 | 402ab7c | 147/147 pass; both schemes build |
 | 3 — The flip (protocol + Watch store + merge) | DONE | 2026-06-29 | 1456ced | 153/153 pass; both schemes build |
 | 3a — Build marker + bump + cold-launch buffer | DONE | 2026-06-29 | ec711c9 | build 6; visible version marker (iPhone Settings / Watch log) so testers confirm matched builds |
-| 3b — Reconcile on app open (proactive two-way pull) | DONE | 2026-06-29 | f75a8ee | build 7; fixes the "no sync on open / ~30s lag" that failed device tests 1, 9 and slowed 4; needs device re-test of A–F on build 7 |
+| 3b — Reconcile on app open (proactive two-way pull) | DONE | 2026-06-29 | f75a8ee | build 7; fixes the "no sync on open / ~30s lag" that failed device tests 1, 9 and slowed 4 |
+| 3c — "SYNCING…" badge (perceived-latency UX) | DONE | 2026-06-29 | a511b34 | build 8; bounded badge (0.6s delay, 12s cap) shown while post-offline reconnect is reconciling, so the slow power-cycle/airplane window reads as working not broken |
 | 4 — Re-wire SYNCING WITH WATCH dialog | NOT STARTED | | | real-device group I |
 | 5 — Sync Up row + settings tweaks | NOT STARTED | | | real-device H + scenario 14 |
 | 6 — Analytics verify + cleanup + build bump | NOT STARTED | | | real-device G + regression |
@@ -218,4 +219,10 @@ E: 12 PASS · 13 PASS · 14 skipped (Stage 5) · 15 PASS
 F: skipped pending sync-on-open.
 Root cause: protocol pulled nothing on app open; everything synced only on the
 next mutation or slow background delivery. Fixed in build 7 (commit f75a8ee).
-**Re-test A–F on build 7.**
+
+**Build 7 partial re-test (2026-06-29):** A:1,2,3 PASS (instant — sync-on-open
+works). B:4 PASS but ~40s; 5 PASS but ~60s — both with a device fully offline
+(power cycle/airplane). Root cause of the residual lag is OS-level link
+re-establishment after the radio was off, unavoidable when the two apps aren't
+simultaneously foreground+reachable. Build 8 (a511b34) adds a "SYNCING…" badge
+to cover that window perceptually. **Re-test A–F on build 8; finish D(11), F.**
