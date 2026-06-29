@@ -89,7 +89,7 @@ final class WatchSessionViewModel {
     /// Proactively reconcile with the phone (called on app open / foreground).
     /// Pushes our current state and merges the phone's reply when reachable.
     func syncNow() {
-        connectivityManager.sendSnapshot(makeSnapshot())
+        connectivityManager.openSync(makeSnapshot())
     }
 
     // MARK: - Sync: Receive and merge incoming snapshot

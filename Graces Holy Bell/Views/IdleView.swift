@@ -14,7 +14,8 @@ struct IdleView: View {
     var body: some View {
         PrayerScreenLayout(
             figurePose: .idle,
-            onBackgroundTap: showSettings ? { dismissSettings() } : nil
+            onBackgroundTap: showSettings ? { dismissSettings() } : nil,
+            isSyncing: viewModel.isSyncing
         ) {
 
             // Header: big two-line app title

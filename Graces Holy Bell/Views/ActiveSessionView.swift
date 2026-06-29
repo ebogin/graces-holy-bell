@@ -24,7 +24,8 @@ struct ActiveSessionView: View {
     private func screen(now: Date) -> some View {
         PrayerScreenLayout(
             figurePose: .praying,
-            onBackgroundTap: showSettings ? { dismissSettings() } : nil
+            onBackgroundTap: showSettings ? { dismissSettings() } : nil,
+            isSyncing: viewModel.isSyncing
         ) {
 
             // Header: small title over the live timer + "SINCE LAST PRAYER"

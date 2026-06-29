@@ -58,6 +58,10 @@ final class SessionViewModel {
         sortedEntries.first?.timestamp
     }
 
+    /// True while a cross-device reconcile is taking a moment to complete.
+    /// Driven by PhoneConnectivityManager; surfaced as the "SYNCING…" badge.
+    var isSyncing = false
+
     // MARK: - Initialization
 
     init(modelContext: ModelContext) {

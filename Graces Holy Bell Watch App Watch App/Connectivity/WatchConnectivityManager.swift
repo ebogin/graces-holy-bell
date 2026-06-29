@@ -20,8 +20,19 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     @Published var isReachable = false
     @Published var isActivated = false
 
+    /// True while a reconcile with the phone is taking a beat. Surfaced as the
+    /// "SYNCING…" badge. Bounded so it never sticks; the fast path clears it
+    /// before it ever appears.
+    @Published var isSyncing = false
+
     private let session = WCSession.default
     private static let alarmNotificationID = "watchAmenAlarm"
+
+    // Indicator timing (mirrors the phone). syncToken (main-only) invalidates
+    // stale show/cap timers.
+    private var syncToken = 0
+    private static let syncShowDelay: TimeInterval = 0.6
+    private static let syncMaxVisible: TimeInterval = 12
 
     // Latest local snapshot, kept current by the ViewModel. Lets us reply to a
     // phone-initiated sendMessage without hopping back to the @MainActor
@@ -80,6 +91,12 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
         reconcileIfReachable(dict)
     }
 
+    /// Foreground reconcile: arm the (delayed, bounded) badge, then push/pull.
+    func openSync(_ snapshot: SyncSnapshot) {
+        beginSyncing()
+        sendSnapshot(snapshot)
+    }
+
     /// When the phone is reachable, send our snapshot and merge its reply — an
     /// immediate two-way reconcile. Used on app open and reachability changes so
     /// the Watch shows fresh state instead of waiting for background delivery.
@@ -90,7 +107,32 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self?.latestSnapshot = phoneSnapshot
             }
+            self?.endSyncing()
         }, errorHandler: nil)
+    }
+
+    // MARK: - "SYNCING…" indicator (bounded)
+
+    private func beginSyncing() {
+        DispatchQueue.main.async {
+            self.syncToken += 1
+            let token = self.syncToken
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.syncShowDelay) { [weak self] in
+                guard let self, self.syncToken == token else { return }
+                self.isSyncing = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.syncMaxVisible) { [weak self] in
+                    guard let self, self.syncToken == token else { return }
+                    self.isSyncing = false
+                }
+            }
+        }
+    }
+
+    private func endSyncing() {
+        DispatchQueue.main.async {
+            self.syncToken += 1   // invalidate any pending show / cap
+            self.isSyncing = false
+        }
     }
 
     // MARK: - Analytics proxy (unchanged)
@@ -171,6 +213,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
         DispatchQueue.main.async {
             self.latestSnapshot = snapshot
         }
+        endSyncing()
     }
 
     /// Receives a snapshot the phone sent via sendMessage (immediate path).
@@ -185,6 +228,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
             DispatchQueue.main.async {
                 self.latestSnapshot = snapshot
             }
+            endSyncing()
         }
         replyHandler(cachedSnapshotDictionary())
     }
@@ -198,6 +242,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
         DispatchQueue.main.async {
             self.latestSnapshot = snapshot
         }
+        endSyncing()
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
@@ -207,6 +252,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
         // The phone just became reachable — pull/reconcile immediately rather
         // than waiting for the next local mutation or background delivery.
         if session.isReachable {
+            beginSyncing()
             reconcileIfReachable(cachedSnapshotDictionary())
         }
     }

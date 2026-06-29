@@ -16,6 +16,8 @@ struct PrayerScreenLayout<Header: View, Middle: View, Slider: View, Buttons: Vie
     let figurePose: PrayingFigureView.Pose
     /// Tap-anywhere-to-dismiss handler; pass non-nil while the settings panel is open.
     var onBackgroundTap: (() -> Void)? = nil
+    /// Shows the transient "SYNCING…" badge at the top while a reconcile is pending.
+    var isSyncing: Bool = false
     @ViewBuilder var header: Header
     @ViewBuilder var middle: Middle
     @ViewBuilder var slider: Slider
@@ -76,6 +78,15 @@ struct PrayerScreenLayout<Header: View, Middle: View, Slider: View, Buttons: Vie
                 .padding(.bottom, 16)
             }
         }
+        // Transient reconcile badge, floating at the very top so it never shifts
+        // the carefully-tuned layout below it.
+        .overlay(alignment: .top) {
+            if isSyncing {
+                SyncingBadge()
+                    .padding(.top, 4)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: isSyncing)
     }
 
     /// Invisible copy of the active screen's header: small title + timer + caption.

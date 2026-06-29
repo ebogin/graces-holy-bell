@@ -39,7 +39,46 @@ final class PhoneConnectivityManager: NSObject {
         pendingUserInfos.removeAll()
         for snapshot in pendingSnapshots { handleSnapshot(snapshot) }
         pendingSnapshots.removeAll()
+        syncOnForeground()
+    }
+
+    // MARK: - "SYNCING…" indicator (bounded)
+
+    // A reconcile is only worth flagging if it takes a beat — the fast path
+    // clears before the badge appears. We delay showing, and hard-cap how long
+    // it can stay, so the badge never sticks. Token invalidates stale timers.
+    @MainActor private var syncToken = 0
+    private static let syncShowDelay: TimeInterval = 0.6
+    private static let syncMaxVisible: TimeInterval = 12
+
+    /// Begin a foreground reconcile and arm the (delayed, bounded) badge.
+    @MainActor
+    func syncOnForeground() {
+        guard WCSession.default.activationState == .activated,
+              WCSession.default.isPaired else { return }
+        beginSyncing()
         sendSnapshotToWatch()
+    }
+
+    @MainActor
+    private func beginSyncing() {
+        syncToken += 1
+        let token = syncToken
+        // Only reveal if the reconcile is still pending after a short beat.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.syncShowDelay) { [weak self] in
+            guard let self, self.syncToken == token else { return }
+            self.viewModel?.isSyncing = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.syncMaxVisible) { [weak self] in
+                guard let self, self.syncToken == token else { return }
+                self.viewModel?.isSyncing = false
+            }
+        }
+    }
+
+    @MainActor
+    private func endSyncing() {
+        syncToken += 1   // invalidate any pending show / cap
+        viewModel?.isSyncing = false
     }
 
     // MARK: - Send snapshot to Watch
@@ -90,6 +129,7 @@ final class PhoneConnectivityManager: NSObject {
 
         // Single event from Watch
         if let msg = EventMessage.fromUserInfo(userInfo) {
+            endSyncing()
             let snapshot = SyncSnapshot(events: [msg.event], lastClearedAt: nil, amenAlarmFireAt: nil)
             viewModel.mergeIncoming(snapshot: snapshot)
             return
@@ -97,6 +137,7 @@ final class PhoneConnectivityManager: NSObject {
 
         // Clear from Watch
         if let msg = ClearMessage.fromUserInfo(userInfo) {
+            endSyncing()
             let snapshot = SyncSnapshot(events: [], lastClearedAt: msg.clearedAt, amenAlarmFireAt: nil)
             viewModel.mergeIncoming(snapshot: snapshot)
             return
@@ -109,6 +150,8 @@ final class PhoneConnectivityManager: NSObject {
             pendingSnapshots.append(snapshot)
             return
         }
+        // Counterpart state landed — the reconcile is done; drop the badge.
+        endSyncing()
         viewModel.mergeIncoming(snapshot: snapshot)
     }
 }
@@ -129,7 +172,7 @@ extension PhoneConnectivityManager: WCSessionDelegate {
             if let snapshot = SyncSnapshot.fromDictionary(session.receivedApplicationContext) {
                 self.handleSnapshot(snapshot)
             }
-            self.sendSnapshotToWatch()
+            self.syncOnForeground()
         }
     }
 
@@ -193,7 +236,7 @@ extension PhoneConnectivityManager: WCSessionDelegate {
     func sessionReachabilityDidChange(_ session: WCSession) {
         if session.isReachable {
             Task { @MainActor in
-                self.sendSnapshotToWatch()
+                self.syncOnForeground()
             }
         }
     }
