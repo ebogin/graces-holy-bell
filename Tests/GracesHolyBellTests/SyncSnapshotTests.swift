@@ -2,7 +2,6 @@ import XCTest
 @testable import Graces_Holy_Bell
 
 /// Tests for SyncSnapshot and the event/clear wire-message types.
-/// (Replaces SyncedSessionStateTests after Stage 3 removes SyncedSessionState.)
 final class SyncSnapshotTests: XCTestCase {
 
     private let t0 = Date(timeIntervalSince1970: 1_000_000)

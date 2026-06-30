@@ -234,13 +234,18 @@ final class SessionViewModel {
             .sorted { $0.timestamp < $1.timestamp }
     }
 
-    /// Removes events at or before the current lastClearedAt from both the store and in-memory list.
+    /// Removes events at or before the current lastClearedAt from both the store
+    /// and in-memory list, then refreshes the derived log. Always refreshes —
+    /// even with no clear epoch — because mergeIncoming relies on this to surface
+    /// newly merged Watch events (otherwise a merged prayer wouldn't appear on a
+    /// never-cleared phone until some other refresh fired).
     private func pruneAndRefresh() {
-        guard let cleared = lastClearedAt else { return }
-        let toDelete = allEvents.filter { $0.timestamp <= cleared }
-        toDelete.forEach { modelContext.delete($0) }
-        allEvents.removeAll { $0.timestamp <= cleared }
-        save()
+        if let cleared = lastClearedAt {
+            let toDelete = allEvents.filter { $0.timestamp <= cleared }
+            toDelete.forEach { modelContext.delete($0) }
+            allEvents.removeAll { $0.timestamp <= cleared }
+            save()
+        }
         refreshEntries()
     }
 
