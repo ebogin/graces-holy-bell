@@ -197,7 +197,7 @@ groups.
 | 3c — "SYNCING…" badge (perceived-latency UX) | REVERTED | 2026-06-29 | a511b34 → 5952962 | build 8 added it, build 9 removed it: fired too eagerly on device (showed whenever Watch lost contact / phone off). Eric's call to drop it and live with the post-offline delay; sync-on-open (build 7) is unchanged |
 | 4 — SYNCING WITH WATCH dialog | CUT | 2026-06-29 | — | not building it (Eric's call); sync converges on its own, edge-case surface not worth it. Group I scenarios dropped |
 | 5 — Sync Up row + settings tweaks | DONE | 2026-06-30 | db12b2e | build 10; forceSync + isWatchAvailable; Settings: Sync Up row (grays when no Watch), removed Save Log row, indented Privacy Policy. 153/153 pass; both build; Maestro 05 green + sim screenshot verified. Real-device H + scenario 14 still owed |
-| 6 — Analytics verify + cleanup + build bump | NOT STARTED | | | real-device G + regression |
+| 6 — Analytics verify + cleanup + build bump | DONE | 2026-06-30 | 6891332 | build 11; added no-double-count-on-merge invariant tests (group G at unit level) — which surfaced + fixed a real bug (mergeIncoming didn't refresh the log when lastClearedAt was nil); PostHog 210049 confirms prayer_logged carries device_source phone/watch, both counted; renamed stale test file; 156/156 pass; both build; Maestro 05 green. Real-device group G + full regression still owed |
 
 Real-device scenario results (fill PASS/FAIL as Eric reports):
 `A:1__ 2__ 3__ · B:4__ 5__ 6__ · C:7__ 8__ · D:9__ 10__ 11__ · E:12__ 13__ 14__ 15__ ·
