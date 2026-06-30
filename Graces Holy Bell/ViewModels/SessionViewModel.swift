@@ -4,11 +4,12 @@ import Observation
 
 /// Central business logic for Grace's Holy Bell.
 ///
-/// This class owns all state transitions, persistence, and elapsed-time computations.
+/// Owns all state transitions, persistence, and elapsed-time computations.
 /// Views read from it but never perform logic themselves.
 ///
-/// Designed to be the single point of contact for WatchConnectivity —
-/// the Watch calls the same `startNewSession()`, `logPrayer()`, and `clearLog()` methods.
+/// State model: a CRDT-style event set + clear epoch.
+/// Active log = events with timestamp > lastClearedAt, sorted ascending.
+/// The merge engine (SyncEngine) provides derivations; cross-device merge is wired in Stage 3.
 @Observable
 @MainActor
 final class SessionViewModel {
@@ -23,128 +24,112 @@ final class SessionViewModel {
     /// Injected settings — used to decide whether / when to fire the phone alarm.
     var amenAlarmSettings: AmenAlarmSettings?
 
-    /// Optional analytics sink. Additive, side-effect-free instrumentation — when
-    /// nil (e.g. in tests) the app behaves exactly as before.
+    /// Optional analytics sink. When nil the app behaves exactly as before.
     var analytics: AnalyticsService?
 
     /// Manages phone-side UNUserNotification scheduling for the Amen Alarm.
     let amenAlarmManager = AmenAlarmManager()
 
-    // MARK: - Published State
+    // MARK: - Persisted State
 
-    /// The current (or most recent) prayer session, or nil if none exists.
-    private(set) var currentSession: PrayerSession?
+    /// All known prayer events (unfiltered by epoch).
+    private var allEvents: [PrayerEntry] = []
 
-    /// Entries from the current session, sorted by sequence index.
-    private(set) var sortedEntries: [PrayerEntry] = []
+    /// The clear epoch — all events at or before this date are inactive.
+    private(set) var lastClearedAt: Date?
 
     // MARK: - Derived State
 
-    /// The current app state — a session always runs until it is cleared,
-    /// so existence of a session means ACTIVE.
+    /// Active prayers (timestamp > lastClearedAt), sorted ascending by timestamp.
+    private(set) var sortedEntries: [PrayerEntry] = []
+
+    /// Active when there is at least one prayer after the clear epoch.
     var appState: AppState {
-        currentSession == nil ? .idle : .active
+        sortedEntries.isEmpty ? .idle : .active
     }
 
-    /// The timestamp of the most recent prayer entry, if any.
+    /// The timestamp of the most recent active prayer, or nil.
     var lastPrayerTimestamp: Date? {
         sortedEntries.last?.timestamp
     }
+
+    /// The timestamp of the first active prayer (session start), or nil.
+    var sessionStartedAt: Date? {
+        sortedEntries.first?.timestamp
+    }
+
+    /// True when a paired Watch with the app installed is present. Drives the
+    /// enabled/grayed state of the "Sync Up" Settings row. Set by
+    /// PhoneConnectivityManager on activation and watch-state changes.
+    var isWatchAvailable = false
 
     // MARK: - Initialization
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
-        loadCurrentSession()
+        load()
     }
 
     // MARK: - Actions
 
-    /// Starts a new prayer session.
+    /// Starts a new prayer session with a first PRAY.
     ///
-    /// Deletes any existing session (cascade removes its entries),
-    /// creates a new session, and records the first prayer entry.
+    /// When already active, closes the current session (analytics) before starting fresh.
     func startNewSession() {
-        // Delete old session if one exists
-        if let old = currentSession {
-            // Analytics (additive): close the replaced session before it is deleted.
+        if appState == .active {
             analytics?.recordSessionEnded(
-                sessionStart: old.startedAt,
-                prayerTimestamps: old.entries.map(\.timestamp)
+                sessionStart: sessionStartedAt ?? Date(),
+                prayerTimestamps: sortedEntries.map(\.timestamp)
             )
-            modelContext.delete(old)
+            applyAndSaveClearedAt(Date())
+            pruneAndRefresh()
         }
-
-        let session = PrayerSession()
-        let firstEntry = PrayerEntry(timestamp: .now, sequenceIndex: 0)
-        firstEntry.session = session
-        session.entries.append(firstEntry)
-
-        modelContext.insert(session)
-        save()
-
-        currentSession = session
-        refreshEntries()
-        scheduleAmenAlarmIfNeeded()
-        onStateChanged?()
-
-        // Analytics (additive): session_started + opening prayer_logged.
-        analytics?.recordSessionStarted(at: session.startedAt)
+        logPrayer()
     }
 
-    /// Logs a new prayer in the current active session.
+    /// Appends a phone-origin prayer.
     ///
-    /// Records the current timestamp and restarts the elapsed timer.
-    /// Does nothing if there is no active session.
+    /// Always succeeds — when called from idle it starts a new session;
+    /// when called from active it adds to the current session.
     func logPrayer() {
-        guard let session = currentSession else { return }
+        let wasIdle = appState == .idle
+        let timestamp = Date()
 
-        let entry = PrayerEntry(
-            timestamp: .now,
-            sequenceIndex: sortedEntries.count
-        )
-        entry.session = session
-        session.entries.append(entry)
-
+        let entry = PrayerEntry(id: UUID(), timestamp: timestamp, origin: PrayerEvent.Origin.phone.rawValue)
+        modelContext.insert(entry)
+        allEvents.append(entry)
         save()
         refreshEntries()
         scheduleAmenAlarmIfNeeded()
         onStateChanged?()
 
-        // Analytics (additive): a subsequent prayer (index >= 2) with its gap.
-        if sortedEntries.count >= 2 {
-            let last = sortedEntries[sortedEntries.count - 1].timestamp
+        if wasIdle {
+            analytics?.recordSessionStarted(at: timestamp)
+        } else if sortedEntries.count >= 2 {
             let prev = sortedEntries[sortedEntries.count - 2].timestamp
             analytics?.recordPrayerLogged(
                 index: sortedEntries.count,
-                sinceLast: last.timeIntervalSince(prev),
-                at: last
+                sinceLast: timestamp.timeIntervalSince(prev),
+                at: timestamp
             )
         }
     }
 
-    /// Deletes the current session and all its entries.
-    /// This is the only way a session ends — both devices return to the welcome screen.
+    /// Clears the active log. Both devices return to the idle screen.
     func clearLog() {
-        if let session = currentSession {
-            // Analytics (additive): close the session before it is deleted.
+        if appState == .active {
             analytics?.recordSessionEnded(
-                sessionStart: session.startedAt,
+                sessionStart: sessionStartedAt ?? Date(),
                 prayerTimestamps: sortedEntries.map(\.timestamp)
             )
-            modelContext.delete(session)
-            save()
         }
-        currentSession = nil
-        sortedEntries = []
+        applyAndSaveClearedAt(Date())
+        pruneAndRefresh()
         amenAlarmManager.cancelAlarm()
         onStateChanged?()
     }
 
     /// Re-applies the Amen Alarm schedule after a settings change.
-    ///
-    /// Keeps the phone alarm in sync with the toggles/duration mid-session
-    /// (otherwise changes would only take effect on the next PRAY slide).
     func refreshAmenAlarm() {
         if appState == .active {
             scheduleAmenAlarmIfNeeded()
@@ -153,66 +138,126 @@ final class SessionViewModel {
         }
     }
 
+    // MARK: - Cross-device Merge (called by PhoneConnectivityManager; never emits analytics)
+
+    /// Merges an incoming Watch snapshot into the local SwiftData store.
+    /// Inserts new watch-origin events, advances lastClearedAt if needed.
+    /// Never emits analytics — each prayer is counted exactly once at its origin.
+    func mergeIncoming(snapshot: SyncSnapshot) {
+        let localPrayerEvents = allEvents.map {
+            PrayerEvent(id: $0.id, timestamp: $0.timestamp, origin: PrayerEvent.Origin(rawValue: $0.origin) ?? .phone)
+        }
+        let (merged, mergedClearedAt) = SyncEngine.merge(
+            localEvents: localPrayerEvents,
+            localClearedAt: lastClearedAt,
+            incomingEvents: snapshot.events,
+            incomingClearedAt: snapshot.lastClearedAt
+        )
+
+        // Track whether the merge actually altered local state. If nothing
+        // changed we must NOT notify/re-send: onStateChanged → sendSnapshotToWatch
+        // would bounce a message back to the Watch, which replies, which merges
+        // again — an unbounded ping-pong even though state has converged.
+        var changed = false
+
+        // Advance the clear epoch if the incoming one is later.
+        if let newCleared = mergedClearedAt, newCleared != lastClearedAt {
+            applyAndSaveClearedAt(newCleared)
+            changed = true
+        }
+
+        // Insert new events that came from the Watch.
+        let existingIDs = Set(allEvents.map(\.id))
+        for event in merged where !existingIDs.contains(event.id) {
+            let entry = PrayerEntry(id: event.id, timestamp: event.timestamp, origin: event.origin.rawValue)
+            modelContext.insert(entry)
+            allEvents.append(entry)
+            changed = true
+        }
+
+        guard changed else { return }
+
+        pruneAndRefresh()
+        scheduleAmenAlarmIfNeeded()
+        onStateChanged?()
+    }
+
+    /// Builds a SyncSnapshot from the current active state for sending to the Watch.
+    func makeSnapshot(amenAlarmSettings: AmenAlarmSettings?) -> SyncSnapshot {
+        let events = sortedEntries.map {
+            PrayerEvent(id: $0.id, timestamp: $0.timestamp, origin: PrayerEvent.Origin(rawValue: $0.origin) ?? .phone)
+        }
+        let amenAlarmFireAt: Date? = {
+            guard let settings = amenAlarmSettings,
+                  settings.watchEnabled,
+                  appState == .active,
+                  let last = lastPrayerTimestamp else { return nil }
+            return last.addingTimeInterval(settings.duration.rawValue)
+        }()
+        return SyncSnapshot(events: events, lastClearedAt: lastClearedAt, amenAlarmFireAt: amenAlarmFireAt)
+    }
+
     // MARK: - Elapsed Time Computation
 
-    /// Computes the live elapsed time since the most recent prayer entry.
-    ///
-    /// The `now` parameter should come from `TimelineView`'s `context.date`,
-    /// ensuring the source of truth is always a stored timestamp, never a counter.
     func elapsedSinceLastPrayer(at now: Date = .now) -> TimeInterval {
         guard let lastTimestamp = lastPrayerTimestamp else { return 0 }
         return now.timeIntervalSince(lastTimestamp)
     }
 
-    /// Computes the duration for a specific prayer entry.
-    ///
-    /// - For entries that are NOT the last: duration = next entry's timestamp - this entry's timestamp.
-    /// - For the last entry: live elapsed time.
-    ///
-    /// Returns nil if the index is out of bounds.
     func duration(for entryIndex: Int, at now: Date = .now) -> TimeInterval? {
         guard entryIndex >= 0, entryIndex < sortedEntries.count else { return nil }
-
         let entry = sortedEntries[entryIndex]
-
-        // Not the last entry: duration is the gap to the next entry
         if entryIndex + 1 < sortedEntries.count {
             return sortedEntries[entryIndex + 1].timestamp.timeIntervalSince(entry.timestamp)
         }
-
-        // Last entry: live elapsed
         return now.timeIntervalSince(entry.timestamp)
     }
 
     // MARK: - Private
 
-    /// Loads the most recent session from the database on startup.
-    private func loadCurrentSession() {
-        var descriptor = FetchDescriptor<PrayerSession>(
-            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
-        )
-        descriptor.fetchLimit = 1
+    private static let lastClearedAtKey = "prayer.lastClearedAt"
 
-        let sessions = (try? modelContext.fetch(descriptor)) ?? []
-        currentSession = sessions.first
+    private func load() {
+        lastClearedAt = UserDefaults.standard.object(forKey: Self.lastClearedAtKey) as? Date
+        let descriptor = FetchDescriptor<PrayerEntry>(sortBy: [SortDescriptor(\.timestamp)])
+        allEvents = (try? modelContext.fetch(descriptor)) ?? []
         refreshEntries()
     }
 
-    /// Re-sorts the cached entries array from the current session.
     private func refreshEntries() {
-        sortedEntries = (currentSession?.entries ?? [])
-            .sorted { $0.sequenceIndex < $1.sequenceIndex }
+        guard let cleared = lastClearedAt else {
+            sortedEntries = allEvents.sorted { $0.timestamp < $1.timestamp }
+            return
+        }
+        sortedEntries = allEvents
+            .filter { $0.timestamp > cleared }
+            .sorted { $0.timestamp < $1.timestamp }
     }
 
-    /// Saves the model context, ensuring data is persisted immediately.
+    /// Removes events at or before the current lastClearedAt from both the store
+    /// and in-memory list, then refreshes the derived log. Always refreshes —
+    /// even with no clear epoch — because mergeIncoming relies on this to surface
+    /// newly merged Watch events (otherwise a merged prayer wouldn't appear on a
+    /// never-cleared phone until some other refresh fired).
+    private func pruneAndRefresh() {
+        if let cleared = lastClearedAt {
+            let toDelete = allEvents.filter { $0.timestamp <= cleared }
+            toDelete.forEach { modelContext.delete($0) }
+            allEvents.removeAll { $0.timestamp <= cleared }
+            save()
+        }
+        refreshEntries()
+    }
+
+    private func applyAndSaveClearedAt(_ date: Date) {
+        lastClearedAt = date
+        UserDefaults.standard.set(date, forKey: Self.lastClearedAtKey)
+    }
+
     private func save() {
         try? modelContext.save()
     }
 
-    /// Schedules (or reschedules) the phone Amen Alarm based on current settings.
-    ///
-    /// Called after every PRAY slide (startNewSession / logPrayer).
-    /// Does nothing if phone alarm is disabled or there is no last prayer timestamp.
     private func scheduleAmenAlarmIfNeeded() {
         guard let settings = amenAlarmSettings,
               settings.phoneEnabled,

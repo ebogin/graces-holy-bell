@@ -31,9 +31,21 @@ struct ContentView: View {
             if let viewModel {
                 switch viewModel.appState {
                 case .idle:
-                    IdleView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings, consent: consent)
+                    IdleView(
+                        viewModel: viewModel,
+                        amenAlarmSettings: amenAlarmSettings,
+                        consent: consent,
+                        isWatchAvailable: viewModel.isWatchAvailable,
+                        onForceSync: { connectivityManager?.forceSync() }
+                    )
                 case .active:
-                    ActiveSessionView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings, consent: consent)
+                    ActiveSessionView(
+                        viewModel: viewModel,
+                        amenAlarmSettings: amenAlarmSettings,
+                        consent: consent,
+                        isWatchAvailable: viewModel.isWatchAvailable,
+                        onForceSync: { connectivityManager?.forceSync() }
+                    )
                 }
             } else {
                 ProgressView()
@@ -54,7 +66,7 @@ struct ContentView: View {
                 if let connectivityManager {
                     connectivityManager.amenAlarmSettings = amenAlarmSettings
                     vm.onStateChanged = { [weak connectivityManager] in
-                        connectivityManager?.sendStateToWatch()
+                        connectivityManager?.sendSnapshotToWatch()
                     }
                     connectivityManager.configure(with: vm)
                 }
@@ -92,7 +104,7 @@ struct ContentView: View {
                 // and push the new fire date (or nil) to the Watch.
                 amenAlarmSettings.onChange = { [weak vm, weak connectivityManager, weak analytics] in
                     vm?.refreshAmenAlarm()
-                    connectivityManager?.sendStateToWatch()
+                    connectivityManager?.sendSnapshotToWatch()
                     analytics?.recordAmenAlarmSet() // additive
                 }
 
@@ -105,7 +117,7 @@ struct ContentView: View {
                 notificationForwarder = forwarder
 
                 analytics.recordLaunch(
-                    currentSessionStart: vm.currentSession?.startedAt,
+                    currentSessionStart: vm.sessionStartedAt,
                     lastPrayerAt: vm.lastPrayerTimestamp,
                     prayersSoFar: vm.sortedEntries.count
                 )
@@ -113,11 +125,16 @@ struct ContentView: View {
                 viewModel = vm
             }
         }
-        // Analytics (additive): record app_opened on return to the foreground.
-        // The launch open is recorded by recordLaunch; this catches reopens.
+        // On every foreground, proactively reconcile with the Watch so opening
+        // the app shows fresh state instead of waiting for opportunistic delivery.
+        // Analytics app_opened is still only the background→active reopen
+        // (launch open is recorded by recordLaunch).
         .onChange(of: scenePhase) { oldPhase, newPhase in
-            if oldPhase == .background, newPhase == .active {
-                viewModel?.analytics?.recordAppOpened()
+            if newPhase == .active {
+                connectivityManager?.sendSnapshotToWatch()
+                if oldPhase == .background {
+                    viewModel?.analytics?.recordAppOpened()
+                }
             }
         }
     }

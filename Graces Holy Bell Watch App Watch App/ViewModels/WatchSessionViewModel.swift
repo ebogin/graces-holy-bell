@@ -7,14 +7,11 @@ enum WatchRoute: Hashable {
     case log
 }
 
-/// Watch-side ViewModel that mirrors the iPhone's session state.
+/// Watch-side ViewModel backed by a local Codable event store.
 ///
-/// Unlike the iPhone's SessionViewModel, this does NOT use SwiftData.
-/// It holds plain structs received from the iPhone via WatchConnectivity,
-/// and performs the same timestamp math for the live timer display.
-///
-/// Actions (PRAY, START, CLEAR_LOG) are sent to the iPhone for processing.
-/// The iPhone processes them, updates SwiftData, and sends the new state back.
+/// Prayers logged on the Watch are persisted immediately to WatchEventStore —
+/// the log and timer work fully offline. Sync with the phone happens via
+/// WatchConnectivityManager and converges using the same SyncEngine merge.
 @Observable
 @MainActor
 final class WatchSessionViewModel {
@@ -23,31 +20,30 @@ final class WatchSessionViewModel {
 
     private let connectivityManager: WatchConnectivityManager
 
-    // MARK: - State (mirrors iPhone)
+    // MARK: - Local State
 
-    /// Sorted prayer entries from the synced state.
-    private(set) var sortedEntries: [SyncedEntry] = []
-
-    /// When the Amen Alarm fires on the Watch, or nil when the alarm is off.
-    private(set) var amenAlarmFireAt: Date?
-
-    /// The current app state.
-    private(set) var appState: AppState = .idle
-
-    /// Local-only flag — not synced to iPhone.
-    var showingLog = false
+    private var storeState: WatchEventStore.State
 
     // MARK: - Derived State
 
-    /// The timestamp of the most recent prayer entry, if any.
+    /// Active prayers (after lastClearedAt), sorted ascending by timestamp.
+    private(set) var sortedEntries: [PrayerEvent] = []
+
+    /// When the Amen Alarm should fire on this Watch, or nil.
+    private(set) var amenAlarmFireAt: Date?
+
+    var appState: AppState {
+        sortedEntries.isEmpty ? .idle : .active
+    }
+
     var lastPrayerTimestamp: Date? {
         sortedEntries.last?.timestamp
     }
 
+    var showingLog = false
+
     var route: WatchRoute {
         switch appState {
-        // Any idle state returns to the welcome screen — matches the iPhone,
-        // which always shows IdleView when idle. There is no separate "ended" page.
         case .idle:   return .firstLaunch
         case .active: return showingLog ? .log : .active
         }
@@ -57,71 +53,88 @@ final class WatchSessionViewModel {
 
     init(connectivityManager: WatchConnectivityManager) {
         self.connectivityManager = connectivityManager
-        // Apply any state already received before this ViewModel was created
-        if let state = connectivityManager.latestState {
-            apply(state)
-        }
+        self.storeState = WatchEventStore.load()
+        refreshDerived()
     }
 
-    // MARK: - State Updates
+    // MARK: - Local Actions (instant, offline-safe)
 
-    /// Applies a synced state snapshot received from the iPhone.
-    func apply(_ state: SyncedSessionState) {
-        let newAppState = state.appState == "active" ? AppState.active : AppState.idle
-        if newAppState == .idle { showingLog = false }
-        appState = newAppState
-        sortedEntries = state.entries.sorted { $0.sequenceIndex < $1.sequenceIndex }
-        amenAlarmFireAt = state.amenAlarmFireAt
-    }
-
-    // MARK: - Actions (sent to iPhone)
-
-    /// Sends a START action to the iPhone.
-    func sendStart() {
-        connectivityManager.sendAction("START")
-    }
-
-    /// Sends a PRAY action to the iPhone.
+    /// Logs a watch-origin prayer and immediately updates the local display.
+    /// The event is enqueued for delivery to the phone via WatchConnectivity.
     func sendPray() {
-        connectivityManager.sendAction("PRAY")
+        let event = PrayerEvent(id: UUID(), timestamp: Date(), origin: .watch)
+        storeState.events.append(event)
+        saveStore()
+        refreshDerived()
+        connectivityManager.sendEvent(event)
+        connectivityManager.sendSnapshot(makeSnapshot())
     }
 
-    /// Ends the session by clearing the log — the watch STOP action.
-    ///
-    /// Mirrors the iPhone's "End Praying?" → Clear Log flow: the session and its
-    /// log are discarded and both devices return to the welcome screen. Updates
-    /// local state optimistically so the transition is immediate, then tells the
-    /// iPhone (the source of truth) to clear.
+    func sendStart() {
+        sendPray()
+    }
+
+    /// Clears the log locally and sends the clear epoch to the phone.
     func sendClearLog() {
-        sortedEntries = []
-        appState = .idle
+        let clearedAt = Date()
+        storeState.lastClearedAt = clearedAt
+        pruneStore()
+        saveStore()
+        refreshDerived()
         showingLog = false
-        connectivityManager.sendClearLog()
+        connectivityManager.sendClear(clearedAt: clearedAt)
+        connectivityManager.sendSnapshot(makeSnapshot())
     }
 
-    /// Analytics (additive): the Watch log screen was opened. Proxied to the
-    /// iPhone, which emits `prayer_log_viewed` (device_source = watch).
+    /// Proactively reconcile with the phone (called on app open / foreground).
+    /// Pushes our current state and merges the phone's reply when reachable.
+    func syncNow() {
+        connectivityManager.sendSnapshot(makeSnapshot())
+    }
+
+    // MARK: - Sync: Receive and merge incoming snapshot
+
+    /// Merges an incoming phone snapshot with the local Watch state.
+    /// Safe to call from merge; never emits analytics.
+    func applySnapshot(_ incoming: SyncSnapshot) {
+        let (merged, mergedClearedAt) = SyncEngine.merge(
+            localEvents: storeState.events,
+            localClearedAt: storeState.lastClearedAt,
+            incomingEvents: incoming.events,
+            incomingClearedAt: incoming.lastClearedAt
+        )
+        storeState.events = merged
+        storeState.lastClearedAt = mergedClearedAt
+
+        // Persist the alarm interval the phone encoded so we can refire offline later.
+        if let fireAt = incoming.amenAlarmFireAt,
+           let lastTS = incoming.events.map(\.timestamp).max() {
+            let interval = fireAt.timeIntervalSince(lastTS)
+            if interval > 0 {
+                storeState.lastSyncedAlarmInterval = interval
+            }
+        }
+
+        pruneStore()
+        saveStore()
+        refreshDerived()
+    }
+
+    // MARK: - Analytics proxy
+
     func recordLogViewed() {
         connectivityManager.sendPrayerLogViewed()
     }
 
-    // MARK: - Elapsed Time Computation (same timestamp math as iPhone)
+    // MARK: - Elapsed Time
 
-    /// Computes the live elapsed time since the most recent prayer entry.
-    ///
-    /// Works locally from synced timestamps — does NOT need an active connection.
     func elapsedSinceLastPrayer(at now: Date = .now) -> TimeInterval {
         guard let lastTimestamp = lastPrayerTimestamp else { return 0 }
         return now.timeIntervalSince(lastTimestamp)
     }
 
-    /// How long the AMEN! blink and its haptic pulses last.
     private static let amenFlashDuration: TimeInterval = 5.0
 
-    /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm
-    /// is off. Derived from the synced fire date:
-    /// the interval is `fireAt - lastPrayerTimestamp`, so no settings sync is needed.
-    /// After the AMEN! flash window passes, returns nil so the slider reverts to plain PRAY.
     func alarmProgress(at now: Date = .now) -> Double? {
         guard let fireAt = amenAlarmFireAt,
               let lastTimestamp = lastPrayerTimestamp else { return nil }
@@ -132,18 +145,60 @@ final class WatchSessionViewModel {
         return elapsed / interval
     }
 
-    /// Computes the duration for a specific prayer entry.
     func duration(for entryIndex: Int, at now: Date = .now) -> TimeInterval? {
         guard entryIndex >= 0, entryIndex < sortedEntries.count else { return nil }
-
         let entry = sortedEntries[entryIndex]
-
-        // Not the last entry: gap to next entry
         if entryIndex + 1 < sortedEntries.count {
             return sortedEntries[entryIndex + 1].timestamp.timeIntervalSince(entry.timestamp)
         }
-
-        // Last entry: live elapsed
         return now.timeIntervalSince(entry.timestamp)
+    }
+
+    // MARK: - Private
+
+    private func refreshDerived() {
+        sortedEntries = SyncEngine.activeLog(
+            events: storeState.events,
+            lastClearedAt: storeState.lastClearedAt
+        )
+        if appState == .idle { showingLog = false }
+        recomputeAlarm()
+        // Keep the manager's cached snapshot current so it can reply to a
+        // phone-initiated reconcile with up-to-date Watch state.
+        connectivityManager.cacheLocalSnapshot(makeSnapshot())
+    }
+
+    private func recomputeAlarm() {
+        guard let lastTS = lastPrayerTimestamp,
+              let interval = storeState.lastSyncedAlarmInterval,
+              interval > 0 else {
+            amenAlarmFireAt = nil
+            connectivityManager.cancelWatchAlarm()
+            return
+        }
+        let fireAt = lastTS.addingTimeInterval(interval)
+        amenAlarmFireAt = fireAt > .now ? fireAt : nil
+        if let fireAt = amenAlarmFireAt {
+            connectivityManager.scheduleWatchAlarm(fireDate: fireAt)
+        } else {
+            connectivityManager.cancelWatchAlarm()
+        }
+    }
+
+    private func pruneStore() {
+        guard let cleared = storeState.lastClearedAt else { return }
+        storeState.events.removeAll { $0.timestamp <= cleared }
+    }
+
+    private func saveStore() {
+        WatchEventStore.save(storeState)
+    }
+
+    private func makeSnapshot() -> SyncSnapshot {
+        SyncSnapshot(
+            events: storeState.events,
+            lastClearedAt: storeState.lastClearedAt,
+            amenAlarmFireAt: amenAlarmFireAt
+        )
     }
 }

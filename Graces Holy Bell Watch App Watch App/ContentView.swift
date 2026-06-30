@@ -5,6 +5,7 @@ struct WatchContentView: View {
 
     let viewModel: WatchSessionViewModel
     @ObservedObject var connectivityManager: WatchConnectivityManager
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -29,9 +30,16 @@ struct WatchContentView: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .persistentSystemOverlays(.hidden)
-        .onReceive(connectivityManager.$latestState) { state in
-            if let state {
-                viewModel.apply(state)
+        .onReceive(connectivityManager.$latestSnapshot) { snapshot in
+            if let snapshot {
+                viewModel.applySnapshot(snapshot)
+            }
+        }
+        // Reconcile with the phone on every foreground so opening the Watch app
+        // shows fresh state instead of waiting for opportunistic delivery.
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                viewModel.syncNow()
             }
         }
     }

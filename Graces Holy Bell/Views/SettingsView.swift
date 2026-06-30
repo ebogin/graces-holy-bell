@@ -3,15 +3,19 @@ import UserNotifications
 
 /// Settings panel — overlays the bottom content area of both IdleView and ActiveSessionView.
 ///
-/// Contains the Amen Alarm section (duration picker, Phone toggle, Watch toggle)
-/// and the disabled "Save Log to Notes" row. All changes persist automatically
-/// via AmenAlarmSettings (UserDefaults-backed).
+/// Contains the Amen Alarm section (duration picker, Phone toggle, Watch toggle),
+/// a manual "Sync Up" force-reconcile row, Share, and the Privacy section. Alarm
+/// changes persist automatically via AmenAlarmSettings (UserDefaults-backed).
 ///
 /// Slides in from the left edge and exits to the left when dismissed.
 struct SettingsView: View {
 
     @Bindable var settings: AmenAlarmSettings
     let consent: AnalyticsConsent
+    /// Whether a paired Watch with the app installed is present (grays the Sync Up row).
+    var isWatchAvailable: Bool = false
+    /// User tapped "Sync Up" — force a reconcile with the Watch.
+    var onForceSync: () -> Void = {}
     @State private var showPrivacyPolicy = false
     @State private var showShareWithFriend = false
 
@@ -27,7 +31,9 @@ struct SettingsView: View {
                 .foregroundStyle(Color.lcdMid)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            // ── Settings container box ───────────────────────────────────
+            // ── Settings container box (scrolls so the build row at the
+            //    bottom is always reachable on shorter screens) ────────────
+            ScrollView {
             VStack(spacing: 0) {
 
                 // AMEN Alarm section heading
@@ -56,10 +62,14 @@ struct SettingsView: View {
 
                 divider()
 
-                // Save Log to Notes — disabled / coming soon
-                saveLogRow()
-
-                divider()
+                // "Force Watch Sync" row — hidden from the UI for now (2026-06-30,
+                // Eric's call: the reconcile is too slow to be a satisfying manual
+                // action). The row, its wiring (isWatchAvailable/onForceSync below,
+                // ContentView → PhoneConnectivityManager.forceSync()), and
+                // syncUpRow() are all kept intact to revisit later — just not
+                // rendered. Uncomment the two lines below to bring it back.
+                // syncUpRow()
+                // divider()
 
                 // Share with a Friend — opens the personal QR / waitlist share sheet
                 shareWithFriendRow()
@@ -72,6 +82,12 @@ struct SettingsView: View {
 
                 // Privacy Policy — opens the in-app policy sheet
                 privacyPolicyRow()
+
+                divider()
+
+                // Build/version marker — last item; lets a tester confirm this
+                // device's build matches the paired Watch (sync has no back-compat).
+                buildVersionRow()
             }
             .background(Color.lcdLogInner)
             .overlay(
@@ -79,6 +95,7 @@ struct SettingsView: View {
                     .stroke(Color.lcdLogBorder, lineWidth: 4)
             )
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .sheet(isPresented: $showPrivacyPolicy) {
@@ -195,26 +212,39 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func saveLogRow() -> some View {
+    private func syncUpRow() -> some View {
         HStack {
-            Text("Save Log to Notes")
+            Text("Force Watch Sync")
                 .font(.pixelFont(9))
                 .foregroundStyle(Color.lcdDark)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            Toggle("", isOn: .constant(false))
-                .labelsHidden()
-                .tint(Color.lcdSlider)
-                .overlay(
-                    Capsule()
-                        .stroke(toggleBorder, lineWidth: 1)
-                )
-                .disabled(true)
+            // Green pill styled to match the Duration dropdown.
+            Button {
+                onForceSync()
+            } label: {
+                Text("Sync")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdThumbText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color.lcdSlider)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.lcdDark, lineWidth: 1.5)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
+            .buttonStyle(.plain)
+            .disabled(!isWatchAvailable)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .opacity(0.4)
+        .opacity(isWatchAvailable ? 1 : 0.4)
+        .accessibilityIdentifier("sync-up-row")
     }
 
     @ViewBuilder
@@ -235,7 +265,9 @@ struct SettingsView: View {
             }
             .contentShape(Rectangle())
             .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            // Taller vertical padding so this text-only row matches the height of
+            // the control rows (toggles / dropdown), which are taller than text.
+            .padding(.vertical, 18)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("share-with-friend-row")
@@ -247,7 +279,7 @@ struct SettingsView: View {
             showPrivacyPolicy = true
         } label: {
             HStack {
-                Text("Privacy Policy")
+                Text("  Privacy Policy")
                     .font(.pixelFont(9))
                     .foregroundStyle(Color.lcdDark)
 
@@ -263,6 +295,17 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("privacy-policy-row")
+    }
+
+    @ViewBuilder
+    private func buildVersionRow() -> some View {
+        Text(AppVersion.label)
+            .font(.pixelFont(7))
+            .foregroundStyle(Color.lcdMid)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .accessibilityIdentifier("build-version-row")
     }
 
     @ViewBuilder

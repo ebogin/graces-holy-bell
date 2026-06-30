@@ -3,24 +3,27 @@ import WatchConnectivity
 
 /// iPhone-side WatchConnectivity manager.
 ///
-/// Responsibilities:
-/// - Receives actions from the Watch (PRAY, STOP, START) and forwards them to the SessionViewModel.
-/// - Sends the current app state to the Watch after every state change.
+/// Protocol (Stage 3):
+/// - Receives event / clear / snapshot messages from the Watch and merges via SessionViewModel.
+/// - Sends the current SyncSnapshot to the Watch after every state change and on activation.
 ///
-/// This class is the bridge between the Watch and the iPhone's business logic.
-/// The ViewModel never knows about WatchConnectivity — it just gets called.
+/// The merge is idempotent and commutative — duplicate deliveries are safe.
+/// Analytics are NEVER emitted here; each prayer is counted exactly once at its origin.
 ///
-/// NOT isolated to @MainActor — WCSession requires its delegate callbacks
-/// on a background serial queue. ViewModel calls are dispatched to main explicitly.
+/// NOT isolated to @MainActor — WCSession requires delegate callbacks on a background serial
+/// queue. ViewModel calls are dispatched to main explicitly.
 final class PhoneConnectivityManager: NSObject {
 
     private var viewModel: SessionViewModel?
     var amenAlarmSettings: AmenAlarmSettings?
 
-    /// Recently handled action ids — the Watch may deliver the same action
-    /// twice when a sendMessage reply fails and it falls back to
-    /// transferUserInfo. Only touched on the main actor (see handleAction).
-    private var handledActionIDs: [String] = []
+    // Messages can arrive from the Watch on a cold launch (queued transferUserInfo /
+    // applicationContext) *before* ContentView's .task wires up the ViewModel via
+    // configure(with:). Buffer them here and replay in FIFO order once configured,
+    // so re-launching the phone never drops prayers the Watch logged while it was dead.
+    // All accesses are on the MainActor.
+    @MainActor private var pendingUserInfos: [[String: Any]] = []
+    @MainActor private var pendingSnapshots: [SyncSnapshot] = []
 
     override init() {
         super.init()
@@ -29,99 +32,105 @@ final class PhoneConnectivityManager: NSObject {
         WCSession.default.activate()
     }
 
-    /// Connects this manager to the ViewModel.
-    /// Called once during app setup after the ViewModel is created.
     @MainActor
     func configure(with viewModel: SessionViewModel) {
         self.viewModel = viewModel
-        sendStateToWatch()
+        for info in pendingUserInfos { handleUserInfo(info) }
+        pendingUserInfos.removeAll()
+        for snapshot in pendingSnapshots { handleSnapshot(snapshot) }
+        pendingSnapshots.removeAll()
+        refreshWatchAvailability()
+        sendSnapshotToWatch()
     }
 
-    /// Sends the current ViewModel state to the Watch.
-    /// Called after every ViewModel mutation.
+    // MARK: - Sync Up (user-initiated force sync)
+
+    /// Manually push/pull the full active state. Same idempotent reconcile as the
+    /// automatic path — durable applicationContext always, plus an immediate
+    /// sendMessage round trip when the Watch is reachable.
     @MainActor
-    func sendStateToWatch() {
+    func forceSync() {
+        sendSnapshotToWatch()
+    }
+
+    /// Whether a paired Watch with the app installed is present. Mirrored onto
+    /// the ViewModel so the "Sync Up" Settings row can enable/gray itself.
+    @MainActor
+    private func refreshWatchAvailability() {
+        let available = WCSession.default.activationState == .activated
+            && WCSession.default.isPaired
+            && WCSession.default.isWatchAppInstalled
+        viewModel?.isWatchAvailable = available
+    }
+
+    // MARK: - Send snapshot to Watch
+
+    @MainActor
+    func sendSnapshotToWatch() {
         guard WCSession.default.activationState == .activated,
-              WCSession.default.isPaired else { return }
-        guard let state = makeState() else { return }
+              WCSession.default.isPaired,
+              let viewModel else { return }
+        let snapshot = viewModel.makeSnapshot(amenAlarmSettings: amenAlarmSettings)
+        let dict = snapshot.toDictionary()
 
-        try? WCSession.default.updateApplicationContext(state.toDictionary())
+        // Durable background channel — always queue the latest state so it
+        // arrives even if the Watch is asleep/unreachable right now.
+        try? WCSession.default.updateApplicationContext(dict)
+
+        // Immediate two-way reconcile when the Watch is reachable: it merges our
+        // snapshot and replies with its own, which we merge back. This is what
+        // makes "open the app → state is fresh" work instead of waiting for the
+        // opportunistic background delivery.
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(dict, replyHandler: { [weak self] reply in
+                guard let snapshot = SyncSnapshot.fromDictionary(reply) else { return }
+                Task { @MainActor in self?.handleSnapshot(snapshot) }
+            }, errorHandler: nil)
+        }
     }
 
-    /// Builds a SyncedSessionState snapshot from the current ViewModel.
     @MainActor
-    private func makeState() -> SyncedSessionState? {
-        guard let viewModel else { return nil }
-
-        let entries = viewModel.sortedEntries.map { entry in
-            SyncedEntry(
-                timestamp: entry.timestamp,
-                sequenceIndex: entry.sequenceIndex
-            )
-        }
-
-        // Compute the Amen Alarm fire time for the watch, if applicable.
-        // Fire time = lastPrayerTimestamp + alarmDuration, but only when:
-        //   - The session is active
-        //   - The watch alarm toggle is on
-        // A past fire time is still sent so the watch slider keeps blinking AMEN!
-        // after a resync — notification scheduling guards against past dates itself.
-        let amenAlarmFireAt: Date? = {
-            guard let settings = amenAlarmSettings,
-                  settings.watchEnabled,
-                  viewModel.appState == .active,
-                  let lastTimestamp = viewModel.lastPrayerTimestamp else { return nil }
-            return lastTimestamp.addingTimeInterval(settings.duration.rawValue)
-        }()
-
-        return SyncedSessionState(
-            appState: viewModel.appState == .active ? "active" : "idle",
-            entries: entries,
-            amenAlarmFireAt: amenAlarmFireAt
-        )
+    private func snapshotDictionary() -> [String: Any] {
+        viewModel?.makeSnapshot(amenAlarmSettings: amenAlarmSettings).toDictionary() ?? [:]
     }
 
-    // MARK: - Handle Watch Actions
+    // MARK: - Handle incoming Watch messages
 
-    /// Processes an action message received from the Watch, ignoring
-    /// duplicate deliveries of the same action id.
     @MainActor
-    private func handleAction(_ message: [String: Any]) {
-        guard let viewModel,
-              let action = message["action"] as? String else { return }
-
-        if let id = message["id"] as? String {
-            guard !handledActionIDs.contains(id) else { return }
-            handledActionIDs.append(id)
-            if handledActionIDs.count > 32 {
-                handledActionIDs.removeFirst()
-            }
+    private func handleUserInfo(_ userInfo: [String: Any]) {
+        guard let viewModel else {
+            pendingUserInfos.append(userInfo)
+            return
         }
 
-        // Analytics (additive): this action originated on the Watch, so tag the
-        // events the ViewModel emits with device_source = watch, then restore.
-        viewModel.analytics?.deviceSource = .watch
-        defer { viewModel.analytics?.deviceSource = .phone }
-
-        switch action {
-        case "START":
-            viewModel.startNewSession()
-        case "PRAY":
-            viewModel.logPrayer()
-        case "CLEAR_LOG":
-            viewModel.clearLog()
-        default:
-            break
+        // Analytics proxy (prayer_log_viewed from Watch)
+        if let timestamp = WatchAnalyticsProxy.isPrayerLogViewed(userInfo) {
+            viewModel.analytics?.recordWatchPrayerLogViewed(at: timestamp)
+            return
         }
-        // No explicit sendStateToWatch() here: each ViewModel mutation already
-        // triggers one via onStateChanged, and message senders get the fresh
-        // state back in their reply.
+
+        // Single event from Watch
+        if let msg = EventMessage.fromUserInfo(userInfo) {
+            let snapshot = SyncSnapshot(events: [msg.event], lastClearedAt: nil, amenAlarmFireAt: nil)
+            viewModel.mergeIncoming(snapshot: snapshot)
+            return
+        }
+
+        // Clear from Watch
+        if let msg = ClearMessage.fromUserInfo(userInfo) {
+            let snapshot = SyncSnapshot(events: [], lastClearedAt: msg.clearedAt, amenAlarmFireAt: nil)
+            viewModel.mergeIncoming(snapshot: snapshot)
+            return
+        }
     }
 
-    /// Builds the current state snapshot for sending back as a reply.
     @MainActor
-    private func currentStateDictionary() -> [String: Any] {
-        makeState()?.toDictionary() ?? [:]
+    private func handleSnapshot(_ snapshot: SyncSnapshot) {
+        guard let viewModel else {
+            pendingSnapshots.append(snapshot)
+            return
+        }
+        viewModel.mergeIncoming(snapshot: snapshot)
     }
 }
 
@@ -129,84 +138,91 @@ final class PhoneConnectivityManager: NSObject {
 
 extension PhoneConnectivityManager: WCSessionDelegate {
 
-    /// Called when the WCSession activation completes.
     func session(
         _ session: WCSession,
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
         Task { @MainActor in
-            self.sendStateToWatch()
+            // Merge the Watch's last pushed snapshot (it updates applicationContext
+            // on every mutation, including offline ones), then push ours. On a cold
+            // launch this reconciles immediately even if the Watch isn't reachable.
+            if let snapshot = SyncSnapshot.fromDictionary(session.receivedApplicationContext) {
+                self.handleSnapshot(snapshot)
+            }
+            self.refreshWatchAvailability()
+            self.sendSnapshotToWatch()
         }
     }
 
-    /// Required on iOS: called when the current Watch becomes inactive (e.g., switching watches).
-    func sessionDidBecomeInactive(_ session: WCSession) {
-        // No action needed
-    }
+    func sessionDidBecomeInactive(_ session: WCSession) {}
 
-    /// Required on iOS: called after Watch switch completes. Must reactivate.
     func sessionDidDeactivate(_ session: WCSession) {
         WCSession.default.activate()
     }
 
-    /// Receives immediate messages from the Watch — with reply handler.
-    /// Sends back the updated state so the Watch can apply it immediately.
+    /// Pairing or app-install state changed — refresh the Sync Up row's enablement.
+    func sessionWatchStateDidChange(_ session: WCSession) {
+        Task { @MainActor in
+            self.refreshWatchAvailability()
+        }
+    }
+
+    /// Receives a snapshot sent by the Watch via sendMessage (reachable path).
+    /// Merges the snapshot and replies with the phone's own updated snapshot.
     func session(
         _ session: WCSession,
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
         Task { @MainActor in
-            self.handleAction(message)
-            replyHandler(self.currentStateDictionary())
+            if let snapshot = SyncSnapshot.fromDictionary(message) {
+                self.handleSnapshot(snapshot)
+            }
+            replyHandler(self.snapshotDictionary())
         }
     }
 
-    /// Receives immediate messages from the Watch — without reply handler.
+    /// Receives a snapshot sent by the Watch via sendMessage (no reply needed).
     func session(
         _ session: WCSession,
         didReceiveMessage message: [String: Any]
     ) {
         Task { @MainActor in
-            self.handleAction(message)
+            if let snapshot = SyncSnapshot.fromDictionary(message) {
+                self.handleSnapshot(snapshot)
+            }
         }
     }
 
-    /// Receives queued messages from the Watch (delivered even when iPhone app was not running).
+    /// Receives event/clear/analytics payloads sent via transferUserInfo (offline-safe queue).
     func session(
         _ session: WCSession,
         didReceiveUserInfo userInfo: [String: Any]
     ) {
         Task { @MainActor in
-            // Analytics proxies (e.g. prayer_log_viewed) ride the same queue but
-            // carry a distinct key, so route them to analytics, not the action path.
-            if let event = userInfo["analyticsEvent"] as? String {
-                self.handleProxiedAnalytics(event: event, userInfo: userInfo)
-            } else {
-                self.handleAction(userInfo)
+            self.handleUserInfo(userInfo)
+        }
+    }
+
+    /// Receives a full snapshot pushed by the Watch via updateApplicationContext
+    /// (the durable background channel — e.g. the Watch synced while we were
+    /// backgrounded). Merges it; the merge is idempotent so duplicates are safe.
+    func session(
+        _ session: WCSession,
+        didReceiveApplicationContext applicationContext: [String: Any]
+    ) {
+        Task { @MainActor in
+            if let snapshot = SyncSnapshot.fromDictionary(applicationContext) {
+                self.handleSnapshot(snapshot)
             }
         }
     }
 
-    /// Forwards a Watch-originated analytics event to the phone's transport,
-    /// preserving its origin (`watch`) and true capture timestamp.
-    @MainActor
-    private func handleProxiedAnalytics(event: String, userInfo: [String: Any]) {
-        let timestamp = (userInfo["timestamp"] as? Date) ?? Date()
-        switch event {
-        case "prayer_log_viewed":
-            viewModel?.analytics?.recordWatchPrayerLogViewed(at: timestamp)
-        default:
-            break
-        }
-    }
-
-    /// Sends fresh state when the Watch app becomes reachable.
     func sessionReachabilityDidChange(_ session: WCSession) {
         if session.isReachable {
             Task { @MainActor in
-                self.sendStateToWatch()
+                self.sendSnapshotToWatch()
             }
         }
     }
