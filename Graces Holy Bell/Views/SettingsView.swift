@@ -62,11 +62,14 @@ struct SettingsView: View {
 
                 divider()
 
-                // Sync Up — manual force-reconcile with the Watch (grayed when
-                // no paired Watch with the app installed).
-                syncUpRow()
-
-                divider()
+                // "Force Watch Sync" row — hidden from the UI for now (2026-06-30,
+                // Eric's call: the reconcile is too slow to be a satisfying manual
+                // action). The row, its wiring (isWatchAvailable/onForceSync below,
+                // ContentView → PhoneConnectivityManager.forceSync()), and
+                // syncUpRow() are all kept intact to revisit later — just not
+                // rendered. Uncomment the two lines below to bring it back.
+                // syncUpRow()
+                // divider()
 
                 // Share with a Friend — opens the personal QR / waitlist share sheet
                 shareWithFriendRow()
