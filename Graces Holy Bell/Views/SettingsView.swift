@@ -210,26 +210,36 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func syncUpRow() -> some View {
-        Button {
-            onForceSync()
-        } label: {
-            HStack {
-                Text("  Sync Up")
-                    .font(.pixelFont(9))
-                    .foregroundStyle(Color.lcdDark)
+        HStack {
+            Text("Force Watch Sync")
+                .font(.pixelFont(9))
+                .foregroundStyle(Color.lcdDark)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-                Spacer()
+            Spacer(minLength: 8)
 
-                Text(">")
+            // Green pill styled to match the Duration dropdown.
+            Button {
+                onForceSync()
+            } label: {
+                Text("Sync")
                     .font(.pixelFont(9))
-                    .foregroundStyle(Color.lcdMid)
+                    .foregroundStyle(Color.lcdThumbText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color.lcdSlider)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.lcdDark, lineWidth: 1.5)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
             }
-            .contentShape(Rectangle())
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .buttonStyle(.plain)
+            .disabled(!isWatchAvailable)
         }
-        .buttonStyle(.plain)
-        .disabled(!isWatchAvailable)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .opacity(isWatchAvailable ? 1 : 0.4)
         .accessibilityIdentifier("sync-up-row")
     }
@@ -252,7 +262,9 @@ struct SettingsView: View {
             }
             .contentShape(Rectangle())
             .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            // Taller vertical padding so this text-only row matches the height of
+            // the control rows (toggles / dropdown), which are taller than text.
+            .padding(.vertical, 18)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("share-with-friend-row")

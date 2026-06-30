@@ -15,10 +15,11 @@ appId: Boginfactory.Graces-Holy-Bell
     text: "SETTINGS"
 
 # Stage 5: the retired "Save Log to Notes" row is gone.
-# (The replacement "Sync Up" row is present but disabled/grayed in the
-# Simulator — no paired Watch with the app installed — so a disabled SwiftUI
-# Button drops its label from the a11y tree and can't be asserted here. Its
-# enabled/tappable state is covered on real devices, §3 group H + scenario 14.)
+# (The replacement "Force Watch Sync" row is present but its green Sync pill is
+# disabled/grayed in the Simulator — no paired Watch with the app installed — so
+# the disabled SwiftUI Button drops from the a11y tree and can't be asserted
+# here. Its enabled/tappable state is covered on real devices, §3 group H +
+# scenario 14.)
 - assertNotVisible:
     text: "Save Log to Notes"
 
