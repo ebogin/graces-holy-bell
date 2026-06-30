@@ -3,15 +3,19 @@ import UserNotifications
 
 /// Settings panel — overlays the bottom content area of both IdleView and ActiveSessionView.
 ///
-/// Contains the Amen Alarm section (duration picker, Phone toggle, Watch toggle)
-/// and the disabled "Save Log to Notes" row. All changes persist automatically
-/// via AmenAlarmSettings (UserDefaults-backed).
+/// Contains the Amen Alarm section (duration picker, Phone toggle, Watch toggle),
+/// a manual "Sync Up" force-reconcile row, Share, and the Privacy section. Alarm
+/// changes persist automatically via AmenAlarmSettings (UserDefaults-backed).
 ///
 /// Slides in from the left edge and exits to the left when dismissed.
 struct SettingsView: View {
 
     @Bindable var settings: AmenAlarmSettings
     let consent: AnalyticsConsent
+    /// Whether a paired Watch with the app installed is present (grays the Sync Up row).
+    var isWatchAvailable: Bool = false
+    /// User tapped "Sync Up" — force a reconcile with the Watch.
+    var onForceSync: () -> Void = {}
     @State private var showPrivacyPolicy = false
     @State private var showShareWithFriend = false
 
@@ -58,8 +62,9 @@ struct SettingsView: View {
 
                 divider()
 
-                // Save Log to Notes — disabled / coming soon
-                saveLogRow()
+                // Sync Up — manual force-reconcile with the Watch (grayed when
+                // no paired Watch with the app installed).
+                syncUpRow()
 
                 divider()
 
@@ -204,26 +209,29 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func saveLogRow() -> some View {
-        HStack {
-            Text("Save Log to Notes")
-                .font(.pixelFont(9))
-                .foregroundStyle(Color.lcdDark)
+    private func syncUpRow() -> some View {
+        Button {
+            onForceSync()
+        } label: {
+            HStack {
+                Text("  Sync Up")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdDark)
 
-            Spacer()
+                Spacer()
 
-            Toggle("", isOn: .constant(false))
-                .labelsHidden()
-                .tint(Color.lcdSlider)
-                .overlay(
-                    Capsule()
-                        .stroke(toggleBorder, lineWidth: 1)
-                )
-                .disabled(true)
+                Text(">")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdMid)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .opacity(0.4)
+        .buttonStyle(.plain)
+        .disabled(!isWatchAvailable)
+        .opacity(isWatchAvailable ? 1 : 0.4)
+        .accessibilityIdentifier("sync-up-row")
     }
 
     @ViewBuilder
@@ -256,7 +264,7 @@ struct SettingsView: View {
             showPrivacyPolicy = true
         } label: {
             HStack {
-                Text("Privacy Policy")
+                Text("  Privacy Policy")
                     .font(.pixelFont(9))
                     .foregroundStyle(Color.lcdDark)
 

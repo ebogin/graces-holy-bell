@@ -39,7 +39,28 @@ final class PhoneConnectivityManager: NSObject {
         pendingUserInfos.removeAll()
         for snapshot in pendingSnapshots { handleSnapshot(snapshot) }
         pendingSnapshots.removeAll()
+        refreshWatchAvailability()
         sendSnapshotToWatch()
+    }
+
+    // MARK: - Sync Up (user-initiated force sync)
+
+    /// Manually push/pull the full active state. Same idempotent reconcile as the
+    /// automatic path — durable applicationContext always, plus an immediate
+    /// sendMessage round trip when the Watch is reachable.
+    @MainActor
+    func forceSync() {
+        sendSnapshotToWatch()
+    }
+
+    /// Whether a paired Watch with the app installed is present. Mirrored onto
+    /// the ViewModel so the "Sync Up" Settings row can enable/gray itself.
+    @MainActor
+    private func refreshWatchAvailability() {
+        let available = WCSession.default.activationState == .activated
+            && WCSession.default.isPaired
+            && WCSession.default.isWatchAppInstalled
+        viewModel?.isWatchAvailable = available
     }
 
     // MARK: - Send snapshot to Watch
@@ -129,6 +150,7 @@ extension PhoneConnectivityManager: WCSessionDelegate {
             if let snapshot = SyncSnapshot.fromDictionary(session.receivedApplicationContext) {
                 self.handleSnapshot(snapshot)
             }
+            self.refreshWatchAvailability()
             self.sendSnapshotToWatch()
         }
     }
@@ -137,6 +159,13 @@ extension PhoneConnectivityManager: WCSessionDelegate {
 
     func sessionDidDeactivate(_ session: WCSession) {
         WCSession.default.activate()
+    }
+
+    /// Pairing or app-install state changed — refresh the Sync Up row's enablement.
+    func sessionWatchStateDidChange(_ session: WCSession) {
+        Task { @MainActor in
+            self.refreshWatchAvailability()
+        }
     }
 
     /// Receives a snapshot sent by the Watch via sendMessage (reachable path).

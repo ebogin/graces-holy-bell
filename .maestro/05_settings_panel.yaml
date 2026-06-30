@@ -1,7 +1,7 @@
 appId: Boginfactory.Graces-Holy-Bell
 ---
 # Open and close the settings panel from the idle screen.
-# Verifies the settings panel slides in and out.
+# Verifies the settings panel slides in and out, and the Stage 5 row changes.
 
 - launchApp:
     clearState: true
@@ -13,6 +13,14 @@ appId: Boginfactory.Graces-Holy-Bell
 # Settings panel should be visible
 - assertVisible:
     text: "SETTINGS"
+
+# Stage 5: the retired "Save Log to Notes" row is gone.
+# (The replacement "Sync Up" row is present but disabled/grayed in the
+# Simulator — no paired Watch with the app installed — so a disabled SwiftUI
+# Button drops its label from the a11y tree and can't be asserted here. Its
+# enabled/tappable state is covered on real devices, §3 group H + scenario 14.)
+- assertNotVisible:
+    text: "Save Log to Notes"
 
 # Tap outside to dismiss (tap upper portion of screen)
 - tapOn:

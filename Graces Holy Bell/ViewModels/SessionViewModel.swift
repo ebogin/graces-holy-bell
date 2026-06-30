@@ -58,6 +58,11 @@ final class SessionViewModel {
         sortedEntries.first?.timestamp
     }
 
+    /// True when a paired Watch with the app installed is present. Drives the
+    /// enabled/grayed state of the "Sync Up" Settings row. Set by
+    /// PhoneConnectivityManager on activation and watch-state changes.
+    var isWatchAvailable = false
+
     // MARK: - Initialization
 
     init(modelContext: ModelContext) {

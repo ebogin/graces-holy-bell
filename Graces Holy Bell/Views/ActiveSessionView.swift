@@ -9,6 +9,8 @@ struct ActiveSessionView: View {
     let viewModel: SessionViewModel
     let amenAlarmSettings: AmenAlarmSettings
     let consent: AnalyticsConsent
+    var isWatchAvailable: Bool = false
+    var onForceSync: () -> Void = {}
     @State private var showStopConfirmation = false
     @State private var showSettings = false
 
@@ -59,8 +61,13 @@ struct ActiveSessionView: View {
 
                 // Settings panel (slides in from left)
                 if showSettings {
-                    SettingsView(settings: amenAlarmSettings, consent: consent)
-                        .transition(.move(edge: .leading))
+                    SettingsView(
+                        settings: amenAlarmSettings,
+                        consent: consent,
+                        isWatchAvailable: isWatchAvailable,
+                        onForceSync: onForceSync
+                    )
+                    .transition(.move(edge: .leading))
                 }
             }
 

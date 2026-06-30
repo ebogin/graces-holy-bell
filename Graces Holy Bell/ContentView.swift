@@ -31,9 +31,21 @@ struct ContentView: View {
             if let viewModel {
                 switch viewModel.appState {
                 case .idle:
-                    IdleView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings, consent: consent)
+                    IdleView(
+                        viewModel: viewModel,
+                        amenAlarmSettings: amenAlarmSettings,
+                        consent: consent,
+                        isWatchAvailable: viewModel.isWatchAvailable,
+                        onForceSync: { connectivityManager?.forceSync() }
+                    )
                 case .active:
-                    ActiveSessionView(viewModel: viewModel, amenAlarmSettings: amenAlarmSettings, consent: consent)
+                    ActiveSessionView(
+                        viewModel: viewModel,
+                        amenAlarmSettings: amenAlarmSettings,
+                        consent: consent,
+                        isWatchAvailable: viewModel.isWatchAvailable,
+                        onForceSync: { connectivityManager?.forceSync() }
+                    )
                 }
             } else {
                 ProgressView()
