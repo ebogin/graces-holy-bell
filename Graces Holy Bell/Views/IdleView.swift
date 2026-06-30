@@ -8,6 +8,9 @@ struct IdleView: View {
 
     let viewModel: SessionViewModel
     let amenAlarmSettings: AmenAlarmSettings
+    let consent: AnalyticsConsent
+    var isWatchAvailable: Bool = false
+    var onForceSync: () -> Void = {}
     @State private var showSettings = false
 
     var body: some View {
@@ -57,8 +60,13 @@ struct IdleView: View {
 
                 // Settings panel (slides in from left)
                 if showSettings {
-                    SettingsView(settings: amenAlarmSettings)
-                        .transition(.move(edge: .leading))
+                    SettingsView(
+                        settings: amenAlarmSettings,
+                        consent: consent,
+                        isWatchAvailable: isWatchAvailable,
+                        onForceSync: onForceSync
+                    )
+                    .transition(.move(edge: .leading))
                 }
             }
 
@@ -120,6 +128,7 @@ struct IdleView: View {
     let container = try! ModelContainer(for: PrayerSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     IdleView(
         viewModel: SessionViewModel(modelContext: container.mainContext),
-        amenAlarmSettings: AmenAlarmSettings()
+        amenAlarmSettings: AmenAlarmSettings(),
+        consent: AnalyticsConsent()
     )
 }

@@ -30,9 +30,12 @@ struct Graces_Holy_Bell_Watch_App_Watch_AppApp: App {
             } else {
                 ProgressView()
                     .task {
-                        viewModel = WatchSessionViewModel(
+                        let vm = WatchSessionViewModel(
                             connectivityManager: connectivityManager
                         )
+                        viewModel = vm
+                        // Pull fresh state from the phone on launch.
+                        vm.syncNow()
                     }
             }
         }

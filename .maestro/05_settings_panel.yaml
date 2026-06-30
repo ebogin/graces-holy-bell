@@ -1,7 +1,7 @@
 appId: Boginfactory.Graces-Holy-Bell
 ---
 # Open and close the settings panel from the idle screen.
-# Verifies the settings panel slides in and out.
+# Verifies the settings panel slides in and out, and the Stage 5 row changes.
 
 - launchApp:
     clearState: true
@@ -13,6 +13,16 @@ appId: Boginfactory.Graces-Holy-Bell
 # Settings panel should be visible
 - assertVisible:
     text: "SETTINGS"
+
+# Stage 5: the retired "Save Log to Notes" row is gone.
+- assertNotVisible:
+    text: "Save Log to Notes"
+
+# "Force Watch Sync" is hidden from the UI for now (2026-06-30, Eric's call —
+# the reconcile was too slow to be a satisfying manual action). The row/wiring
+# is kept in code to revisit later; not rendered, so not asserted here either.
+- assertNotVisible:
+    text: "Force Watch Sync"
 
 # Tap outside to dismiss (tap upper portion of screen)
 - tapOn:

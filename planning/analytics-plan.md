@@ -113,9 +113,8 @@ Person/event properties also include: `first_seen` / `install_date`,
 | `session_ended` | User completes/ends a session normally | `prayers_in_session`, `session_value` (high / low), `session_duration_bucket`, `time_of_day_bucket`, `day_of_week` |
 | `session_abandoned` | Session left incomplete, **or** auto-fired when a prayer timer runs past **12h** | `prayers_so_far`, `reason` (`user_exit` \| `forgotten_timer`) |
 | `amen_alarm_set` | Alarm enabled/changed | (alarm props above carry the detail) |
-| `amen_alarm_fired` | Local notification delivered | `time_of_day_bucket` |
-| `notification_tapped` | App opened from the alarm | `time_of_day_bucket` |
-| `prayer_log_viewed` | Log screen opened — **Watch only** (on iPhone the log is always visible on the main timer page, so there is no discrete view to track) | — (always `device_source = watch`) |
+| `amen_alarm_tapped` | App opened from the Amen Alarm notification (renamed from `notification_tapped`) | `time_of_day_bucket` |
+| `prayer_log_viewed` | Log screen opened — **Watch only** (on iPhone the log is always visible on the main timer page, so there is no discrete view to track). Proxied Watch→phone over WCSession (`transferUserInfo`) and emitted by the phone's transport with the Watch's true capture time. | — (always `device_source = watch`) |
 
 **Forgotten-timer rule:** if a prayer timer runs continuously past 12 hours, fire
 `session_abandoned` with `reason = forgotten_timer` so it is *not* counted as
@@ -133,12 +132,17 @@ immediately before a `session_started`: that stale session already ended at its
 **Synthesized / backdated events:** any event that can only be *computed at next
 launch* must be **backdated to its true time** via the PostHog `timestamp`
 override, not stamped at re-open/sync time. Two cases: (1) the forgotten-timer
-`session_abandoned` lands at **session start + 12h**; (2) late-delivered Watch
+`session_abandoned` lands at **last prayer + 12h** (the moment the
+"time since last prayer" timer crosses 12h); (2) late-delivered Watch
 events land at their **original capture time**. Without this, the user's PostHog
 timeline is distorted and retention/interval math breaks.
 
 Pruned: `settings_opened`, pure navigation / scroll / impression noise, and
 `privacy_policy_viewed`. (Share/referral events live in the viral-growth plan.)
+Also dropped `amen_alarm_fired`: iOS gives no delivery callback for a
+backgrounded local notification (the normal alarm case), so it could only ever
+capture rare foreground deliveries — biasing the data. `amen_alarm_tapped`
+plus scheduling is the honest engagement signal instead.
 
 ## 3. Bucketing (GDPR-safe, derived on-device)
 
@@ -152,17 +156,23 @@ comparable:
   `<30m` · `30–45m` · `45–60m` · `1h–1h15` · `1h15–1h30` · `1h30–1h45` ·
   `1h45–2h` · `2h–2h15` · `2h15–2h30` · `2h30–2h45` · `2h45–3h` · `3h–3h15` ·
   `3h15–3h30` · `3h30–3h45` · `3h45–4h` · `4h+`
-- **`time_of_day_bucket`:** early-morning / morning / midday / afternoon /
-  evening / night
+- **`time_of_day_bucket`:** eight equal 3-hour windows (local time), so every
+  part of the day — including overnight — gets equal resolution:
+  `late-night` (00–03) · `early-morning` (03–06) · `morning` (06–09) ·
+  `late-morning` (09–12) · `midday` (12–15) · `afternoon` (15–18) ·
+  `evening` (18–21) · `night` (21–24)
 - **`day_of_week`:** used to derive weekend vs. weekday behavior
 
 ## 4. Activation & engagement quality
 
 ### High-Value Session Density
-- **Low-Value / Explorer session:** 1 prayer, or multiple prayers in rapid
-  immediate succession.
-- **High-Value / Activated session:** **2+ prayers, each ≥30 minutes apart** —
-  proving the app is woven into the user's day, not just being tested.
+Rapid taps (<60s apart) are first **collapsed into one** "real" prayer, so an
+accidental double/triple tap (e.g. a slow display) cannot drag a session down.
+Then:
+- **Low-Value / Explorer session:** 1 distinct prayer, or multiple prayers in
+  rapid immediate succession.
+- **High-Value / Activated session:** **2+ distinct prayers, each ≥30 minutes
+  apart** — proving the app is woven into the user's day, not just being tested.
 
 `session_value` (`high` | `low`) is computed on-device at `session_ended`; the
 crucial signal for **W1 cohort quality**.
@@ -215,7 +225,11 @@ a **phone vs. watch** split from `device_source`.
 - **Never in Plane B:** prayer content, name, email, contacts, location, IDFA,
   raw second-level durations.
 - **Bucketed, on-device-derived** timing only (§3).
-- **Country-level geo only** — keep country, **drop raw IP**.
+- **Approximate geo (country + city)** — kept deliberately as a product signal
+  (target denominations cluster in specific US regions); derived server-side from
+  the request IP. Raw `$ip` is not stored as a queryable property. **(Updated
+  2026-06-27, supersedes the original "country-only, drop raw IP" intent — see
+  `app-store-privacy-answers.md` "GeoIP" and `analytics-implementation-status.md`.)**
 - **Erasure:** delete local `install_id` + purge by that ID in PostHog satisfies
   GDPR right-to-erasure.
 
@@ -260,7 +274,7 @@ code.
 
 | # | Phase | Owner | Notes |
 |---|---|---|---|
-| 0 | **PostHog EU account** | 🧍 | Create EU project, sign DPA, generate keys; configure project (autocapture off, disable IP/geo→country only). Output: keys → §0 handoff. |
+| 0 | **PostHog EU account** | 🧍 | Create EU project, sign DPA, generate keys; configure project (autocapture off). **Geo:** keep approximate country **+ city** (a deliberate product signal — updated 2026-06-27; the original "IP/geo→country only" was superseded, "Discard client IP data" stays OFF). Output: keys → §0 handoff. |
 | 1 | **Foundation (no-op)** | 🤖 | `install_id` (UserDefaults, iPhone→Watch sync, pending queue + tie-break); `Analytics` protocol in `Shared/`; **mock/no-op transport**. Builds + tests green with **no real keys** — does not block on Phase 0. |
 | 2 | **Core instrumentation** | 🤖 | §2 events + cross-device props across iOS + watchOS; Watch→phone proxy + `device_source` preservation + `timestamp` overrides; §3 bucketing; `session_value`; 12h synth + no-double-close. Verify on iPhone + Watch sim. |
 | 0→2 | **Wire real PostHog SDK** | 🤝 | Agent swaps the mock transport for the PostHog SDK once the human delivers keys (Phase 0). Keys injected via xcconfig/secrets — **never committed**. |

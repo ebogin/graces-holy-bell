@@ -2,7 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- This app does not track users across apps/websites owned by other companies. -->
+	<!-- This app does not track users across apps/websites owned by other companies.
+	     The PostHog analytics are not used for cross-app/website tracking. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 
@@ -10,9 +11,56 @@
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 
-	<!-- No data is collected from the user or sent off the device. -->
+	<!-- The only data sent off the device is optional, consent-gated, anonymous
+	     usage analytics via PostHog (iPhone target only). It is tied to a random
+	     install-scoped ID, not linked to the user's identity, and never used for
+	     tracking. Prayer logs and Amen Alarm settings stay on-device (not collected). -->
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<dict>
+			<!-- Random install-scoped identifier used as the analytics distinct id. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Product-interaction events (session start/end, prayer cadence buckets,
+			     feature use, app/OS/device version) — never prayer content. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Approximate (country/city) location that PostHog derives from the
+			     request IP server-side. No on-device location API is used (no GPS).
+			     Declared for consistency with the App Store "App Privacy" label,
+			     since we deliberately keep and use this coarse geo for analytics. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCoarseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+	</array>
 
 	<!-- Required-reason APIs used by this target. -->
 	<key>NSPrivacyAccessedAPITypes</key>

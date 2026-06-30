@@ -11,7 +11,7 @@ struct WatchPrayerLogView: View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(
                 Array(viewModel.sortedEntries.enumerated()),
-                id: \.element.sequenceIndex
+                id: \.element.id
             ) { index, entry in
                 WatchPrayerEntryRow(
                     viewModel: viewModel,
@@ -21,6 +21,15 @@ struct WatchPrayerLogView: View {
                     now: now
                 )
             }
+
+            // Build/version marker — rendered as the last line of the log so a
+            // tester can confirm this Watch's build matches the paired iPhone
+            // (sync has no backward compatibility across builds).
+            Text(AppVersion.label)
+                .font(.pixelFont(9))
+                .foregroundStyle(Color.lcdMid)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .padding(8)
         .pixelBorder()
@@ -30,7 +39,7 @@ struct WatchPrayerLogView: View {
 struct WatchPrayerEntryRow: View {
 
     let viewModel: WatchSessionViewModel
-    let entry: SyncedEntry
+    let entry: PrayerEvent
     let index: Int
     let isLastEntry: Bool
     let now: Date

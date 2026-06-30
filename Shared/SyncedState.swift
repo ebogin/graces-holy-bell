@@ -1,48 +1,84 @@
 import Foundation
 
-/// Lightweight snapshot of the app state for WatchConnectivity transfer.
-///
-/// This is NOT a database object — it's a plain Codable struct, encoded to a
-/// single property-list `Data` blob for `updateApplicationContext()` and
-/// message replies. Used by both iPhone (to send state) and Watch (to receive
-/// and display state). Both targets compile this same file, so the wire
-/// format cannot drift between devices.
-struct SyncedSessionState: Codable {
+// MARK: - SyncSnapshot (full state exchange)
 
-    /// "idle" or "active"
-    let appState: String
+/// Full active-state snapshot exchanged between iPhone and Watch.
+/// Sent via updateApplicationContext (background) and as sendMessage replies (reachable).
+/// The receiver merges this with its local state using SyncEngine.
+struct SyncSnapshot: Codable {
 
-    /// All prayer entries in the current/recent session.
-    let entries: [SyncedEntry]
-
-    /// The exact date/time the Amen Alarm should fire on the Watch.
-    /// Nil when the alarm is disabled or the session is stopped/cleared.
-    /// Recalculated as `lastPrayerTimestamp + alarmDuration` on every PRAY slide.
+    let events: [PrayerEvent]
+    let lastClearedAt: Date?
+    /// When the Amen Alarm should fire on the Watch. Nil when disabled/idle.
     let amenAlarmFireAt: Date?
 
-    // MARK: - Dictionary Conversion
+    private static let payloadKey = "snapshot"
 
-    private static let payloadKey = "state"
-
-    /// Wraps the Codable encoding in a property-list dictionary for WatchConnectivity.
     func toDictionary() -> [String: Any] {
         guard let data = try? PropertyListEncoder().encode(self) else { return [:] }
         return [Self.payloadKey: data]
     }
 
-    /// Decodes from a property-list dictionary received via WatchConnectivity.
-    static func fromDictionary(_ dict: [String: Any]) -> SyncedSessionState? {
+    static func fromDictionary(_ dict: [String: Any]) -> SyncSnapshot? {
         guard let data = dict[payloadKey] as? Data else { return nil }
-        return try? PropertyListDecoder().decode(SyncedSessionState.self, from: data)
+        return try? PropertyListDecoder().decode(SyncSnapshot.self, from: data)
     }
 }
 
-/// A single prayer entry as transferred via WatchConnectivity.
-struct SyncedEntry: Codable {
+// MARK: - EventMessage (single prayer, transferUserInfo)
 
-    /// The wall clock time when PRAY was slid.
-    let timestamp: Date
+/// Carries one watch-origin prayer event for offline-safe incremental sync.
+struct EventMessage {
+    let event: PrayerEvent
 
-    /// Position in the session (0-based).
-    let sequenceIndex: Int
+    func toUserInfo() -> [String: Any] {
+        [
+            "msg": "event",
+            "id": event.id.uuidString,
+            "timestamp": event.timestamp,
+            "origin": event.origin.rawValue
+        ]
+    }
+
+    static func fromUserInfo(_ dict: [String: Any]) -> EventMessage? {
+        guard dict["msg"] as? String == "event",
+              let idString = dict["id"] as? String,
+              let id = UUID(uuidString: idString),
+              let timestamp = dict["timestamp"] as? Date,
+              let originString = dict["origin"] as? String,
+              let origin = PrayerEvent.Origin(rawValue: originString) else { return nil }
+        return EventMessage(event: PrayerEvent(id: id, timestamp: timestamp, origin: origin))
+    }
+}
+
+// MARK: - ClearMessage (clear epoch, transferUserInfo)
+
+/// Carries a clear-epoch timestamp so the receiving device wipes its pre-clear events.
+struct ClearMessage {
+    let clearedAt: Date
+
+    func toUserInfo() -> [String: Any] {
+        ["msg": "clear", "clearedAt": clearedAt]
+    }
+
+    static func fromUserInfo(_ dict: [String: Any]) -> ClearMessage? {
+        guard dict["msg"] as? String == "clear",
+              let clearedAt = dict["clearedAt"] as? Date else { return nil }
+        return ClearMessage(clearedAt: clearedAt)
+    }
+}
+
+// MARK: - Analytics proxy (unchanged)
+
+/// Carry a Watch-originated analytics event to the phone's transport.
+/// Distinct from the sync messages — the phone routes it to analytics rather than the merge path.
+enum WatchAnalyticsProxy {
+    static func prayerLogViewedPayload(at timestamp: Date) -> [String: Any] {
+        ["analyticsEvent": "prayer_log_viewed", "timestamp": timestamp]
+    }
+    static func isPrayerLogViewed(_ dict: [String: Any]) -> Date? {
+        guard dict["analyticsEvent"] as? String == "prayer_log_viewed",
+              let ts = dict["timestamp"] as? Date else { return nil }
+        return ts
+    }
 }

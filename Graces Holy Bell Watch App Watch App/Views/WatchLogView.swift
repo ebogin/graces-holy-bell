@@ -11,6 +11,8 @@ struct WatchLogView: View {
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
             screen(now: context.date)
         }
+        // Analytics (additive): the discrete Watch log screen was opened.
+        .onAppear { viewModel.recordLogViewed() }
     }
 
     private func screen(now: Date) -> some View {
