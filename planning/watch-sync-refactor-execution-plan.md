@@ -196,7 +196,7 @@ groups.
 | 3b — Reconcile on app open (proactive two-way pull) | DONE | 2026-06-29 | f75a8ee | build 7; fixes the "no sync on open / ~30s lag" that failed device tests 1, 9 and slowed 4 |
 | 3c — "SYNCING…" badge (perceived-latency UX) | REVERTED | 2026-06-29 | a511b34 → 5952962 | build 8 added it, build 9 removed it: fired too eagerly on device (showed whenever Watch lost contact / phone off). Eric's call to drop it and live with the post-offline delay; sync-on-open (build 7) is unchanged |
 | 4 — SYNCING WITH WATCH dialog | CUT | 2026-06-29 | — | not building it (Eric's call); sync converges on its own, edge-case surface not worth it. Group I scenarios dropped |
-| 5 — Sync Up row + settings tweaks | NOT STARTED | | | real-device H + scenario 14 |
+| 5 — Sync Up row + settings tweaks | DONE | 2026-06-30 | db12b2e | build 10; forceSync + isWatchAvailable; Settings: Sync Up row (grays when no Watch), removed Save Log row, indented Privacy Policy. 153/153 pass; both build; Maestro 05 green + sim screenshot verified. Real-device H + scenario 14 still owed |
 | 6 — Analytics verify + cleanup + build bump | NOT STARTED | | | real-device G + regression |
 
 Real-device scenario results (fill PASS/FAIL as Eric reports):
