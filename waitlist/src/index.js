@@ -56,6 +56,7 @@ export async function handleRequest(request, env) {
     name: sanitize(body.name),
     country: sanitize(body.country),
     phone: sanitize(body.phone),
+    instagram: sanitize(body.instagram),
     referrer: sanitize(body.referrer),
     myCode: sanitize(body.myCode),
     // Which app surface produced the shared link ("phone"/"watch"), or "" if
@@ -75,10 +76,10 @@ export async function handleRequest(request, env) {
 
   const createdAt = new Date().toISOString();
   await env.DB.prepare(
-    `INSERT INTO signups (created_at, email, name, country, phone, sms_consent, referrer, my_code, source)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO signups (created_at, email, name, country, phone, instagram, sms_consent, referrer, my_code, source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(createdAt, data.email, data.name, data.country, data.phone, data.smsConsent, data.referrer, data.myCode, data.source)
+    .bind(createdAt, data.email, data.name, data.country, data.phone, data.instagram, data.smsConsent, data.referrer, data.myCode, data.source)
     .run();
 
   // Emails are best-effort — storage already succeeded, so never fail the
@@ -201,6 +202,7 @@ function adminHtml(data) {
       ${row("Name", data.name)}
       ${row("Country", data.country)}
       ${row("Phone", data.phone)}
+      ${row("Instagram", data.instagram)}
       ${row("SMS consent", data.smsConsent)}
       ${row("Referrer code", data.referrer)}
       ${row("Their code", data.myCode)}
@@ -217,11 +219,11 @@ async function exportCsv(url, env) {
     return new Response("Unauthorized", { status: 401 });
   }
   const { results } = await env.DB.prepare(
-    `SELECT created_at, email, name, country, phone, sms_consent, referrer, my_code, source
+    `SELECT created_at, email, name, country, phone, instagram, sms_consent, referrer, my_code, source
      FROM signups ORDER BY id DESC`
   ).all();
 
-  const header = ["created_at", "email", "name", "country", "phone", "sms_consent", "referrer", "my_code", "source"];
+  const header = ["created_at", "email", "name", "country", "phone", "instagram", "sms_consent", "referrer", "my_code", "source"];
   const lines = [header.join(",")];
   for (const r of results || []) {
     lines.push(header.map((h) => csvCell(r[h])).join(","));

@@ -235,6 +235,10 @@
         <label for="phone">Phone</label>
         <input type="tel" id="phone" name="phone" autocomplete="tel" inputmode="tel">
       </div>
+      <div class="field">
+        <label for="instagram">Instagram Handle (optional)</label>
+        <input type="text" id="instagram" name="instagram" autocomplete="off" placeholder="@yourhandle">
+      </div>
 
       <div class="check-field">
         <input type="checkbox" id="sms-consent" name="sms-consent">
@@ -434,6 +438,7 @@
         name:       document.getElementById("name").value.trim(),
         country:    document.getElementById("country").value.trim(),
         phone:      phone,
+        instagram:  document.getElementById("instagram").value.trim(),
         smsConsent: smsConsent,
         referrer:   referrer,
         source:     source,
