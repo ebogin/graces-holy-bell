@@ -65,9 +65,9 @@ struct ShareIconShape: Shape {
 /// "JOIN US IN PRAYER" QR screen.
 struct ShareButton: View {
     let action: () -> Void
-    // Matches the LOG badge's rendered height so the two bottom-row affordances
-    // read as the same size (both are 35px tall in the Figma design).
-    var size: CGFloat = 18
+    // Sits just under the LOG badge's rendered height so the bottom-row
+    // affordances read as balanced.
+    var size: CGFloat = 16
 
     var body: some View {
         Button(action: action) {

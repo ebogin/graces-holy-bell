@@ -43,10 +43,10 @@ struct WatchActiveSessionView: View {
                     ZStack {
                         Octagon()
                             .fill(Color.lcdDark)
-                            .frame(width: 24, height: 24)
+                            .frame(width: 21, height: 21)
                         Rectangle()
                             .fill(Color.lcdThumbText)
-                            .frame(width: 11, height: 11)
+                            .frame(width: 10, height: 10)
                     }
                 }
                 .buttonStyle(.plain)
