@@ -16,28 +16,43 @@ struct WatchLogView: View {
     }
 
     private func screen(now: Date) -> some View {
-        VStack(spacing: 3) {
-            // Header — same as Active screen
-            Text("GRACE'S HOLY BELL")
-                .font(.pixelFont(8.5))
-                .foregroundStyle(Color.lcdMid)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+        VStack(spacing: 0) {
+            // Shared header component — guarantees the title, timer, and
+            // "SINCE LAST PRAYER" text land at the exact same spot as Active.
+            // Needs the same 14pt total horizontal inset as WatchScreenLayout
+            // (this screen's own padding below is only 8), or the narrower
+            // wrap width on Active makes minimumScaleFactor shrink it more,
+            // so the title renders at a visibly different size between screens.
+            WatchSessionHeader(viewModel: viewModel, now: now)
+                .padding(.horizontal, 6)
+                .padding(.bottom, 3)
 
-            // Live timer (keeps ticking while viewing log)
-            WatchLiveTimerView(viewModel: viewModel, now: now)
-
-            // Scrollable log — fills remaining space
+            // Scrollable log + version marker — fills remaining space. The
+            // version label lives outside the log box, below it, so it
+            // scrolls into view with the rest of the content on small watches.
             ScrollView {
-                WatchPrayerLogView(viewModel: viewModel, now: now)
+                VStack(spacing: 3) {
+                    WatchPrayerLogView(viewModel: viewModel, now: now)
+
+                    Text(AppVersion.label)
+                        .font(.pixelFont(8))
+                        .foregroundStyle(Color.lcdMid)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
             }
             .frame(maxHeight: .infinity)
             .focusable()
 
-            // BACK button
-            BackButton {
-                viewModel.showingLog = false
+            // BACK button — right-aligned to match the log button's position
+            // on the Active screen. Sized to match the stop button's 21pt
+            // height, with an enlarged, layout-neutral tap target so
+            // mis-taps are less likely.
+            HStack {
+                Spacer()
+                BackButton(action: { viewModel.showingLog = false }, size: 21)
             }
+            .padding(.top, 4)
         }
         .padding(.horizontal, 8)
         // Same full-screen treatment as WatchScreenLayout: clear the system

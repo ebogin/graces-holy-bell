@@ -49,6 +49,13 @@ struct BackButton: View {
 
     var body: some View {
         PixelGridButton(grid: Self.grid, size: size, action: action)
+            // Widen the tappable region beyond the small glyph to reduce
+            // mis-taps, without growing the button's layout footprint:
+            // padding out, capturing that larger rect as the hit area, then
+            // negative-padding back to the original size for layout purposes.
+            .padding(8)
+            .contentShape(Rectangle())
+            .padding(-8)
     }
 }
 

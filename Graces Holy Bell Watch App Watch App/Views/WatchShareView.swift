@@ -27,12 +27,17 @@ struct WatchShareView: View {
                 .frame(maxWidth: .infinity)
 
             // QR card: prompt + code, inside the shared pixel border.
-            VStack(spacing: 5) {
-                Text("JOIN US IN PRAYER")
-                    .font(.pixelFont(8, relativeTo: .headline))
-                    .foregroundStyle(Color.lcdDark)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+            VStack(spacing: 7) {
+                // Square-wave blink, same rate as the start screen's
+                // "SLIDE TO BEGIN" hint (driven by the same 0.5s timeline tick).
+                TimelineView(.periodic(from: .now, by: 0.5)) { context in
+                    Text("JOIN US IN PRAYER")
+                        .font(.pixelFont(8, relativeTo: .headline))
+                        .foregroundStyle(Color.lcdDark)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .opacity(Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0 ? 1 : 0)
+                }
 
                 Group {
                     if let modules {
