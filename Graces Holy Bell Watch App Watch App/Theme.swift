@@ -45,6 +45,22 @@ extension Font {
     }
 }
 
+extension Text {
+    /// Builds table text with every literal space's trailing gap narrowed by
+    /// 20% of `fontSize`. Press Start 2P is monospace with per-character
+    /// advance ≈ its point size, so this narrows just the word-gaps — not
+    /// the spacing between other characters — by about 20%.
+    static func pixelTableText(_ string: String, fontSize: CGFloat) -> Text {
+        var attributed = AttributedString(string)
+        let kern = -0.2 * fontSize
+        for index in attributed.characters.indices where attributed.characters[index] == " " {
+            let next = attributed.index(afterCharacter: index)
+            attributed[index..<next].kern = kern
+        }
+        return Text(attributed).font(.pixelFont(fontSize))
+    }
+}
+
 struct Octagon: Shape {
     func path(in rect: CGRect) -> Path {
         let w = rect.width, h = rect.height

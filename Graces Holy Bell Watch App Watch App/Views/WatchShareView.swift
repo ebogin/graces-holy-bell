@@ -57,12 +57,14 @@ struct WatchShareView: View {
             .pixelBorder()
             .padding(.top, 4)
 
-            // BACK button, lower-left.
+            // BACK button, lower-left. Sized to match the Log screen's BACK
+            // button (21pt, same as the stop button) instead of the default 28.
             HStack {
-                BackButton { viewModel.showingShare = false }
+                BackButton(action: { viewModel.showingShare = false }, size: 21)
                     .accessibilityIdentifier("watch-share-back-button")
                 Spacer()
             }
+            .padding(.horizontal, DesignSystem.Metrics.cornerButtonInset)
             .padding(.top, 4)
         }
         // Same full-screen treatment as the other screens: clear the system

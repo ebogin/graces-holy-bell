@@ -61,6 +61,7 @@ struct WatchActiveSessionView: View {
                         viewModel.showingLog = true
                     }
                 }
+                .padding(.horizontal, DesignSystem.Metrics.cornerButtonInset)
             }
         }
         .confirmationDialog(

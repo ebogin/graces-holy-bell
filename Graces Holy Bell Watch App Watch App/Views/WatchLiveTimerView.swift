@@ -38,11 +38,11 @@ struct WatchLiveDurationText: View {
     let viewModel: WatchSessionViewModel
     let entryIndex: Int
     let now: Date
+    var fontSize: CGFloat = 9
 
     var body: some View {
         if let duration = viewModel.duration(for: entryIndex, at: now) {
-            Text(DurationFormatter.string(from: duration))
-                .font(.pixelFont(9))
+            Text.pixelTableText(DurationFormatter.string(from: duration), fontSize: fontSize)
                 .foregroundStyle(Color.lcdMid)
         }
     }

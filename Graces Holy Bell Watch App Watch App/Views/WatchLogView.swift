@@ -19,12 +19,9 @@ struct WatchLogView: View {
         VStack(spacing: 0) {
             // Shared header component — guarantees the title, timer, and
             // "SINCE LAST PRAYER" text land at the exact same spot as Active.
-            // Needs the same 14pt total horizontal inset as WatchScreenLayout
-            // (this screen's own padding below is only 8), or the narrower
-            // wrap width on Active makes minimumScaleFactor shrink it more,
-            // so the title renders at a visibly different size between screens.
+            // This screen's own horizontal margin (14, below) now matches
+            // WatchScreenLayout's, so no extra inset is needed here.
             WatchSessionHeader(viewModel: viewModel, now: now)
-                .padding(.horizontal, 6)
                 .padding(.bottom, 3)
 
             // Scrollable log + version marker — fills remaining space. The
@@ -42,6 +39,7 @@ struct WatchLogView: View {
                 }
             }
             .frame(maxHeight: .infinity)
+            .clipped()
             .focusable()
 
             // BACK button — right-aligned to match the log button's position
@@ -52,9 +50,10 @@ struct WatchLogView: View {
                 Spacer()
                 BackButton(action: { viewModel.showingLog = false }, size: 21)
             }
+            .padding(.horizontal, DesignSystem.Metrics.cornerButtonInset)
             .padding(.top, 4)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 14)
         // Same full-screen treatment as WatchScreenLayout: clear the system
         // clock at the top, small margin above the rounded bottom edge.
         .padding(.top, DesignSystem.Metrics.clockClearance)
