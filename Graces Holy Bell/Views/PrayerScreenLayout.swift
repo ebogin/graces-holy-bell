@@ -1,5 +1,19 @@
 import SwiftUI
 
+/// Shared frame size for the bottom row's three icon buttons (Share, Stop,
+/// Gear/X) on both IdleView and ActiveSessionView, so they read as a matched
+/// set regardless of each icon's native aspect ratio.
+enum BottomIconMetrics {
+    static let width: CGFloat = 37
+    static let height: CGFloat = 36
+
+    // The Share icon's vector art fills its frame edge-to-edge (unlike the
+    // SF Symbol glyphs, which have built-in visual padding), so it reads as
+    // oversized at the shared size — trimmed down to match.
+    static let shareWidth: CGFloat = width - 10
+    static let shareHeight: CGFloat = height - 10
+}
+
 /// Shared scaffold for the iPhone idle and active screens.
 ///
 /// Owns the position of every persistent element — header area, praying

@@ -13,6 +13,7 @@ struct ActiveSessionView: View {
     var onForceSync: () -> Void = {}
     @State private var showStopConfirmation = false
     @State private var showSettings = false
+    @State private var showShareWithFriend = false
 
     var body: some View {
         // Single per-second clock for the whole screen: the header timer, the
@@ -80,21 +81,17 @@ struct ActiveSessionView: View {
 
         } buttons: {
 
-            // Gear/X toggle | Stop | placeholder (balance)
+            // Share | Stop | Gear/X toggle
             HStack {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        showSettings.toggle()
-                    }
+                    showShareWithFriend = true
                 } label: {
-                    Image(systemName: showSettings ? "xmark" : "gearshape.fill")
-                        .accessibilityIdentifier("settings-button")
-                        .font(.title)
-                        .foregroundStyle(Color.lcdDark)
-                        .frame(width: 37, height: 36)
-                        .contentTransition(.symbolEffect(.replace))
+                    ShareIconShape()
+                        .fill(Color.lcdDark)
+                        .frame(width: BottomIconMetrics.shareWidth, height: BottomIconMetrics.shareHeight)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("share-with-friend-button")
 
                 Spacer()
 
@@ -104,18 +101,29 @@ struct ActiveSessionView: View {
                     ZStack {
                         Octagon()
                             .fill(Color.lcdDark)
-                            .frame(width: 56, height: 56)
+                            .frame(width: BottomIconMetrics.width, height: BottomIconMetrics.height)
                         Rectangle()
                             .fill(Color.lcdThumbText)
-                            .frame(width: 18, height: 18)
+                            .frame(width: 12, height: 12)
                     }
                 }
                 .accessibilityIdentifier("stop-button")
 
                 Spacer()
 
-                Color.clear
-                    .frame(width: 37, height: 36)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showSettings.toggle()
+                    }
+                } label: {
+                    Image(systemName: showSettings ? "xmark" : "gearshape.fill")
+                        .accessibilityIdentifier("settings-button")
+                        .font(.title)
+                        .foregroundStyle(Color.lcdDark)
+                        .frame(width: BottomIconMetrics.width, height: BottomIconMetrics.height)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
             }
         }
         .confirmationDialog(
@@ -129,6 +137,9 @@ struct ActiveSessionView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Clear the log and start fresh. This CANNOT BE UNDONE")
+        }
+        .sheet(isPresented: $showShareWithFriend) {
+            ShareWithFriendView()
         }
     }
 

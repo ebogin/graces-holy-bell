@@ -12,6 +12,7 @@ struct IdleView: View {
     var isWatchAvailable: Bool = false
     var onForceSync: () -> Void = {}
     @State private var showSettings = false
+    @State private var showShareWithFriend = false
 
     var body: some View {
         PrayerScreenLayout(
@@ -80,8 +81,33 @@ struct IdleView: View {
 
         } buttons: {
 
-            // Gear/X toggle | Stop (inert) | Placeholder
+            // Share | Stop (inert) | Gear/X toggle
             HStack {
+                Button {
+                    showShareWithFriend = true
+                } label: {
+                    ShareIconShape()
+                        .fill(Color.lcdDark)
+                        .frame(width: BottomIconMetrics.shareWidth, height: BottomIconMetrics.shareHeight)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("share-with-friend-button")
+
+                Spacer()
+
+                ZStack {
+                    // Muted fill — the idle stop button is inert (timer not running),
+                    // so it reads as disabled while staying in the LCD-green palette.
+                    Octagon()
+                        .fill(Color.lcdMid)
+                        .frame(width: BottomIconMetrics.width, height: BottomIconMetrics.height)
+                    Rectangle()
+                        .fill(Color.lcdThumbText)
+                        .frame(width: 12, height: 12)
+                }
+
+                Spacer()
+
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         showSettings.toggle()
@@ -91,29 +117,14 @@ struct IdleView: View {
                         .accessibilityIdentifier("settings-button")
                         .font(.title)
                         .foregroundStyle(Color.lcdDark)
-                        .frame(width: 37, height: 36)
+                        .frame(width: BottomIconMetrics.width, height: BottomIconMetrics.height)
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
-
-                Spacer()
-
-                ZStack {
-                    // Muted fill — the idle stop button is inert (timer not running),
-                    // so it reads as disabled while staying in the LCD-green palette.
-                    Octagon()
-                        .fill(Color.lcdMid)
-                        .frame(width: 56, height: 56)
-                    Rectangle()
-                        .fill(Color.lcdThumbText)
-                        .frame(width: 18, height: 18)
-                }
-
-                Spacer()
-
-                Color.clear
-                    .frame(width: 37, height: 36)
             }
+        }
+        .sheet(isPresented: $showShareWithFriend) {
+            ShareWithFriendView()
         }
     }
 
