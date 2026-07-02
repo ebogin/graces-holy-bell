@@ -9,7 +9,12 @@ struct WatchLogView: View {
     var body: some View {
         // Single per-second clock for the timer and the log's live last row.
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
+            #if DEBUG
+            // Screenshot mode: render against a frozen clock when one is set.
+            screen(now: ScreenshotClock.fixedNow ?? context.date)
+            #else
             screen(now: context.date)
+            #endif
         }
         // Analytics (additive): the discrete Watch log screen was opened.
         .onAppear { viewModel.recordLogViewed() }

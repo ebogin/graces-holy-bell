@@ -13,7 +13,12 @@ struct WatchActiveSessionView: View {
         // Single per-second clock for the whole screen — the timer and the
         // slider's alarm progress both derive from one context.date.
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
+            #if DEBUG
+            // Screenshot mode: render against a frozen clock when one is set.
+            screen(now: ScreenshotClock.fixedNow ?? context.date)
+            #else
             screen(now: context.date)
+            #endif
         }
     }
 

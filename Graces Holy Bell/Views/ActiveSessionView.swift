@@ -20,7 +20,12 @@ struct ActiveSessionView: View {
         // log's live last row, and the slider's alarm progress all derive from
         // one context.date instead of running their own TimelineViews.
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
+            #if DEBUG
+            // Screenshot mode: render against a frozen clock when one is set.
+            screen(now: ScreenshotClock.fixedNow ?? context.date)
+            #else
             screen(now: context.date)
+            #endif
         }
     }
 

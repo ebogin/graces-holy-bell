@@ -60,6 +60,9 @@ struct ContentView: View {
         }
         .task {
             if viewModel == nil {
+                #if DEBUG
+                seedPrayerLogIfRequested(into: modelContext)
+                #endif
                 let vm = SessionViewModel(modelContext: modelContext)
                 vm.amenAlarmSettings = amenAlarmSettings
                 // Wire up Watch connectivity: ViewModel notifies manager after each mutation
@@ -138,7 +141,66 @@ struct ContentView: View {
             }
         }
     }
+
+    #if DEBUG
+    /// App Store screenshot seeding. When the app is launched with the
+    /// `--seed-prayer-log` argument, replace the store with three fixed prayers
+    /// so the ACTIVE screen renders a realistic late-night log: the first prayer
+    /// displays 11:15 PM, then 12:46 AM and 2:31 AM (gaps of 1h 31m / 1h 45m).
+    /// The sequence is anchored to the *next* 11:15 PM, and the ACTIVE screen's
+    /// clock is frozen at 5m 22s past the last prayer (via `ScreenshotClock`), so
+    /// the "since last prayer" timer and last-row duration read a stable 00:05:22.
+    /// Set the sim status bar to 2:36 AM to match. DEBUG-only — stripped from
+    /// Release (App Store) builds.
+    private func seedPrayerLogIfRequested(into context: ModelContext) {
+        guard ProcessInfo.processInfo.arguments.contains("--seed-prayer-log") else { return }
+
+        // Wipe any existing entries so reseeding is idempotent.
+        if let existing = try? context.fetch(FetchDescriptor<PrayerEntry>()) {
+            existing.forEach { context.delete($0) }
+        }
+
+        // First prayer at 11:15 PM local. Use the next occurrence of 23:15 so the
+        // whole session sits just ahead of "now" and the live timer reads 00:00:00.
+        let now = Date()
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = 23
+        components.minute = 15
+        components.second = 0
+        var firstPrayer = calendar.date(from: components) ?? now
+        if firstPrayer <= now {
+            firstPrayer = calendar.date(byAdding: .day, value: 1, to: firstPrayer) ?? firstPrayer
+        }
+        let timestamps: [Date] = [
+            firstPrayer,                                        // #1  11:15 PM
+            firstPrayer.addingTimeInterval(1 * 3600 + 31 * 60), // #2  12:46 AM (gap 1h 31m)
+            firstPrayer.addingTimeInterval(3 * 3600 + 16 * 60)  // #3  2:31 AM  (gap 1h 45m)
+        ]
+        for timestamp in timestamps {
+            context.insert(PrayerEntry(id: UUID(), timestamp: timestamp, origin: PrayerEvent.Origin.phone.rawValue))
+        }
+        try? context.save()
+
+        // Ensure all three seeded prayers are active (matches
+        // SessionViewModel.lastClearedAtKey — keep in sync if that changes).
+        UserDefaults.standard.removeObject(forKey: "prayer.lastClearedAt")
+
+        // Freeze the ACTIVE screen at 5m 22s past the last prayer so the timer
+        // and last-row duration read an exact, stable 00:05:22 / 5m 22s.
+        ScreenshotClock.fixedNow = timestamps[2].addingTimeInterval(5 * 60 + 22)
+    }
+    #endif
 }
+
+#if DEBUG
+/// Screenshot-only clock override. When `fixedNow` is set (by the prayer-log
+/// seed), the ACTIVE screen renders against it instead of the live clock so
+/// timers show an exact, non-ticking value for a still capture.
+enum ScreenshotClock {
+    static var fixedNow: Date?
+}
+#endif
 
 #Preview {
     ContentView()
