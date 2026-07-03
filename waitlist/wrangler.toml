@@ -23,7 +23,7 @@ FROM_EMAIL = "Grace's Holy Bell <gracesholybell@boginfactory.com>"
 ADMIN_EMAIL = "gracesholybell@boginfactory.com"
 # Public write-only PostHog project API key (same one the app embeds) — safe
 # as a plain var, not a secret. Unset = referral/signup capture is skipped.
-# POSTHOG_API_KEY = "phc_..."
+POSTHOG_API_KEY = "phc_rbcTaa7iVthsLZujJpNFchF9oqsmHZZ53Hp6SDfYsWJ8"
 # Post-launch cutover: set to the App Store URL to flip /r/<code> from
 # redirecting to the waitlist page to redirecting straight to the App Store.
 # REDIRECT_URL = "https://apps.apple.com/app/..."
