@@ -1,23 +1,32 @@
 // Grace's Holy Bell — waitlist Cloudflare Worker.
 //
 // Endpoints:
-//   POST /              Accept a waitlist signup (JSON), store it in D1, and
-//                       send confirmation + admin emails via Resend.
-//   GET  /export.csv    Download all signups as CSV (token-protected) so they
-//                       can be opened/imported into a spreadsheet.
+//   POST /                   Accept a waitlist signup (JSON), store it in D1,
+//                            send confirmation + admin emails via Resend, and
+//                            capture a `waitlist_signup` PostHog event.
+//   GET  /r/<code>           Log a referral link click/scan in D1, capture a
+//                            `referral_link_clicked` PostHog event, and 302
+//                            redirect to the waitlist page (or the App Store,
+//                            once REDIRECT_URL is set — see planning/
+//                            referral-click-tracking-spec.md).
+//   GET  /export.csv         Download all signups as CSV (token-protected) so
+//                            they can be opened/imported into a spreadsheet.
+//   GET  /export-clicks.csv  Download all referral clicks as CSV (same token).
 //
 // All form fields are optional, but a submission with no email/name/phone is
 // rejected as empty. See ../SETUP.md for deployment.
 
 const MAX_LEN = 200;
+const REF_CODE_RE = /^[a-z0-9]{4,16}$/;
+const POSTHOG_CAPTURE_URL = "https://eu.i.posthog.com/i/v0/e/";
 
 export default {
-  async fetch(request, env) {
-    return handleRequest(request, env);
+  async fetch(request, env, ctx) {
+    return handleRequest(request, env, ctx);
   },
 };
 
-export async function handleRequest(request, env) {
+export async function handleRequest(request, env, ctx) {
   const allowed = (env.ALLOWED_ORIGIN || "https://boginfactory.com")
     .split(",")
     .map((s) => s.trim())
@@ -33,6 +42,14 @@ export async function handleRequest(request, env) {
 
   if (request.method === "GET" && url.pathname.endsWith("/export.csv")) {
     return exportCsv(url, env);
+  }
+
+  if (request.method === "GET" && url.pathname.endsWith("/export-clicks.csv")) {
+    return exportClicksCsv(url, env);
+  }
+
+  if (request.method === "GET" && (url.pathname === "/r" || url.pathname.startsWith("/r/"))) {
+    return handleReferralClick(url, request, env, ctx);
   }
 
   if (request.method !== "POST") {
@@ -90,7 +107,94 @@ export async function handleRequest(request, env) {
     console.error("email send failed", err);
   }
 
+  schedule(
+    ctx,
+    postHogCapture(env, {
+      event: "waitlist_signup",
+      distinctId: "ref:" + (data.referrer || "organic"),
+      properties: {
+        ref_code: data.referrer,
+        new_code: data.myCode,
+        source: data.source,
+        has_email: Boolean(data.email),
+        $process_person_profile: false,
+      },
+      timestamp: createdAt,
+    })
+  );
+
   return json({ ok: true }, 200, cors);
+}
+
+// ── Referral click tracking ─────────────────────────────────────────────────
+
+async function handleReferralClick(url, request, env, ctx) {
+  const rawCode = url.pathname === "/r" ? "" : url.pathname.slice("/r/".length);
+  const code = REF_CODE_RE.test(rawCode) ? rawCode : null;
+
+  const src = url.searchParams.get("src");
+  const source = src === "phone" || src === "watch" ? src : "";
+  const device = classifyDevice(request.headers.get("User-Agent"));
+  const country = request.cf?.country || "";
+  const createdAt = new Date().toISOString();
+
+  const redirectUrl = env.REDIRECT_URL
+    ? env.REDIRECT_URL
+    : "https://boginfactory.com/grace-waitlist.html?ref=" +
+      encodeURIComponent(rawCode) +
+      "&src=" +
+      encodeURIComponent(source);
+  const destination = env.REDIRECT_URL ? "appstore" : "waitlist";
+
+  if (code) {
+    schedule(
+      ctx,
+      (async () => {
+        try {
+          await env.DB.prepare(
+            `INSERT INTO ref_clicks (created_at, code, source, device, country) VALUES (?, ?, ?, ?, ?)`
+          )
+            .bind(createdAt, code, source, device, country)
+            .run();
+        } catch (err) {
+          console.error("ref click log failed", err);
+        }
+      })()
+    );
+
+    if (device !== "bot") {
+      schedule(
+        ctx,
+        postHogCapture(env, {
+          event: "referral_link_clicked",
+          distinctId: "ref:" + code,
+          properties: {
+            ref_code: code,
+            source,
+            device,
+            country,
+            destination,
+            $process_person_profile: false,
+          },
+          timestamp: createdAt,
+        })
+      );
+    }
+  }
+
+  return new Response(null, {
+    status: 302,
+    headers: { Location: redirectUrl, "Cache-Control": "no-store" },
+  });
+}
+
+function classifyDevice(userAgent) {
+  const ua = (userAgent || "").toLowerCase();
+  if (!ua) return "";
+  if (/bot|crawler|preview/.test(ua)) return "bot";
+  if (/iphone|ipad/.test(ua)) return "ios";
+  if (/android/.test(ua)) return "android";
+  return "desktop";
 }
 
 // ── Email ────────────────────────────────────────────────────────────────
@@ -211,7 +315,65 @@ function adminHtml(data) {
   </div>`;
 }
 
+// ── PostHog server-side capture ─────────────────────────────────────────────
+//
+// Best-effort and non-blocking, same philosophy as the Resend emails above:
+// a missing key, a network error, or a non-2xx response must never affect the
+// redirect or signup response. `ctx.waitUntil` lets the capture finish after
+// the response is already on its way back to the client.
+
+function schedule(ctx, promise) {
+  if (ctx && typeof ctx.waitUntil === "function") {
+    ctx.waitUntil(promise);
+  } else {
+    promise.catch(() => {});
+  }
+}
+
+async function postHogCapture(env, { event, distinctId, properties, timestamp }) {
+  const apiKey = env.POSTHOG_API_KEY;
+  if (!apiKey) return;
+  try {
+    await fetch(POSTHOG_CAPTURE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        event,
+        distinct_id: distinctId,
+        properties,
+        timestamp,
+      }),
+    });
+  } catch (err) {
+    console.error("posthog capture failed", event, err);
+  }
+}
+
 // ── CSV export ─────────────────────────────────────────────────────────────
+
+async function exportClicksCsv(url, env) {
+  const token = url.searchParams.get("token") || "";
+  if (!env.ADMIN_TOKEN || token !== env.ADMIN_TOKEN) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  const { results } = await env.DB.prepare(
+    `SELECT created_at, code, source, device, country FROM ref_clicks ORDER BY id DESC`
+  ).all();
+
+  const header = ["created_at", "code", "source", "device", "country"];
+  const lines = [header.join(",")];
+  for (const r of results || []) {
+    lines.push(header.map((h) => csvCell(r[h])).join(","));
+  }
+  return new Response(lines.join("\n"), {
+    status: 200,
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="grace-waitlist-clicks.csv"',
+    },
+  });
+}
 
 async function exportCsv(url, env) {
   const token = url.searchParams.get("token") || "";
