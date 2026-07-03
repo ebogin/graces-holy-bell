@@ -1,5 +1,6 @@
 name = "grace-waitlist"
 main = "src/index.js"
+workers_dev = true
 compatibility_date = "2024-11-01"
 
 # D1 database binding. Fill in database_id after running:
