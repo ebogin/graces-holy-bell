@@ -24,3 +24,16 @@ CREATE INDEX IF NOT EXISTS idx_signups_referrer   ON signups (referrer);
 --     --command "ALTER TABLE signups ADD COLUMN instagram TEXT"
 --   npx wrangler d1 execute grace-waitlist --remote \
 --     --command "ALTER TABLE signups ADD COLUMN source TEXT"
+
+-- One row per open/scan of a referral short link (/r/<code>).
+CREATE TABLE IF NOT EXISTS ref_clicks (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL,
+  code       TEXT NOT NULL,  -- referral code from the /r/<code> path
+  source     TEXT,           -- share surface from ?src=: "phone"/"watch"/""
+  device     TEXT,           -- coarse UA class: "ios"/"android"/"desktop"/"bot"/""
+  country    TEXT            -- ISO country from request.cf.country, or ""
+);
+
+CREATE INDEX IF NOT EXISTS idx_ref_clicks_code       ON ref_clicks (code);
+CREATE INDEX IF NOT EXISTS idx_ref_clicks_created_at ON ref_clicks (created_at);

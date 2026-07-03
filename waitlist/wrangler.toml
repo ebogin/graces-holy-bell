@@ -9,10 +9,24 @@ binding = "DB"
 database_name = "grace-waitlist"
 database_id = "11f9f9ca-2db5-420d-8dca-f366c00c647f"
 
+# The Worker owns boginfactory.com/r/* (referral short links) even though the
+# rest of the site is served by the separate ebogin/Boginfactory-Landing-Page
+# repo — this route takes precedence on that path. See planning/
+# referral-click-tracking-spec.md.
+[[routes]]
+pattern = "boginfactory.com/r/*"
+zone_name = "boginfactory.com"
+
 [vars]
 ALLOWED_ORIGIN = "https://boginfactory.com,https://www.boginfactory.com"
 FROM_EMAIL = "Grace's Holy Bell <gracesholybell@boginfactory.com>"
 ADMIN_EMAIL = "gracesholybell@boginfactory.com"
+# Public write-only PostHog project API key (same one the app embeds) — safe
+# as a plain var, not a secret. Unset = referral/signup capture is skipped.
+# POSTHOG_API_KEY = "phc_..."
+# Post-launch cutover: set to the App Store URL to flip /r/<code> from
+# redirecting to the waitlist page to redirecting straight to the App Store.
+# REDIRECT_URL = "https://apps.apple.com/app/..."
 
 # Secrets are NOT stored here. Set them with:
 #   npx wrangler secret put RESEND_API_KEY

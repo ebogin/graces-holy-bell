@@ -176,6 +176,18 @@ Columns: `created_at, email, name, country, phone, referrer, my_code`.
   which code belongs to which current user, so this is your attribution column.
 - `my_code` = the new submitter's own code, in case they shared it onward.
 
+Referral link clicks/scans (not just signups) are logged separately —
+download them the same way, with the same token:
+
+```
+https://grace-waitlist.<your-subdomain>.workers.dev/export-clicks.csv?token=YOUR_ADMIN_TOKEN
+```
+
+Columns: `created_at, code, source, device, country`. See
+`../planning/referral-click-tracking-spec.md` for the `/r/<code>` short-link
+route this data comes from, and how to flip it from redirecting to the
+waitlist page to redirecting to the App Store post-launch.
+
 To import into Google Sheets: **File → Import → Upload**, or just open the URL
 and `File → Save As`.
 

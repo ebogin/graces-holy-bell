@@ -13,10 +13,40 @@ import { handleRequest } from "../src/index.js";
 function makeDB() {
   const inserted = [];
   const rows = [];
+  const clicksInserted = [];
+  const clickRows = [];
   return {
     inserted,
     rows,
+    clicksInserted,
+    clickRows,
     prepare(sql) {
+      if (/ref_clicks/i.test(sql)) {
+        return {
+          _sql: sql,
+          _args: [],
+          bind(...args) {
+            this._args = args;
+            return this;
+          },
+          async run() {
+            if (/INSERT/i.test(this._sql)) {
+              clicksInserted.push(this._args);
+              clickRows.push({
+                created_at: this._args[0],
+                code: this._args[1],
+                source: this._args[2],
+                device: this._args[3],
+                country: this._args[4],
+              });
+            }
+            return { success: true };
+          },
+          async all() {
+            return { results: clickRows };
+          },
+        };
+      }
       return {
         _sql: sql,
         _args: [],
@@ -62,6 +92,21 @@ function makeEnv(overrides = {}) {
   };
 }
 
+// A ctx whose waitUntil eagerly awaits the promise so tests can assert on
+// best-effort work (PostHog capture, click logging) without racing it.
+function makeCtx() {
+  const waited = [];
+  return {
+    waited,
+    waitUntil(promise) {
+      waited.push(promise);
+    },
+    async flush() {
+      await Promise.allSettled(waited);
+    },
+  };
+}
+
 function postRequest(body, origin = "https://boginfactory.com") {
   return new Request("https://grace-waitlist.workers.dev/", {
     method: "POST",
@@ -70,7 +115,7 @@ function postRequest(body, origin = "https://boginfactory.com") {
   });
 }
 
-// Capture Resend calls by stubbing global fetch for the duration of a test.
+// Capture Resend/PostHog calls by stubbing global fetch for the duration of a test.
 function withFetchStub(fn) {
   const calls = [];
   const original = globalThis.fetch;
@@ -205,4 +250,237 @@ test("CSV export returns stored rows with valid token", async () => {
   assert.match(text, /created_at,email,name,country,phone,instagram,sms_consent,referrer,my_code,source/);
   assert.match(text, /a@b\.com/);
   assert.match(text, /"A,B"/); // comma-containing cell is quoted
+});
+
+// ── Referral click tracking (GET /r/<code>) ─────────────────────────────────
+
+function getRequest(path, { userAgent, cf } = {}) {
+  const headers = new Headers();
+  if (userAgent) headers.set("User-Agent", userAgent);
+  return {
+    method: "GET",
+    url: "https://grace-waitlist.workers.dev" + path,
+    headers,
+    cf: cf || {},
+  };
+}
+
+const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15";
+const ANDROID_UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36";
+const BOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+
+test("valid click logs to D1 and redirects to the waitlist page by default", async () => {
+  const env = makeEnv();
+  const ctx = makeCtx();
+  const res = await handleRequest(
+    getRequest("/r/abc12345?src=phone", { userAgent: IPHONE_UA }),
+    env,
+    ctx
+  );
+  await ctx.flush();
+  assert.equal(res.status, 302);
+  assert.equal(
+    res.headers.get("Location"),
+    "https://boginfactory.com/grace-waitlist.html?ref=abc12345&src=phone"
+  );
+  assert.equal(res.headers.get("Cache-Control"), "no-store");
+  assert.equal(env.DB.clicksInserted.length, 1);
+  const [, code, source, device, country] = env.DB.clicksInserted[0];
+  assert.equal(code, "abc12345");
+  assert.equal(source, "phone");
+  assert.equal(device, "ios");
+  assert.equal(country, "");
+});
+
+test("android and bot user agents classify correctly", async () => {
+  const env = makeEnv();
+  const ctx = makeCtx();
+  await handleRequest(getRequest("/r/abc12345", { userAgent: ANDROID_UA }), env, ctx);
+  await handleRequest(getRequest("/r/abc12345", { userAgent: BOT_UA }), env, ctx);
+  await ctx.flush();
+  assert.equal(env.DB.clicksInserted[0][3], "android");
+  assert.equal(env.DB.clicksInserted[1][3], "bot");
+});
+
+test("invalid referral code still redirects without logging a click", async () => {
+  const env = makeEnv();
+  const ctx = makeCtx();
+  const res = await handleRequest(getRequest("/r/AB"), env, ctx);
+  await ctx.flush();
+  assert.equal(res.status, 302);
+  assert.equal(env.DB.clicksInserted.length, 0);
+});
+
+test("REDIRECT_URL env var flips the destination to the App Store, verbatim", async () => {
+  const env = makeEnv({ REDIRECT_URL: "https://apps.apple.com/app/id123456789" });
+  const ctx = makeCtx();
+  const res = await handleRequest(
+    getRequest("/r/abc12345?src=watch", { userAgent: IPHONE_UA }),
+    env,
+    ctx
+  );
+  await ctx.flush();
+  assert.equal(res.headers.get("Location"), "https://apps.apple.com/app/id123456789");
+  assert.equal(env.DB.clicksInserted.length, 1); // click is still logged
+});
+
+test("bot clicks are logged in D1 but do not fire a PostHog event", async () => {
+  await withFetchStub(async (calls) => {
+    const env = makeEnv({ POSTHOG_API_KEY: "phc_test" });
+    const ctx = makeCtx();
+    await handleRequest(getRequest("/r/abc12345", { userAgent: BOT_UA }), env, ctx);
+    await ctx.flush();
+    assert.equal(env.DB.clicksInserted.length, 1);
+    assert.equal(env.DB.clicksInserted[0][3], "bot");
+    assert.equal(calls.length, 0);
+  });
+});
+
+test("PostHog capture fires with correct event/properties on a referral click", async () => {
+  await withFetchStub(async (calls) => {
+    const env = makeEnv({ POSTHOG_API_KEY: "phc_test" });
+    const ctx = makeCtx();
+    await handleRequest(
+      getRequest("/r/abc12345?src=phone", { userAgent: IPHONE_UA, cf: { country: "US" } }),
+      env,
+      ctx
+    );
+    await ctx.flush();
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /eu\.i\.posthog\.com/);
+    const sent = JSON.parse(calls[0].opts.body);
+    assert.equal(sent.api_key, "phc_test");
+    assert.equal(sent.event, "referral_link_clicked");
+    assert.equal(sent.distinct_id, "ref:abc12345");
+    assert.equal(sent.properties.ref_code, "abc12345");
+    assert.equal(sent.properties.source, "phone");
+    assert.equal(sent.properties.device, "ios");
+    assert.equal(sent.properties.country, "US");
+    assert.equal(sent.properties.destination, "waitlist");
+    assert.equal(sent.properties.$process_person_profile, false);
+  });
+});
+
+test("missing POSTHOG_API_KEY skips capture without affecting the redirect", async () => {
+  await withFetchStub(async (calls) => {
+    const env = makeEnv(); // no POSTHOG_API_KEY
+    const ctx = makeCtx();
+    const res = await handleRequest(getRequest("/r/abc12345", { userAgent: IPHONE_UA }), env, ctx);
+    await ctx.flush();
+    assert.equal(res.status, 302);
+    assert.equal(calls.length, 0);
+  });
+});
+
+test("PostHog capture failure never affects the redirect response", async () => {
+  const env = makeEnv({ POSTHOG_API_KEY: "phc_test" });
+  const ctx = makeCtx();
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("network down");
+  };
+  try {
+    const res = await handleRequest(getRequest("/r/abc12345", { userAgent: IPHONE_UA }), env, ctx);
+    assert.equal(res.status, 302);
+    await ctx.flush(); // must not throw
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("D1 insert failure for a click still redirects", async () => {
+  const env = makeEnv();
+  env.DB = {
+    prepare() {
+      return {
+        bind() {
+          return this;
+        },
+        async run() {
+          throw new Error("D1 unavailable");
+        },
+      };
+    },
+  };
+  const ctx = makeCtx();
+  const res = await handleRequest(getRequest("/r/abc12345", { userAgent: IPHONE_UA }), env, ctx);
+  await ctx.flush(); // must not throw
+  assert.equal(res.status, 302);
+});
+
+test("export-clicks.csv requires a valid token", async () => {
+  const env = makeEnv();
+  const res = await handleRequest(
+    new Request("https://x/export-clicks.csv?token=wrong", { method: "GET" }),
+    env
+  );
+  assert.equal(res.status, 401);
+});
+
+test("export-clicks.csv returns stored click rows with valid token", async () => {
+  const env = makeEnv();
+  const ctx = makeCtx();
+  await handleRequest(getRequest("/r/abc12345?src=phone", { userAgent: IPHONE_UA }), env, ctx);
+  await ctx.flush();
+  const res = await handleRequest(
+    new Request("https://x/export-clicks.csv?token=secret-token", { method: "GET" }),
+    env
+  );
+  assert.equal(res.status, 200);
+  const text = await res.text();
+  assert.match(text, /created_at,code,source,device,country/);
+  assert.match(text, /abc12345,phone,ios/);
+});
+
+// ── PostHog capture on signup (POST /) ──────────────────────────────────────
+
+test("waitlist_signup capture fires with no PII in properties", async () => {
+  await withFetchStub(async (calls) => {
+    const env = makeEnv({ POSTHOG_API_KEY: "phc_test" });
+    const ctx = makeCtx();
+    await handleRequest(
+      postRequest({
+        email: "friend@example.com",
+        name: "Pat",
+        referrer: "abc123xy",
+        myCode: "newcode1",
+        source: "watch",
+      }),
+      env,
+      ctx
+    );
+    await ctx.flush();
+    // confirmation + admin emails (2) + PostHog capture (1)
+    assert.equal(calls.length, 3);
+    const posthogCall = calls.find((c) => /posthog/.test(c.url));
+    const sent = JSON.parse(posthogCall.opts.body);
+    assert.equal(sent.event, "waitlist_signup");
+    assert.equal(sent.distinct_id, "ref:abc123xy");
+    assert.equal(sent.properties.ref_code, "abc123xy");
+    assert.equal(sent.properties.new_code, "newcode1");
+    assert.equal(sent.properties.source, "watch");
+    assert.equal(sent.properties.has_email, true);
+    assert.equal(sent.properties.$process_person_profile, false);
+    // no PII leaks into the event payload
+    const keys = Object.keys(sent.properties);
+    for (const pii of ["email", "name", "phone", "instagram", "country"]) {
+      assert.ok(!keys.includes(pii), `properties must not include "${pii}"`);
+    }
+    assert.doesNotMatch(JSON.stringify(sent.properties), /friend@example\.com/);
+    assert.doesNotMatch(JSON.stringify(sent.properties), /Pat/);
+  });
+});
+
+test("waitlist_signup capture uses 'organic' distinct_id when there is no referrer", async () => {
+  await withFetchStub(async (calls) => {
+    const env = makeEnv({ POSTHOG_API_KEY: "phc_test" });
+    const ctx = makeCtx();
+    await handleRequest(postRequest({ name: "Anon" }), env, ctx);
+    await ctx.flush();
+    const posthogCall = calls.find((c) => /posthog/.test(c.url));
+    const sent = JSON.parse(posthogCall.opts.body);
+    assert.equal(sent.distinct_id, "ref:organic");
+    assert.equal(sent.properties.ref_code, "");
+    assert.equal(sent.properties.has_email, false);
+  });
 });
