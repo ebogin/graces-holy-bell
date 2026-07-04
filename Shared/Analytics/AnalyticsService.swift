@@ -142,6 +142,14 @@ final class AnalyticsService {
         stateStore.closedSessionStart = sessionStart
     }
 
+    // MARK: - Persistence health
+
+    /// The prayer store failed at `stage` (migration recovery, load, or save).
+    /// Coarse label only — no paths or error strings.
+    func recordPersistenceError(stage: PersistenceErrorStage, at timestamp: Date = Date()) {
+        transport.capture(factory().persistenceError(stage: stage, at: timestamp))
+    }
+
     // MARK: - Helpers
 
     private static func daysBetween(_ from: Date, _ to: Date, calendar: Calendar = .current) -> Int {

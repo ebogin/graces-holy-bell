@@ -25,6 +25,9 @@ struct ContentView: View {
     // Retains the notification-tap delegate for the app's lifetime (analytics only).
     @State private var notificationForwarder: NotificationEventForwarder?
     var connectivityManager: PhoneConnectivityManager?
+    /// Set by the App when the store failed to open/migrate and was recreated
+    /// from scratch — reported to analytics once the service is built.
+    var storeWasRecovered: Bool = false
 
     var body: some View {
         Group {
@@ -118,6 +121,10 @@ struct ContentView: View {
                 }
                 UNUserNotificationCenter.current().delegate = forwarder
                 notificationForwarder = forwarder
+
+                if storeWasRecovered {
+                    analytics.recordPersistenceError(stage: .migrationRecovery)
+                }
 
                 analytics.recordLaunch(
                     currentSessionStart: vm.sessionStartedAt,
