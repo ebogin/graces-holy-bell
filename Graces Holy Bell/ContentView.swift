@@ -19,6 +19,8 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: SessionViewModel?
     @State private var amenAlarmSettings = AmenAlarmSettings()
+    @State private var liveActivitySettings = LiveActivitySettings()
+    @State private var liveActivityController = PrayerLiveActivityController()
     // Analytics consent — applies the geo-gated default on first launch. Single
     // source of truth behind the Settings toggle and the EU opt-in banner.
     @State private var consent = AnalyticsConsent()
@@ -37,6 +39,7 @@ struct ContentView: View {
                     IdleView(
                         viewModel: viewModel,
                         amenAlarmSettings: amenAlarmSettings,
+                        liveActivitySettings: liveActivitySettings,
                         consent: consent,
                         isWatchAvailable: viewModel.isWatchAvailable,
                         onForceSync: { connectivityManager?.forceSync() }
@@ -45,6 +48,7 @@ struct ContentView: View {
                     ActiveSessionView(
                         viewModel: viewModel,
                         amenAlarmSettings: amenAlarmSettings,
+                        liveActivitySettings: liveActivitySettings,
                         consent: consent,
                         isWatchAvailable: viewModel.isWatchAvailable,
                         onForceSync: { connectivityManager?.forceSync() }
@@ -68,13 +72,24 @@ struct ContentView: View {
                 #endif
                 let vm = SessionViewModel(modelContext: modelContext)
                 vm.amenAlarmSettings = amenAlarmSettings
-                // Wire up Watch connectivity: ViewModel notifies manager after each mutation
+                // Wire up Watch connectivity and the Live Activity: the ViewModel
+                // notifies after each mutation (prayer, clear, Watch merge).
                 if let connectivityManager {
                     connectivityManager.amenAlarmSettings = amenAlarmSettings
-                    vm.onStateChanged = { [weak connectivityManager] in
-                        connectivityManager?.sendSnapshotToWatch()
-                    }
                     connectivityManager.configure(with: vm)
+                }
+                vm.onStateChanged = { [weak connectivityManager, weak vm, liveActivityController, liveActivitySettings] in
+                    connectivityManager?.sendSnapshotToWatch()
+                    if let vm {
+                        liveActivityController.sync(with: vm, enabled: liveActivitySettings.enabled)
+                    }
+                }
+                // Reconcile any activity left over from a previous run.
+                liveActivityController.sync(with: vm, enabled: liveActivitySettings.enabled)
+                // Toggling the setting starts/ends the activity immediately.
+                liveActivitySettings.onChange = { [weak vm, liveActivityController, liveActivitySettings] in
+                    guard let vm else { return }
+                    liveActivityController.sync(with: vm, enabled: liveActivitySettings.enabled)
                 }
                 // Analytics: resolve/persist the canonical install_id.
                 let installID = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
@@ -142,6 +157,11 @@ struct ContentView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
                 connectivityManager?.sendSnapshotToWatch()
+                // Catch up the Live Activity — a start attempted while
+                // backgrounded (e.g. a Watch merge) is rejected by the system.
+                if let viewModel {
+                    liveActivityController.sync(with: viewModel, enabled: liveActivitySettings.enabled)
+                }
                 if oldPhase == .background {
                     viewModel?.analytics?.recordAppOpened()
                 }
