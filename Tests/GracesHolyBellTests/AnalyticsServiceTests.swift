@@ -157,7 +157,7 @@ final class AnalyticsServiceTests: XCTestCase {
         XCTAssertEqual(spy.captured.map(\.name), ["session_ended"])
         XCTAssertEqual(spy.captured.first?.properties["prayers_in_session"], .int(3))
         XCTAssertEqual(spy.captured.first?.properties["session_value"], .string("high"))
-        XCTAssertEqual(spy.captured.first?.properties["session_duration_bucket"], .string("1h–1h15"))
+        XCTAssertEqual(spy.captured.first?.properties["session_duration_bucket"], .string("1–1.5h"))
         XCTAssertEqual(store.closedSessionStart, start)
 
         // Second close of the same session is suppressed.

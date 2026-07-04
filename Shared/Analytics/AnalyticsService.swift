@@ -109,6 +109,7 @@ final class AnalyticsService {
             entryPoint: .icon,
             timeOfDay: TimeOfDayBucket.label(for: start),
             dayOfWeek: DayOfWeek.label(for: start),
+            localDate: LocalSessionDate.label(for: start),
             at: start
         ))
         transport.capture(f.prayerLogged(prayerIndexInSession: 1, sinceLastPrayerBucket: nil, at: start))
@@ -134,7 +135,7 @@ final class AnalyticsService {
         transport.capture(factory().sessionEnded(
             prayersInSession: prayerTimestamps.count,
             sessionValue: SessionValueClassifier.classify(prayerTimestamps: sorted),
-            sessionDurationBucket: DurationBucket.label(for: duration),
+            sessionDurationBucket: SessionDurationBucket.label(for: duration),
             timeOfDay: TimeOfDayBucket.label(for: sessionStart),
             dayOfWeek: DayOfWeek.label(for: sessionStart),
             at: end

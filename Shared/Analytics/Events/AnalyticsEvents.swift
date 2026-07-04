@@ -64,11 +64,12 @@ struct AnalyticsEventFactory {
 
     // MARK: - Session
 
-    func sessionStarted(entryPoint: EntryPoint, timeOfDay: String, dayOfWeek: String, at timestamp: Date = Date()) -> AnalyticsEvent {
+    func sessionStarted(entryPoint: EntryPoint, timeOfDay: String, dayOfWeek: String, localDate: String, at timestamp: Date = Date()) -> AnalyticsEvent {
         event("session_started", [
             "entry_point": .string(entryPoint.rawValue),
             "time_of_day_bucket": .string(timeOfDay),
-            "day_of_week": .string(dayOfWeek)
+            "day_of_week": .string(dayOfWeek),
+            "session_local_date": .string(localDate)
         ], at: timestamp)
     }
 

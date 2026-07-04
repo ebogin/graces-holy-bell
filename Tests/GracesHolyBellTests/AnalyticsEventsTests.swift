@@ -34,11 +34,12 @@ final class AnalyticsEventsTests: XCTestCase {
     }
 
     func test_sessionStarted() {
-        let event = factory().sessionStarted(entryPoint: .widget, timeOfDay: "morning", dayOfWeek: "friday")
+        let event = factory().sessionStarted(entryPoint: .widget, timeOfDay: "morning", dayOfWeek: "friday", localDate: "2026-07-03")
         XCTAssertEqual(event.name, "session_started")
         XCTAssertEqual(event.properties["entry_point"], .string("widget"))
         XCTAssertEqual(event.properties["time_of_day_bucket"], .string("morning"))
         XCTAssertEqual(event.properties["day_of_week"], .string("friday"))
+        XCTAssertEqual(event.properties["session_local_date"], .string("2026-07-03"))
     }
 
     func test_prayerLogged() {
@@ -104,7 +105,7 @@ final class AnalyticsEventsTests: XCTestCase {
 
     func test_captureTimestamp_isPreserved() {
         let t = Date(timeIntervalSince1970: 1_650_000_000)
-        let event = factory().sessionStarted(entryPoint: .icon, timeOfDay: "morning", dayOfWeek: "monday", at: t)
+        let event = factory().sessionStarted(entryPoint: .icon, timeOfDay: "morning", dayOfWeek: "monday", localDate: "2026-07-06", at: t)
         XCTAssertEqual(event.captureTimestamp, t)
     }
 }
