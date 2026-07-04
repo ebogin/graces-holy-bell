@@ -11,6 +11,14 @@ enum AbandonReason: String {
     case forgottenTimer = "forgotten_timer"
 }
 
+/// Where persistence failed (`persistence_error` `stage`). Labels only — no
+/// paths, no error strings.
+enum PersistenceErrorStage: String {
+    case migrationRecovery = "migration_recovery"
+    case load
+    case save
+}
+
 /// Pure factory for the §2 event taxonomy.
 ///
 /// Each method assembles `name` + event-specific properties on top of the
@@ -115,5 +123,11 @@ struct AnalyticsEventFactory {
 
     func prayerLogViewed(at timestamp: Date = Date()) -> AnalyticsEvent {
         event("prayer_log_viewed", at: timestamp)
+    }
+
+    // MARK: - Persistence health
+
+    func persistenceError(stage: PersistenceErrorStage, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("persistence_error", ["stage": .string(stage.rawValue)], at: timestamp)
     }
 }

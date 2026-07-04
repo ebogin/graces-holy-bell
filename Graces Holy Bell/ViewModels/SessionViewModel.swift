@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Observation
+import os
 
 /// Central business logic for Grace's Holy Bell.
 ///
@@ -25,7 +26,16 @@ final class SessionViewModel {
     var amenAlarmSettings: AmenAlarmSettings?
 
     /// Optional analytics sink. When nil the app behaves exactly as before.
-    var analytics: AnalyticsService?
+    /// A load failure that happened during init (before analytics existed) is
+    /// reported as soon as the sink is attached.
+    var analytics: AnalyticsService? {
+        didSet {
+            if pendingLoadFailureReport {
+                pendingLoadFailureReport = false
+                analytics?.recordPersistenceError(stage: .load)
+            }
+        }
+    }
 
     /// Manages phone-side UNUserNotification scheduling for the Amen Alarm.
     let amenAlarmManager = AmenAlarmManager()
@@ -217,10 +227,26 @@ final class SessionViewModel {
 
     private static let lastClearedAtKey = "prayer.lastClearedAt"
 
+    private let logger = Logger(subsystem: "Boginfactory.Graces-Holy-Bell", category: "persistence")
+
+    /// Set when load() failed before the analytics sink was attached.
+    private var pendingLoadFailureReport = false
+
+    /// Report a dead store to analytics at most once per run — save() fires on
+    /// every mutation and would otherwise spam.
+    private var hasReportedSaveFailure = false
+
     private func load() {
         lastClearedAt = UserDefaults.standard.object(forKey: Self.lastClearedAtKey) as? Date
         let descriptor = FetchDescriptor<PrayerEntry>(sortBy: [SortDescriptor(\.timestamp)])
-        allEvents = (try? modelContext.fetch(descriptor)) ?? []
+        do {
+            allEvents = try modelContext.fetch(descriptor)
+        } catch {
+            // Never silent: the 1.42 data-loss bug hid behind a swallowed error here.
+            logger.fault("Prayer store fetch failed: \(error, privacy: .public)")
+            allEvents = []
+            pendingLoadFailureReport = true
+        }
         refreshEntries()
     }
 
@@ -255,7 +281,16 @@ final class SessionViewModel {
     }
 
     private func save() {
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            // Never silent: the 1.42 data-loss bug hid behind a swallowed error here.
+            logger.fault("Prayer store save failed: \(error, privacy: .public)")
+            if !hasReportedSaveFailure {
+                hasReportedSaveFailure = true
+                analytics?.recordPersistenceError(stage: .save)
+            }
+        }
     }
 
     private func scheduleAmenAlarmIfNeeded() {
