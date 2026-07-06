@@ -35,13 +35,7 @@ final class PrayerLiveActivityController {
             sessionStartedAt: sessionStartedAt,
             prayerCount: viewModel.sortedEntries.count
         )
-        // The dimmed Lock Screen timer fakes its leading zeros with a static
-        // prefix that must change at 10 min / 1 h / 10 h of elapsed time. A
-        // stale re-render at the next boundary flips it without an app update.
-        let staleDate = [600.0, 3600, 36_000]
-            .map { lastPrayerAt.addingTimeInterval($0 + 1) }
-            .first { $0 > .now }
-        let content = ActivityContent(state: state, staleDate: staleDate)
+        let content = ActivityContent(state: state, staleDate: nil)
 
         if let activity {
             Task { await activity.update(content) }

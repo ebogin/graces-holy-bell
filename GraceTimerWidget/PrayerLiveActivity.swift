@@ -122,9 +122,10 @@ private struct PrayerLockScreenView: View {
 /// `padHourToLength`) over a `durationOffset` time data source.
 ///
 /// The dimmed (always-on) render can't tick that data source and shows a
-/// "__:__:__" placeholder instead, so that pass uses the classic
-/// `Text(timerInterval:)` — which the system does keep ticking while dimmed —
-/// dressed up with a static zero prefix to fake the full HH:MM:SS shape.
+/// "__:__:__" placeholder instead, so that pass falls back to the classic
+/// `Text(timerInterval:)`, which the system keeps ticking while dimmed. It
+/// uses the system's adaptive format (4:32, then 1:04:32 past the hour) —
+/// always accurate, just without the zero-padded hours.
 private struct TimerText: View {
     let since: Date
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
@@ -132,7 +133,7 @@ private struct TimerText: View {
     var body: some View {
         Group {
             if isLuminanceReduced {
-                dimmedTimer
+                Text(timerInterval: since...Date.distantFuture, countsDown: false)
             } else {
                 Text(
                     .durationOffset(to: since),
@@ -144,20 +145,6 @@ private struct TimerText: View {
         .multilineTextAlignment(.center)
         .lineLimit(1)
         .minimumScaleFactor(0.5)
-    }
-
-    /// `Text(timerInterval:)` drops leading zero fields (0:32 → 4:32 → 14:32 →
-    /// 1:04:32), so the missing zeros are a static prefix chosen for the
-    /// elapsed time at render. The controller schedules a stale re-render at
-    /// the next boundary so the prefix flips on time.
-    private var dimmedTimer: Text {
-        let prefix: String = switch Date.now.timeIntervalSince(since) {
-        case ..<600:    "00:0"  // live part shows M:SS
-        case ..<3600:   "00:"   // live part shows MM:SS
-        case ..<36_000: "0"     // live part shows H:MM:SS
-        default:        ""      // live part shows HH:MM:SS
-        }
-        return Text("\(prefix)\(Text(timerInterval: since...Date.distantFuture, countsDown: false))")
     }
 }
 
