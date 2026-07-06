@@ -21,7 +21,7 @@ struct PrayerLiveActivityWidget: Widget {
             DynamicIsland {
                 // Expanded (long-press the island)
                 DynamicIslandExpandedRegion(.leading) {
-                    BellGlyph(size: 30)
+                    BellGlyph(size: 22, color: .lcdThumbText)
                         .padding(.leading, 6)
                         .padding(.top, 8)
                 }
@@ -43,14 +43,14 @@ struct PrayerLiveActivityWidget: Widget {
                     }
                 }
             } compactLeading: {
-                BellGlyph(size: 20)
+                BellGlyph(size: 14, color: .lcdThumbText)
             } compactTrailing: {
                 TimerText(since: context.state.lastPrayerAt)
                     .font(.pixelFont(9))
                     .foregroundStyle(Color.lcdThumbText)
                     .frame(maxWidth: 74)
             } minimal: {
-                BellGlyph(size: 18)
+                BellGlyph(size: 13, color: .lcdThumbText)
             }
             .keylineTint(Color.lcdSlider)
         }
@@ -91,7 +91,7 @@ private struct PrayerLockScreenView: View {
                         .font(.pixelFont(9))
                         .foregroundStyle(Color.lcdTitle)
                     Spacer()
-                    BellGlyph(size: 20)
+                    BellGlyph(size: 14, color: .lcdDark)
                 }
                 TimerText(since: state.lastPrayerAt)
                     .font(.pixelFont(26))
@@ -151,16 +151,15 @@ private struct TimerText: View {
     }
 }
 
-/// The 🙏 emoji with its shading remapped onto the LCD palette — pale-green
-/// hands, mid-green creases, dark sleeves — so it reads as the actual emoji
-/// on both the dark island and the pale Lock Screen.
+/// Bell rendered as an SF Symbol tinted to the LCD palette — reads cleanly at
+/// Dynamic Island sizes where the pixel font would smear.
 private struct BellGlyph: View {
     let size: CGFloat
+    let color: Color
 
     var body: some View {
-        Image("PrayingHands")
-            .resizable()
-            .scaledToFit()
-            .frame(width: size, height: size)
+        Image(systemName: "bell.fill")
+            .font(.system(size: size, weight: .bold))
+            .foregroundStyle(color)
     }
 }
