@@ -15,14 +15,13 @@ struct PrayerDetailSheet: View {
     @State private var editedTime: Date
     @State private var intentionText: String
     @State private var showDeleteConfirmation = false
+    @State private var showTimeWheel = false
     @FocusState private var intentionFocused: Bool
 
-    /// Which system picker is expanded below the pills (nil = collapsed).
-    private enum ActivePicker { case date, time }
-    @State private var activePicker: ActivePicker?
+    private let calendar = Calendar.current
 
-    /// Valid window for a prayer's time: after the clear epoch (earlier would
-    /// prune the event) and never in the future.
+    /// Valid instant window for a prayer's time: after the clear epoch (earlier
+    /// would prune the event) and never in the future.
     private let timeRange: ClosedRange<Date>
 
     init(viewModel: SessionViewModel, entry: PrayerEntry) {
@@ -55,6 +54,39 @@ struct PrayerDetailSheet: View {
         timeChanged || intentionChanged
     }
 
+    // MARK: - Date bounds (±1 calendar day from the original prayer day)
+
+    private var originalDay: Date { calendar.startOfDay(for: entry.timestamp) }
+    private var minAllowedDay: Date { calendar.date(byAdding: .day, value: -1, to: originalDay) ?? originalDay }
+    private var maxAllowedDay: Date { calendar.date(byAdding: .day, value: 1, to: originalDay) ?? originalDay }
+
+    /// The previous day is reachable only if it stays within one day of the
+    /// original AND still holds at least one valid instant (>= the clear epoch).
+    private var canGoBackDay: Bool {
+        guard let prev = calendar.date(byAdding: .day, value: -1, to: editedTime) else { return false }
+        let prevDay = calendar.startOfDay(for: prev)
+        guard prevDay >= minAllowedDay else { return false }
+        let prevDayEnd = (calendar.date(byAdding: .day, value: 1, to: prevDay) ?? prevDay)
+            .addingTimeInterval(-1)
+        return prevDayEnd >= timeRange.lowerBound
+    }
+
+    /// The next day is reachable only if it stays within one day of the original
+    /// AND has already begun (its start isn't in the future).
+    private var canGoForwardDay: Bool {
+        guard let next = calendar.date(byAdding: .day, value: 1, to: editedTime) else { return false }
+        let nextDay = calendar.startOfDay(for: next)
+        guard nextDay <= maxAllowedDay else { return false }
+        return nextDay <= timeRange.upperBound
+    }
+
+    /// Shifts the whole date by ±1 day, keeping the time of day, then clamps
+    /// into the valid window (so a boundary day can't land in the future/epoch).
+    private func shiftDay(by days: Int) {
+        guard let candidate = calendar.date(byAdding: .day, value: days, to: editedTime) else { return }
+        editedTime = min(max(candidate, timeRange.lowerBound), timeRange.upperBound)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
 
@@ -70,57 +102,68 @@ struct PrayerDetailSheet: View {
                 .foregroundStyle(Color.lcdMid)
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            // Scrolls so the expanded pickers + SAVE stay reachable at
-            // medium detent.
+            // Scrolls so the expanded time wheel + SAVE stay reachable at
+            // the medium detent.
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
 
-                    // ── Time ─────────────────────────────────────────
+                    // ── Date (±1 day arrows) ─────────────────────────
+                    Text("DATE")
+                        .font(.pixelFont(7, relativeTo: .caption2))
+                        .foregroundStyle(Color.lcdMid)
+
+                    HStack(spacing: 8) {
+                        dateArrow(">", reversed: true, enabled: canGoBackDay) { shiftDay(by: -1) }
+                            .accessibilityIdentifier("prayer-date-back")
+
+                        Text(Self.editDateFormatter.string(from: editedTime).uppercased())
+                            .font(.pixelFont(10))
+                            .foregroundStyle(Color.lcdDark)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity)
+
+                        dateArrow(">", reversed: false, enabled: canGoForwardDay) { shiftDay(by: 1) }
+                            .accessibilityIdentifier("prayer-date-forward")
+                    }
+
+                    // ── Time (pill toggles the themed wheel) ─────────
                     Text("TIME")
                         .font(.pixelFont(7, relativeTo: .caption2))
                         .foregroundStyle(Color.lcdMid)
 
-                    // App-styled date + time buttons. Tapping toggles the
-                    // system picker (calendar / wheel) inline below.
-                    HStack(spacing: 10) {
-                        pickerPill(
-                            label: Self.editDateFormatter.string(from: editedTime).uppercased(),
-                            picker: .date,
-                            identifier: "prayer-date-pill"
+                    Button {
+                        intentionFocused = false
+                        withAnimation(.easeInOut(duration: 0.2)) { showTimeWheel.toggle() }
+                    } label: {
+                        HStack {
+                            Text(TimeFormatter.wallClockString(from: editedTime))
+                                .font(.pixelFont(10))
+                                .foregroundStyle(Color.lcdThumbText)
+                            Spacer()
+                            Text(">")
+                                .font(.pixelFont(9))
+                                .foregroundStyle(Color.lcdThumbText)
+                                .rotationEffect(.degrees(showTimeWheel ? 90 : 0))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(showTimeWheel ? Color.lcdProgress : Color.lcdSlider)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.lcdDark, lineWidth: showTimeWheel ? 2.5 : 1.5)
                         )
-                        pickerPill(
-                            label: TimeFormatter.wallClockString(from: editedTime),
-                            picker: .time,
-                            identifier: "prayer-time-pill"
-                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("prayer-time-pill")
 
-                    // Expanded system picker for the active pill.
-                    if activePicker == .date {
-                        DatePicker(
-                            "",
-                            selection: $editedTime,
-                            in: timeRange,
-                            displayedComponents: .date
-                        )
-                        .datePickerStyle(.graphical)
-                        .labelsHidden()
-                        .tint(Color.lcdDark)
-                        .padding(6)
-                        .pixelBorder()
-                        .accessibilityIdentifier("prayer-date-picker")
-                    } else if activePicker == .time {
-                        DatePicker(
-                            "",
-                            selection: $editedTime,
-                            in: timeRange,
-                            displayedComponents: .hourAndMinute
-                        )
-                        .datePickerStyle(.wheel)
-                        .labelsHidden()
-                        .frame(maxWidth: .infinity)
-                        .pixelBorder()
-                        .accessibilityIdentifier("prayer-time-picker")
+                    if showTimeWheel {
+                        ThemedTimeWheel(date: $editedTime, bounds: timeRange)
+                            .padding(.vertical, 4)
+                            .frame(maxWidth: .infinity)
+                            .pixelBorder()
+                            .accessibilityIdentifier("prayer-time-picker")
                     }
 
                     // ── Intention ────────────────────────────────────
@@ -192,45 +235,37 @@ struct PrayerDetailSheet: View {
         }
     }
 
-    /// "JUL 5, 2026" for the date pill.
+    /// "SAT, JUL 5" for the date row. Weekday + short month/day; the year is
+    /// omitted since edits are constrained to ±1 day.
     private static let editDateFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "MMM d, yyyy"
+        f.dateFormat = "EEE, MMM d"
         return f
     }()
 
-    /// A Duration-dropdown-styled pill button. Tapping toggles the matching
-    /// system picker (graphical calendar / time wheel) inline below the pills.
+    /// A themed pixel-font arrow button; the right chevron is mirrored for "back".
     @ViewBuilder
-    private func pickerPill(
-        label: String,
-        picker: ActivePicker,
-        identifier: String
+    private func dateArrow(
+        _ glyph: String,
+        reversed: Bool,
+        enabled: Bool,
+        action: @escaping () -> Void
     ) -> some View {
-        let isActive = activePicker == picker
-        Button {
-            intentionFocused = false
-            withAnimation(.easeInOut(duration: 0.2)) {
-                activePicker = isActive ? nil : picker
-            }
-        } label: {
-            Text(label)
-                .font(.pixelFont(9))
-                .foregroundStyle(Color.lcdThumbText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity)
-                .background(isActive ? Color.lcdProgress : Color.lcdSlider)
+        Button(action: action) {
+            Text(glyph)
+                .font(.pixelFont(12))
+                .foregroundStyle(enabled ? Color.lcdThumbText : Color.lcdMid.opacity(0.35))
+                .scaleEffect(x: reversed ? -1 : 1, y: 1)
+                .frame(width: 46, height: 40)
+                .background(enabled ? Color.lcdSlider : Color.lcdSlider.opacity(0.25))
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color.lcdDark, lineWidth: isActive ? 2.5 : 1.5)
+                        .stroke(enabled ? Color.lcdDark : Color.lcdMid.opacity(0.35), lineWidth: 1.5)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier(identifier)
+        .disabled(!enabled)
     }
 
     private func applyChanges() {
@@ -244,3 +279,92 @@ struct PrayerDetailSheet: View {
     }
 }
 
+/// Hour / minute / AM-PM wheel built from SwiftUI Pickers so the pixel font
+/// applies — the system `UIDatePicker` wheel can't be font-themed. Selections
+/// are clamped into `bounds` (keeps the time out of the future / pre-epoch).
+private struct ThemedTimeWheel: View {
+
+    @Binding var date: Date
+    let bounds: ClosedRange<Date>
+
+    private let calendar = Calendar.current
+
+    var body: some View {
+        HStack(spacing: 2) {
+            wheel(values: Array(1...12), selection: hourBinding) { "\($0)" }
+                .frame(width: 54)
+
+            Text(":")
+                .font(.pixelFont(14))
+                .foregroundStyle(Color.lcdDark)
+
+            wheel(values: Array(0...59), selection: minuteBinding) { String(format: "%02d", $0) }
+                .frame(width: 62)
+
+            wheel(values: [0, 1], selection: ampmBinding) { $0 == 0 ? "AM" : "PM" }
+                .frame(width: 62)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 140)
+    }
+
+    private func wheel(
+        values: [Int],
+        selection: Binding<Int>,
+        label: @escaping (Int) -> String
+    ) -> some View {
+        Picker("", selection: selection) {
+            ForEach(values, id: \.self) { value in
+                Text(label(value))
+                    .font(.pixelFont(12))
+                    .foregroundStyle(Color.lcdDark)
+                    .tag(value)
+            }
+        }
+        .pickerStyle(.wheel)
+        .labelsHidden()
+    }
+
+    // MARK: - Component bindings (compose + clamp back into `date`)
+
+    private var hourBinding: Binding<Int> {
+        Binding(
+            get: {
+                let h = calendar.component(.hour, from: date) % 12
+                return h == 0 ? 12 : h
+            },
+            set: { setTime(hour12: $0, minute: nil, pm: nil) }
+        )
+    }
+
+    private var minuteBinding: Binding<Int> {
+        Binding(
+            get: { calendar.component(.minute, from: date) },
+            set: { setTime(hour12: nil, minute: $0, pm: nil) }
+        )
+    }
+
+    private var ampmBinding: Binding<Int> {
+        Binding(
+            get: { calendar.component(.hour, from: date) >= 12 ? 1 : 0 },
+            set: { setTime(hour12: nil, minute: nil, pm: $0 == 1) }
+        )
+    }
+
+    private func setTime(hour12: Int?, minute: Int?, pm: Bool?) {
+        var c = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let curHour = c.hour ?? 0
+        let curPM = curHour >= 12
+        let curHour12: Int = { let h = curHour % 12; return h == 0 ? 12 : h }()
+
+        let h12 = hour12 ?? curHour12
+        let isPM = pm ?? curPM
+        var hour24 = h12 % 12
+        if isPM { hour24 += 12 }
+
+        c.hour = hour24
+        c.minute = minute ?? c.minute
+        guard let composed = calendar.date(from: c) else { return }
+        date = min(max(composed, bounds.lowerBound), bounds.upperBound)
+    }
+}
