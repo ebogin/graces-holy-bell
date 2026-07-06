@@ -17,6 +17,10 @@ struct PrayerDetailSheet: View {
     @State private var showDeleteConfirmation = false
     @FocusState private var intentionFocused: Bool
 
+    /// Which system picker is expanded below the pills (nil = collapsed).
+    private enum ActivePicker { case date, time }
+    @State private var activePicker: ActivePicker?
+
     /// Valid window for a prayer's time: after the clear epoch (earlier would
     /// prune the event) and never in the future.
     private let timeRange: ClosedRange<Date>
@@ -66,42 +70,74 @@ struct PrayerDetailSheet: View {
                 .foregroundStyle(Color.lcdMid)
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            // ── Time ─────────────────────────────────────────────────
-            Text("TIME")
-                .font(.pixelFont(7, relativeTo: .caption2))
-                .foregroundStyle(Color.lcdMid)
+            // Scrolls so the expanded pickers + SAVE stay reachable at
+            // medium detent.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
 
-            // App-styled date + time buttons (Duration-dropdown pill style).
-            // An invisible system DatePicker sits on top of each pill, so a
-            // tap opens the standard calendar / time wheel popovers.
-            HStack(spacing: 10) {
-                pickerPill(
-                    label: Self.editDateFormatter.string(from: editedTime).uppercased(),
-                    components: .date,
-                    identifier: "prayer-date-picker"
-                )
-                pickerPill(
-                    label: TimeFormatter.wallClockString(from: editedTime),
-                    components: .hourAndMinute,
-                    identifier: "prayer-time-picker"
-                )
+                    // ── Time ─────────────────────────────────────────
+                    Text("TIME")
+                        .font(.pixelFont(7, relativeTo: .caption2))
+                        .foregroundStyle(Color.lcdMid)
+
+                    // App-styled date + time buttons. Tapping toggles the
+                    // system picker (calendar / wheel) inline below.
+                    HStack(spacing: 10) {
+                        pickerPill(
+                            label: Self.editDateFormatter.string(from: editedTime).uppercased(),
+                            picker: .date,
+                            identifier: "prayer-date-pill"
+                        )
+                        pickerPill(
+                            label: TimeFormatter.wallClockString(from: editedTime),
+                            picker: .time,
+                            identifier: "prayer-time-pill"
+                        )
+                    }
+
+                    // Expanded system picker for the active pill.
+                    if activePicker == .date {
+                        DatePicker(
+                            "",
+                            selection: $editedTime,
+                            in: timeRange,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                        .tint(Color.lcdDark)
+                        .padding(6)
+                        .pixelBorder()
+                        .accessibilityIdentifier("prayer-date-picker")
+                    } else if activePicker == .time {
+                        DatePicker(
+                            "",
+                            selection: $editedTime,
+                            in: timeRange,
+                            displayedComponents: .hourAndMinute
+                        )
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .frame(maxWidth: .infinity)
+                        .pixelBorder()
+                        .accessibilityIdentifier("prayer-time-picker")
+                    }
+
+                    // ── Intention ────────────────────────────────────
+                    Text("INTENTION")
+                        .font(.pixelFont(7, relativeTo: .caption2))
+                        .foregroundStyle(Color.lcdMid)
+
+                    TextField("Add an intention...", text: $intentionText, axis: .vertical)
+                        .font(.pixelFont(9))
+                        .foregroundStyle(Color.lcdDark)
+                        .lineLimit(2...4)
+                        .focused($intentionFocused)
+                        .padding(10)
+                        .pixelBorder()
+                        .accessibilityIdentifier("prayer-intention-field")
+                }
             }
-
-            // ── Intention ────────────────────────────────────────────
-            Text("INTENTION")
-                .font(.pixelFont(7, relativeTo: .caption2))
-                .foregroundStyle(Color.lcdMid)
-
-            TextField("Add an intention...", text: $intentionText, axis: .vertical)
-                .font(.pixelFont(9))
-                .foregroundStyle(Color.lcdDark)
-                .lineLimit(2...4)
-                .focused($intentionFocused)
-                .padding(10)
-                .pixelBorder()
-                .accessibilityIdentifier("prayer-intention-field")
-
-            Spacer(minLength: 0)
 
             // ── Save ─────────────────────────────────────────────────
             Button {
@@ -163,37 +199,38 @@ struct PrayerDetailSheet: View {
         return f
     }()
 
-    /// A Duration-dropdown-styled pill showing the current value, with an
-    /// invisible compact DatePicker scaled to exactly fill it, so a tap
-    /// anywhere on the pill opens the system picker popover.
+    /// A Duration-dropdown-styled pill button. Tapping toggles the matching
+    /// system picker (graphical calendar / time wheel) inline below the pills.
     @ViewBuilder
     private func pickerPill(
         label: String,
-        components: DatePickerComponents,
+        picker: ActivePicker,
         identifier: String
     ) -> some View {
-        Text(label)
-            .font(.pixelFont(9))
-            .foregroundStyle(Color.lcdThumbText)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .background(Color.lcdSlider)
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color.lcdDark, lineWidth: 1.5)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .overlay(
-                FillingDatePicker(
-                    selection: $editedTime,
-                    range: timeRange,
-                    components: components
+        let isActive = activePicker == picker
+        Button {
+            intentionFocused = false
+            withAnimation(.easeInOut(duration: 0.2)) {
+                activePicker = isActive ? nil : picker
+            }
+        } label: {
+            Text(label)
+                .font(.pixelFont(9))
+                .foregroundStyle(Color.lcdThumbText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(isActive ? Color.lcdProgress : Color.lcdSlider)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.lcdDark, lineWidth: isActive ? 2.5 : 1.5)
                 )
-            )
-            .accessibilityIdentifier(identifier)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 
     private func applyChanges() {
@@ -207,42 +244,3 @@ struct PrayerDetailSheet: View {
     }
 }
 
-/// An invisible compact DatePicker that hit-tests across its entire container.
-///
-/// The compact picker's tap target is only its intrinsic label size, so laid
-/// over a wider pill it leaves dead zones. This measures both the container
-/// and the picker's natural size and scales the picker to fill exactly —
-/// scaleEffect scales hit-testing too, and an exact fit can't spill onto
-/// neighboring controls.
-private struct FillingDatePicker: View {
-
-    @Binding var selection: Date
-    let range: ClosedRange<Date>
-    let components: DatePickerComponents
-
-    @State private var naturalSize: CGSize = .zero
-
-    var body: some View {
-        GeometryReader { container in
-            DatePicker("", selection: $selection, in: range, displayedComponents: components)
-                .datePickerStyle(.compact)
-                .labelsHidden()
-                .tint(Color.lcdDark)
-                .background(
-                    GeometryReader { picker in
-                        Color.clear
-                            .onAppear { naturalSize = picker.size }
-                            .onChange(of: picker.size) { _, newSize in naturalSize = newSize }
-                    }
-                )
-                .scaleEffect(
-                    x: naturalSize.width > 0 ? container.size.width / naturalSize.width : 1,
-                    y: naturalSize.height > 0 ? container.size.height / naturalSize.height : 1
-                )
-                .position(x: container.size.width / 2, y: container.size.height / 2)
-                // Nearly invisible but still hit-testable — the pill below is
-                // the visible control, the system picker supplies the popover.
-                .opacity(0.011)
-        }
-    }
-}
