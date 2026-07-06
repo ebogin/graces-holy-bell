@@ -16,6 +16,7 @@ struct PrayerDetailSheet: View {
     @State private var intentionText: String
     @State private var showDeleteConfirmation = false
     @State private var showTimeWheel = false
+    @State private var detent: PresentationDetent = .medium
     @FocusState private var intentionFocused: Bool
 
     private let calendar = Calendar.current
@@ -102,83 +103,116 @@ struct PrayerDetailSheet: View {
                 .foregroundStyle(Color.lcdMid)
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            // Scrolls so the expanded time wheel + SAVE stay reachable at
-            // the medium detent.
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+            // Scrolls so the expanded time wheel + focused intention field
+            // stay reachable; the sheet also grows to .large on either.
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
 
-                    // ── Date (±1 day arrows) ─────────────────────────
-                    Text("DATE")
-                        .font(.pixelFont(7, relativeTo: .caption2))
-                        .foregroundStyle(Color.lcdMid)
+                        // ── Date + Time on one row ───────────────────
+                        HStack(alignment: .top, spacing: 12) {
 
-                    HStack(spacing: 8) {
-                        dateArrow(">", reversed: true, enabled: canGoBackDay) { shiftDay(by: -1) }
-                            .accessibilityIdentifier("prayer-date-back")
+                            // DATE (±1 day arrows)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("DATE")
+                                    .font(.pixelFont(7, relativeTo: .caption2))
+                                    .foregroundStyle(Color.lcdMid)
 
-                        Text(Self.editDateFormatter.string(from: editedTime).uppercased())
-                            .font(.pixelFont(10))
-                            .foregroundStyle(Color.lcdDark)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
+                                HStack(spacing: 6) {
+                                    dateArrow(">", reversed: true, enabled: canGoBackDay) { shiftDay(by: -1) }
+                                        .accessibilityIdentifier("prayer-date-back")
+
+                                    Text(Self.editDateFormatter.string(from: editedTime).uppercased())
+                                        .font(.pixelFont(9))
+                                        .foregroundStyle(Color.lcdDark)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.6)
+                                        .frame(maxWidth: .infinity)
+
+                                    dateArrow(">", reversed: false, enabled: canGoForwardDay) { shiftDay(by: 1) }
+                                        .accessibilityIdentifier("prayer-date-forward")
+                                }
+                            }
                             .frame(maxWidth: .infinity)
 
-                        dateArrow(">", reversed: false, enabled: canGoForwardDay) { shiftDay(by: 1) }
-                            .accessibilityIdentifier("prayer-date-forward")
-                    }
+                            // TIME (pill toggles the themed wheel)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("TIME")
+                                    .font(.pixelFont(7, relativeTo: .caption2))
+                                    .foregroundStyle(Color.lcdMid)
 
-                    // ── Time (pill toggles the themed wheel) ─────────
-                    Text("TIME")
-                        .font(.pixelFont(7, relativeTo: .caption2))
-                        .foregroundStyle(Color.lcdMid)
-
-                    Button {
-                        intentionFocused = false
-                        withAnimation(.easeInOut(duration: 0.2)) { showTimeWheel.toggle() }
-                    } label: {
-                        HStack {
-                            Text(TimeFormatter.wallClockString(from: editedTime))
-                                .font(.pixelFont(10))
-                                .foregroundStyle(Color.lcdThumbText)
-                            Spacer()
-                            Text(">")
-                                .font(.pixelFont(9))
-                                .foregroundStyle(Color.lcdThumbText)
-                                .rotationEffect(.degrees(showTimeWheel ? 90 : 0))
+                                Button {
+                                    intentionFocused = false
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        showTimeWheel.toggle()
+                                        if showTimeWheel { detent = .large }
+                                    }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Text(TimeFormatter.wallClockString(from: editedTime))
+                                            .font(.pixelFont(9))
+                                            .foregroundStyle(Color.lcdThumbText)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.7)
+                                        Text(">")
+                                            .font(.pixelFont(8))
+                                            .foregroundStyle(Color.lcdThumbText)
+                                            .rotationEffect(.degrees(showTimeWheel ? 90 : 0))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 11)
+                                    .background(showTimeWheel ? Color.lcdProgress : Color.lcdSlider)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(Color.lcdDark, lineWidth: showTimeWheel ? 2.5 : 1.5)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("prayer-time-pill")
+                            }
+                            .frame(width: 132)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(showTimeWheel ? Color.lcdProgress : Color.lcdSlider)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color.lcdDark, lineWidth: showTimeWheel ? 2.5 : 1.5)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("prayer-time-pill")
 
-                    if showTimeWheel {
-                        ThemedTimeWheel(date: $editedTime, bounds: timeRange)
-                            .padding(.vertical, 4)
-                            .frame(maxWidth: .infinity)
+                        // Themed time wheel (full width, below the row)
+                        if showTimeWheel {
+                            ThemedTimeWheel(date: $editedTime, bounds: timeRange)
+                                .padding(.vertical, 4)
+                                .frame(maxWidth: .infinity)
+                                .pixelBorder()
+                                .accessibilityIdentifier("prayer-time-picker")
+                        }
+
+                        // ── Intention ────────────────────────────────
+                        Text("INTENTION")
+                            .font(.pixelFont(7, relativeTo: .caption2))
+                            .foregroundStyle(Color.lcdMid)
+
+                        TextField("Add an intention...", text: $intentionText, axis: .vertical)
+                            .font(.pixelFont(9))
+                            .foregroundStyle(Color.lcdDark)
+                            .lineLimit(2...4)
+                            .focused($intentionFocused)
+                            .padding(10)
                             .pixelBorder()
-                            .accessibilityIdentifier("prayer-time-picker")
+                            .accessibilityIdentifier("prayer-intention-field")
+                            .id("intention")
+
+                        // Keeps the focused field clear of the keyboard as the
+                        // ScrollView scrolls its bottom anchor into view.
+                        Color.clear.frame(height: 1).id("bottom")
                     }
-
-                    // ── Intention ────────────────────────────────────
-                    Text("INTENTION")
-                        .font(.pixelFont(7, relativeTo: .caption2))
-                        .foregroundStyle(Color.lcdMid)
-
-                    TextField("Add an intention...", text: $intentionText, axis: .vertical)
-                        .font(.pixelFont(9))
-                        .foregroundStyle(Color.lcdDark)
-                        .lineLimit(2...4)
-                        .focused($intentionFocused)
-                        .padding(10)
-                        .pixelBorder()
-                        .accessibilityIdentifier("prayer-intention-field")
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: intentionFocused) { _, focused in
+                    guard focused else { return }
+                    detent = .large
+                    // Let the detent grow and the keyboard rise, then reveal
+                    // the intention field above the keyboard.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                    }
                 }
             }
 
@@ -217,7 +251,7 @@ struct PrayerDetailSheet: View {
             .padding(.bottom, 8)
         }
         .padding(.horizontal, 20)
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
         .presentationBackground(Color.lcdBackground)
         .presentationDragIndicator(.visible)
         .confirmationDialog(
