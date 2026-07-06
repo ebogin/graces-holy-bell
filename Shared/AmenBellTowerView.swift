@@ -1,19 +1,21 @@
 import SwiftUI
 
-/// The app icon's bell tower as pixel art, with a jerky 4-frame bell-clang
-/// animation — same style and frame rate (0.3s/frame) as the praying figure.
+/// The app icon's bell tower as multi-shade pixel art, with a jerky 4-frame
+/// bell-clang animation — same frame rate (0.3s/frame) as the praying figure.
+///
+/// The 42×108 pixel maps are rasterized offline from the 1024px app icon:
+/// each cell's ink coverage picks a green from the LCD palette ('#' lcdDark,
+/// 'M' lcdMid, 'P' lcdProgress, 'S' lcdSlider), so curved edges get natural
+/// pixel-art shading. The bell + hanger rod is a separate layer, sheared
+/// left/right on hit frames so the mouth strikes the arch legs; pixel
+/// sound-wave dashes appear beside the struck side.
 ///
 /// Frame cycle: bell left (hit) → center → bell right (hit) → center.
-/// On hit frames the bell mouth shears into the arch legs, the clapper is
-/// thrown toward the struck lip, and pixel sound-wave dashes appear beside
-/// the struck side of the belfry. The bell audio is synthesized to clang
-/// every two frames (0.6s), so playing it from the same `epoch` keeps the
-/// clangs in time with the bell hitting the sides.
+/// The bell audio clangs every two frames (0.6s), so playing it from the
+/// same `epoch` keeps the clangs in time with the bell hitting the sides.
 ///
-/// The 51×108 pixel grid is rasterized programmatically from the icon's
-/// geometry — video-game resolution, still chunky-crisp via device-pixel
-/// snapped cells. Compiled into both the iPhone and Watch targets (each
-/// defines the LCD palette colors used as defaults).
+/// Compiled into both the iPhone and Watch targets (each defines the LCD
+/// palette colors).
 struct AmenBellTowerView: View {
 
     /// Animates the bell when true; static centered bell when false.
@@ -21,8 +23,6 @@ struct AmenBellTowerView: View {
     /// Zero point of the frame clock — pass the alarm's fire date so the
     /// animation (and audio started from the same moment) stay in sync.
     var epoch: Date = Date(timeIntervalSinceReferenceDate: 0)
-    /// Tower ink color (the icon's near-black olive).
-    var tint: Color = .lcdDark
 
     /// Matches PrayingFigureView / WatchPrayingFigureView.
     static let frameDuration: TimeInterval = 0.3
@@ -46,139 +46,289 @@ struct AmenBellTowerView: View {
         .accessibilityHidden(true)
     }
 
-    // MARK: - Pixel grid
+    // MARK: - Pixel maps (generated from AppIcon-iOS-Light.png)
 
-    private static let columns = 51
+    private static let columns = 42
     private static let rows = 108
-    private static let cx = 25  // center column
+    /// The arch apex the bell hangs from — shear rotates rows around this.
+    private static let bellPivotRow = 23
 
-    private static func emptyGrid() -> [[Bool]] {
-        Array(repeating: Array(repeating: false, count: columns), count: rows)
-    }
+    private static let towerMap: [String] = [
+        "....................PM....................",
+        "....................MM....................",
+        "....................MM....................",
+        "....................MM....................",
+        "....................MM....................",
+        "....................MM....................",
+        "....................MM....................",
+        "....................MM....................",
+        "....................MM....................",
+        "....................MM....................",
+        "...................PM#P...................",
+        ".................S######S.................",
+        "................S########S................",
+        "................##########................",
+        "...............S##########S...............",
+        "...............P##########MS..............",
+        ".............P##############M.............",
+        "............M#################S...........",
+        "..........S####################S..........",
+        "..........######################S.........",
+        ".........########################.........",
+        "........M########################M........",
+        ".......S##########################P.......",
+        ".......M###########PM#M############.......",
+        ".......##########S......P##########S......",
+        "......S########M..........M########P......",
+        "......P########............M#######M......",
+        "......M#######S.............########......",
+        "......M#######..............M#######......",
+        "......M######M..............P#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......M######P..............S#######......",
+        "......SPPPPPPS...............PPPPPPP......",
+        "..........................................",
+        "....##################################....",
+        "....##################################....",
+        "....SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS....",
+        ".....SS..SS..SS.SS..SS..SS..SS.SS..SS.....",
+        ".....##SS##SP#M.M#P.##SS##.M#M.M#S.##.....",
+        ".....##SS##SP#M.M#P.##SS##.M#M.##S.##.....",
+        ".....##SS##SP#M.M#P.##SS##.M#M.##S.##.....",
+        ".....##SS##SP#M.M#P.##SS##.M#M.##S.##.....",
+        ".....##SS##.P#M.P#P.M#SS#M.P#M.M#S.##.....",
+        "..........................................",
+        ".....PMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMP.....",
+        ".....################################.....",
+        ".....################################.....",
+        ".....##PSSSP######P...SP######PSSSP##.....",
+        ".....M..SSS..M###..SPPS..###M..SSS..P.....",
+        "......S#####S.M#..M#####..#M.S#####S......",
+        "......#######S.S.########.S.S#######S.....",
+        ".....M########..P########M..########M.....",
+        ".....#########S.##########..#########.....",
+        ".....#########P.##########.S#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########M.##########SS#########.....",
+        ".....#########M.##########SS#########.....",
+        ".....SSSSSSSSSS.SSSSSSSSSS..SSSSSSSSS.....",
+        ".....SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.....",
+        "....M################################M....",
+        "....M################################M....",
+        "..........................................",
+        ".....PMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMP.....",
+        ".....################################.....",
+        ".....################################.....",
+        ".....##MPSPM######MSSSSM######MPSPM##.....",
+        ".....MS..S..S####S..SSS.S####S..S..SM.....",
+        ".......M###MS.##..M####M..##..M###M.......",
+        ".....S#######S.S.########.SS.#######......",
+        ".....M#######M..P########M..M#######M.....",
+        ".....#########S.##########..#########.....",
+        ".....#########P.##########.S#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....#########P.##########SS#########.....",
+        ".....M########P.##########SS########M.....",
+        "......SPM#####P.##########SS#####MP.......",
+        "...........SPMS.M#########.SMPS...........",
+    ]
 
-    private static func fill(_ g: inout [[Bool]], cols: ClosedRange<Int>, rows r: ClosedRange<Int>) {
-        for y in r where y >= 0 && y < rows {
-            for x in cols where x >= 0 && x < columns {
-                g[y][x] = true
-            }
-        }
-    }
-
-    /// Static tower: mast, dome, belfry arch, cornice, dentils, and two
-    /// arched-window floors — rasterized from the app icon's geometry.
-    private static let towerGrid: [[Bool]] = {
-        var g = emptyGrid()
-
-        // Finial mast
-        fill(&g, cols: 24...26, rows: 0...6)
-
-        // Dome cap: flat-bottomed semicircle, radius 10.5, base at row 12
-        for y in 7...12 {
-            let dy = Double(12 - y)
-            let half = Int((10.5 * 10.5 - dy * dy).squareRoot())
-            fill(&g, cols: (cx - half)...(cx + half), rows: y...y)
-        }
-
-        // Belfry arch: half-annulus centered (cx, 31), radii 13...18
-        for y in 13...31 {
-            let dy = Double(31 - y)
-            for x in 0..<columns {
-                let dx = Double(x - cx)
-                let r = (dx * dx + dy * dy).squareRoot()
-                if r >= 13 && r <= 18.4 { g[y][x] = true }
-            }
-        }
-        // Arch legs down to the cornice
-        fill(&g, cols: 7...12, rows: 32...35)
-        fill(&g, cols: 38...43, rows: 32...35)
-
-        // Cornice slab
-        fill(&g, cols: 5...45, rows: 36...39)
-        // Dentil band: teeth with light gaps
-        for x in stride(from: 7, through: 42, by: 4) {
-            fill(&g, cols: x...(x + 1), rows: 41...44)
-        }
-        // Thin ledge below the dentils
-        fill(&g, cols: 5...45, rows: 46...48)
-
-        // Upper floor with three arched windows (closed bottom)
-        fill(&g, cols: 9...41, rows: 49...66)
-        cutWindows(&g, top: 51, bottom: 64)
-
-        // Divider band between floors
-        fill(&g, cols: 5...45, rows: 68...70)
-
-        // Lower floor, windows open to the bottom edge
-        fill(&g, cols: 9...41, rows: 72...107)
-        cutWindows(&g, top: 74, bottom: 107)
-
-        return g
-    }()
-
-    /// Cuts three 7-wide round-topped windows (centers 15/25/35) out of a floor.
-    private static func cutWindows(_ g: inout [[Bool]], top: Int, bottom: Int) {
-        for wcx in [15, 25, 35] {
-            for y in top...bottom where y < rows {
-                let half: Int
-                switch y - top {
-                case 0:  half = 1
-                case 1:  half = 2
-                default: half = 3
-                }
-                for x in (wcx - half)...(wcx + half) { g[y][x] = false }
-            }
-        }
-    }
+    private static let bellMap: [String] = [
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "....................M#....................",
+        "....................M#....................",
+        "...................SM#S...................",
+        "..................P####M..................",
+        "..................######..................",
+        "..................######S.................",
+        "..................######S.................",
+        ".................S######P.................",
+        ".................P######P.................",
+        ".................M#######.................",
+        "................S########P................",
+        "...............P##########P...............",
+        "...............M##########M...............",
+        ".................SPPMMPPS.................",
+        "....................M#....................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+        "..........................................",
+    ]
 
     // MARK: - Bell frames
 
-    /// Bell overlay for one animation frame. `tilt` -1 = struck left,
-    /// 0 = centered, +1 = struck right. Tilting is a per-row shear — the
-    /// classic pixel-art cheat, deliberately jerky.
-    private static func bellGrid(tilt: Int) -> [[Bool]] {
-        var g = emptyGrid()
-        let topRow = 14
-
-        // Hanger connecting the dome to the bell crown (the swing pivot)
-        fill(&g, cols: 24...26, rows: 12...13)
-
-        // Per-row half-widths: crown → shoulders → flared mouth
-        let halves = [2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8, 9, 9]
-        for (i, half) in halves.enumerated() {
-            let shift = tilt * Int((Double(i) * 0.5).rounded())
-            fill(
-                &g,
-                cols: (cx + shift - half)...(cx + shift + half),
-                rows: (topRow + i)...(topRow + i)
-            )
+    /// Shears the bell layer toward `tilt` (-1 left, +1 right): rows shift
+    /// horizontally in proportion to their distance below the pivot — the
+    /// classic pixel-art swing cheat, deliberately jerky.
+    private static func shearedBell(tilt: Int) -> [String] {
+        guard tilt != 0 else { return bellMap }
+        return bellMap.enumerated().map { row, line in
+            let shift = tilt * Int((Double(row - bellPivotRow) * 0.45).rounded())
+            guard shift != 0 else { return line }
+            var cells = Array(repeating: Character("."), count: line.count)
+            for (x, ch) in line.enumerated() where ch != "." {
+                let nx = x + shift
+                if nx >= 0 && nx < cells.count { cells[nx] = ch }
+            }
+            return String(cells)
         }
-
-        // Clapper — hangs centered, thrown against the lip on hit frames
-        let clapperX = cx + tilt * 10
-        fill(&g, cols: (clapperX - 1)...(clapperX + 1), rows: (topRow + 14)...(topRow + 15))
-
-        if tilt != 0 { addWaveMarks(&g, side: tilt) }
-        return g
     }
 
-    /// Three staggered pixel dashes forming a broken sound-wave arc beside
-    /// the struck side of the belfry.
-    private static func addWaveMarks(_ g: inout [[Bool]], side: Int) {
+    /// Three staggered mid-green dashes forming a broken sound-wave arc
+    /// beside the struck side of the belfry.
+    private static func addWaveMarks(to map: [String], side: Int) -> [String] {
         let dashes: [(cols: ClosedRange<Int>, rows: ClosedRange<Int>)] = side < 0
-            ? [(4...5, 15...18), (1...2, 21...25), (4...5, 28...31)]
-            : [(45...46, 15...18), (48...49, 21...25), (45...46, 28...31)]
-        for dash in dashes { fill(&g, cols: dash.cols, rows: dash.rows) }
+            ? [(3...4, 22...26), (1...2, 28...32), (3...4, 34...38)]
+            : [(37...38, 22...26), (39...40, 28...32), (37...38, 34...38)]
+        var grid = map.map { Array($0) }
+        for dash in dashes {
+            for y in dash.rows {
+                for x in dash.cols { grid[y][x] = "M" }
+            }
+        }
+        return grid.map { String($0) }
     }
 
     /// Left hit → center → right hit → center.
-    private static let bellFrames: [[[Bool]]] = [
-        bellGrid(tilt: -1),
-        bellGrid(tilt: 0),
-        bellGrid(tilt: 1),
-        bellGrid(tilt: 0),
+    private static let bellFrames: [[String]] = [
+        addWaveMarks(to: shearedBell(tilt: -1), side: -1),
+        bellMap,
+        addWaveMarks(to: shearedBell(tilt: 1), side: 1),
+        bellMap,
     ]
 
     // MARK: - Drawing
+
+    /// Legend: coverage shades from the LCD palette.
+    private static func color(for shade: Character) -> Color? {
+        switch shade {
+        case "#": return .lcdDark
+        case "M": return .lcdMid
+        case "P": return .lcdProgress
+        case "S": return .lcdSlider
+        default:  return nil
+        }
+    }
 
     private func draw(in gc: inout GraphicsContext, size: CGSize, frame: Int) {
         // Snap the cell size to device pixels so cells render crisp and seamless.
@@ -186,41 +336,43 @@ struct AmenBellTowerView: View {
         let cell = max(floor(rawCell * displayScale) / displayScale, 1 / displayScale)
         let xOff = (size.width - cell * CGFloat(Self.columns)) / 2
         let yOff = (size.height - cell * CGFloat(Self.rows)) / 2
-        let ink = GraphicsContext.Shading.color(tint)
 
-        fillRuns(of: Self.towerGrid, cell: cell, xOff: xOff, yOff: yOff, in: &gc, with: ink)
-        fillRuns(of: Self.bellFrames[frame], cell: cell, xOff: xOff, yOff: yOff, in: &gc, with: ink)
+        fillRuns(of: Self.towerMap, cell: cell, xOff: xOff, yOff: yOff, in: &gc)
+        fillRuns(of: Self.bellFrames[frame], cell: cell, xOff: xOff, yOff: yOff, in: &gc)
     }
 
-    /// Fills each horizontal run of set cells as a single rect.
+    /// Fills each horizontal run of same-shade cells as a single rect.
     private func fillRuns(
-        of grid: [[Bool]],
+        of map: [String],
         cell: CGFloat,
         xOff: CGFloat,
         yOff: CGFloat,
-        in gc: inout GraphicsContext,
-        with shading: GraphicsContext.Shading
+        in gc: inout GraphicsContext
     ) {
-        for (rowIndex, row) in grid.enumerated() {
+        for (rowIndex, line) in map.enumerated() {
             let y = yOff + CGFloat(rowIndex) * cell
-            var runStart: Int? = nil
-            for (colIndex, isOn) in row.enumerated() {
-                if isOn {
-                    if runStart == nil { runStart = colIndex }
-                } else if let start = runStart {
-                    gc.fill(
-                        Path(CGRect(x: xOff + CGFloat(start) * cell, y: y,
-                                    width: CGFloat(colIndex - start) * cell, height: cell)),
-                        with: shading
-                    )
-                    runStart = nil
+            var runStart = 0
+            var runShade: Character = "."
+            var x = 0
+            for ch in line {
+                if ch != runShade {
+                    if let color = Self.color(for: runShade) {
+                        gc.fill(
+                            Path(CGRect(x: xOff + CGFloat(runStart) * cell, y: y,
+                                        width: CGFloat(x - runStart) * cell, height: cell)),
+                            with: .color(color)
+                        )
+                    }
+                    runStart = x
+                    runShade = ch
                 }
+                x += 1
             }
-            if let start = runStart {
+            if let color = Self.color(for: runShade) {
                 gc.fill(
-                    Path(CGRect(x: xOff + CGFloat(start) * cell, y: y,
-                                width: CGFloat(row.count - start) * cell, height: cell)),
-                    with: shading
+                    Path(CGRect(x: xOff + CGFloat(runStart) * cell, y: y,
+                                width: CGFloat(x - runStart) * cell, height: cell)),
+                    with: .color(color)
                 )
             }
         }
