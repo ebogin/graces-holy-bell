@@ -19,11 +19,6 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: SessionViewModel?
     @State private var amenAlarmSettings = AmenAlarmSettings()
-    @State private var logExportSettings = LogExportSettings()
-    /// Session log queued for the Notes share sheet. Presented from here (not
-    /// ActiveSessionView) because ending the session flips the state to idle,
-    /// which unmounts ActiveSessionView before its sheet could appear.
-    @State private var notesExport: NotesExportPayload?
     // Analytics consent — applies the geo-gated default on first launch. Single
     // source of truth behind the Settings toggle and the EU opt-in banner.
     @State private var consent = AnalyticsConsent()
@@ -42,7 +37,6 @@ struct ContentView: View {
                     IdleView(
                         viewModel: viewModel,
                         amenAlarmSettings: amenAlarmSettings,
-                        logExportSettings: logExportSettings,
                         consent: consent,
                         isWatchAvailable: viewModel.isWatchAvailable,
                         onForceSync: { connectivityManager?.forceSync() }
@@ -51,13 +45,9 @@ struct ContentView: View {
                     ActiveSessionView(
                         viewModel: viewModel,
                         amenAlarmSettings: amenAlarmSettings,
-                        logExportSettings: logExportSettings,
                         consent: consent,
                         isWatchAvailable: viewModel.isWatchAvailable,
-                        onForceSync: { connectivityManager?.forceSync() },
-                        onExportLog: { text, prayerCount in
-                            notesExport = NotesExportPayload(text: text, prayerCount: prayerCount)
-                        }
+                        onForceSync: { connectivityManager?.forceSync() }
                     )
                 }
             } else {
@@ -70,16 +60,6 @@ struct ContentView: View {
             set: { _ in }
         )) {
             AnalyticsConsentBanner(consent: consent)
-        }
-        // Session-end "save to Notes" share sheet (setting-gated). The user
-        // picks Notes and appends to their running prayer-log note.
-        .sheet(item: $notesExport) { payload in
-            ActivityShareSheet(text: payload.text) { completed in
-                viewModel?.analytics?.recordSessionLogExported(
-                    prayersInSession: payload.prayerCount,
-                    completed: completed
-                )
-            }
         }
         .task {
             if viewModel == nil {
@@ -132,10 +112,6 @@ struct ContentView: View {
                     vm?.refreshAmenAlarm()
                     connectivityManager?.sendSnapshotToWatch()
                     analytics?.recordAmenAlarmSet() // additive
-                }
-
-                logExportSettings.onChange = { [weak analytics] enabled in
-                    analytics?.recordNotesAutosaveSet(enabled: enabled)
                 }
 
                 // Forward Amen Alarm notification taps into analytics (additive;
@@ -222,13 +198,6 @@ struct ContentView: View {
         ScreenshotClock.fixedNow = timestamps[2].addingTimeInterval(5 * 60 + 22)
     }
     #endif
-}
-
-/// Composed session log waiting for the Notes share sheet.
-private struct NotesExportPayload: Identifiable {
-    let id = UUID()
-    let text: String
-    let prayerCount: Int
 }
 
 #if DEBUG

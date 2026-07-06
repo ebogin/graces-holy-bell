@@ -11,7 +11,6 @@ import UserNotifications
 struct SettingsView: View {
 
     @Bindable var settings: AmenAlarmSettings
-    @Bindable var logExport: LogExportSettings
     let consent: AnalyticsConsent
     /// Whether a paired Watch with the app installed is present (grays the Sync Up row).
     var isWatchAvailable: Bool = false
@@ -66,14 +65,9 @@ struct SettingsView: View {
 
                 divider()
 
-                // PRAYER LOG section — past-session history + Notes autosave
+                // PRAYER LOG section — past-session history (exportable per day)
                 settingsSectionHeader("PRAYER LOG")
                 historyRow()
-                alarmToggleRow(
-                    label: "  Save Log to Notes",
-                    isOn: $logExport.saveToNotesEnabled,
-                    onChange: { _ in }
-                )
 
                 divider()
 
@@ -374,7 +368,7 @@ struct SettingsView: View {
 #Preview {
     ZStack {
         Color.lcdBackground.ignoresSafeArea()
-        SettingsView(settings: AmenAlarmSettings(), logExport: LogExportSettings(), consent: AnalyticsConsent())
+        SettingsView(settings: AmenAlarmSettings(), consent: AnalyticsConsent())
             .padding(16)
     }
 }

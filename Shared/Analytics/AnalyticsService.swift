@@ -171,21 +171,16 @@ final class AnalyticsService {
         transport.capture(factory().prayerIntentionSet(action: action.rawValue, at: timestamp))
     }
 
-    /// The "Save Log to Notes" setting was toggled.
-    func recordNotesAutosaveSet(enabled: Bool, at timestamp: Date = Date()) {
-        transport.capture(factory().notesAutosaveSet(enabled: enabled, at: timestamp))
-    }
-
     /// The in-app Prayer History sheet was opened.
     func recordPrayerHistoryViewed(daysWithSessions: Int, at timestamp: Date = Date()) {
         transport.capture(factory().prayerHistoryViewed(daysWithSessions: daysWithSessions, at: timestamp))
     }
 
-    /// The session log was offered to the share sheet (session end with the
-    /// Notes setting on). `completed` = user finished the share vs cancelled.
-    func recordSessionLogExported(prayersInSession: Int, completed: Bool, at timestamp: Date = Date()) {
-        transport.capture(factory().sessionLogExported(
-            prayersInSession: prayersInSession,
+    /// A day's logs were exported to text from Prayer History.
+    /// `completed` = user finished the share vs cancelled.
+    func recordHistoryDayExported(sessionsInDay: Int, completed: Bool, at timestamp: Date = Date()) {
+        transport.capture(factory().historyDayExported(
+            sessionsInDay: sessionsInDay,
             completed: completed,
             at: timestamp
         ))

@@ -202,15 +202,6 @@ final class SessionViewModel {
         analytics?.recordPrayerIntentionSet(action: action)
     }
 
-    /// The composed plain-text log for saving to Notes. Call BEFORE clearLog()
-    /// — clearing prunes the entries and change history it reads.
-    func composeSessionLogText(endedAt: Date = Date()) -> String {
-        SessionLogFormatter.compose(
-            prayers: sortedEntries.map { .init(timestamp: $0.timestamp, note: $0.note) },
-            endedAt: endedAt,
-            changes: changeStore.load()
-        )
-    }
 
     /// Re-applies the Amen Alarm schedule after a settings change.
     func refreshAmenAlarm() {

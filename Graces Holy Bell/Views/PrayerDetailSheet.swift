@@ -164,8 +164,8 @@ struct PrayerDetailSheet: View {
     }()
 
     /// A Duration-dropdown-styled pill showing the current value, with an
-    /// invisible compact DatePicker stretched over it so tapping opens the
-    /// system picker popover for just that component.
+    /// invisible compact DatePicker scaled to exactly fill it, so a tap
+    /// anywhere on the pill opens the system picker popover.
     @ViewBuilder
     private func pickerPill(
         label: String,
@@ -187,19 +187,11 @@ struct PrayerDetailSheet: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(
-                DatePicker(
-                    "",
+                FillingDatePicker(
                     selection: $editedTime,
-                    in: timeRange,
-                    displayedComponents: components
+                    range: timeRange,
+                    components: components
                 )
-                .datePickerStyle(.compact)
-                .labelsHidden()
-                .tint(Color.lcdDark)
-                .contentShape(Rectangle())
-                // Nearly invisible but still hit-testable — the pill below is
-                // the visible control, the system picker supplies the popover.
-                .opacity(0.011)
             )
             .accessibilityIdentifier(identifier)
     }
@@ -212,5 +204,45 @@ struct PrayerDetailSheet: View {
             viewModel.editPrayerTime(entry, to: editedTime)
         }
         dismiss()
+    }
+}
+
+/// An invisible compact DatePicker that hit-tests across its entire container.
+///
+/// The compact picker's tap target is only its intrinsic label size, so laid
+/// over a wider pill it leaves dead zones. This measures both the container
+/// and the picker's natural size and scales the picker to fill exactly —
+/// scaleEffect scales hit-testing too, and an exact fit can't spill onto
+/// neighboring controls.
+private struct FillingDatePicker: View {
+
+    @Binding var selection: Date
+    let range: ClosedRange<Date>
+    let components: DatePickerComponents
+
+    @State private var naturalSize: CGSize = .zero
+
+    var body: some View {
+        GeometryReader { container in
+            DatePicker("", selection: $selection, in: range, displayedComponents: components)
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .tint(Color.lcdDark)
+                .background(
+                    GeometryReader { picker in
+                        Color.clear
+                            .onAppear { naturalSize = picker.size }
+                            .onChange(of: picker.size) { _, newSize in naturalSize = newSize }
+                    }
+                )
+                .scaleEffect(
+                    x: naturalSize.width > 0 ? container.size.width / naturalSize.width : 1,
+                    y: naturalSize.height > 0 ? container.size.height / naturalSize.height : 1
+                )
+                .position(x: container.size.width / 2, y: container.size.height / 2)
+                // Nearly invisible but still hit-testable — the pill below is
+                // the visible control, the system picker supplies the popover.
+                .opacity(0.011)
+        }
     }
 }

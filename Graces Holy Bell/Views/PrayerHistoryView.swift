@@ -16,6 +16,8 @@ struct PrayerHistoryView: View {
     @State private var selectedDay: Date?
     /// Archived sessions keyed by their start day.
     @State private var sessionsByDay: [Date: [ArchivedSession]] = [:]
+    /// Composed day text queued for the share sheet.
+    @State private var exportPayload: DayExportPayload?
 
     private static let monthFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -75,9 +77,35 @@ struct PrayerHistoryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if let day = selectedDay, let sessions = sessionsByDay[day] {
-                        Text(Self.dayFormatter.string(from: day).uppercased())
-                            .font(.pixelFont(9))
-                            .foregroundStyle(Color.lcdTitle)
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(Self.dayFormatter.string(from: day).uppercased())
+                                .font(.pixelFont(9))
+                                .foregroundStyle(Color.lcdTitle)
+
+                            Spacer()
+
+                            // Share the day's logs as text (Notes, Messages, …).
+                            Button {
+                                exportPayload = DayExportPayload(
+                                    text: SessionLogFormatter.composeDay(sessions: sessions),
+                                    sessionCount: sessions.count
+                                )
+                            } label: {
+                                Text("EXPORT")
+                                    .font(.pixelFont(7))
+                                    .foregroundStyle(Color.lcdThumbText)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(Color.lcdSlider)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(Color.lcdDark, lineWidth: 1.5)
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("history-export-day-button")
+                        }
 
                         ForEach(sessions) { session in
                             ArchivedSessionBox(session: session)
@@ -106,6 +134,14 @@ struct PrayerHistoryView: View {
             }
         }
         .background(Color.lcdBackground.ignoresSafeArea())
+        .sheet(item: $exportPayload) { payload in
+            ActivityShareSheet(text: payload.text) { completed in
+                analytics?.recordHistoryDayExported(
+                    sessionsInDay: payload.sessionCount,
+                    completed: completed
+                )
+            }
+        }
         .onAppear {
             let grouped = archiveStore.sessionsByDay(calendar: calendar)
             sessionsByDay = Dictionary(uniqueKeysWithValues: grouped.map { ($0.day, $0.sessions) })
@@ -261,6 +297,13 @@ struct PrayerHistoryView: View {
         }
         return cells
     }
+}
+
+/// Composed day text waiting for the share sheet.
+private struct DayExportPayload: Identifiable {
+    let id = UUID()
+    let text: String
+    let sessionCount: Int
 }
 
 /// One archived session rendered in the log's double-border box style:

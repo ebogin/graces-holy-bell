@@ -91,6 +91,22 @@ final class SessionArchiveTests: XCTestCase {
         XCTAssertEqual(archived.first?.changes.first?.kind, .deleted)
     }
 
+    func test_changeHistory_doesNotLeakIntoNextArchivedSession() throws {
+        let vm = try makeViewModel()
+        vm.startNewSession()
+        vm.logPrayer()
+        vm.deletePrayer(vm.sortedEntries[1])
+        vm.clearLog()
+
+        vm.startNewSession()
+        vm.clearLog()
+
+        let archived = store.load()
+        XCTAssertEqual(archived.count, 2)
+        XCTAssertEqual(archived[0].changes.count, 1)
+        XCTAssertTrue(archived[1].changes.isEmpty, "change history must reset per session")
+    }
+
     func test_clearLog_whenIdle_archivesNothing() throws {
         let vm = try makeViewModel()
         vm.clearLog()

@@ -8,7 +8,6 @@ struct IdleView: View {
 
     let viewModel: SessionViewModel
     let amenAlarmSettings: AmenAlarmSettings
-    let logExportSettings: LogExportSettings
     let consent: AnalyticsConsent
     var isWatchAvailable: Bool = false
     var onForceSync: () -> Void = {}
@@ -64,7 +63,6 @@ struct IdleView: View {
                 if showSettings {
                     SettingsView(
                         settings: amenAlarmSettings,
-                        logExport: logExportSettings,
                         consent: consent,
                         isWatchAvailable: isWatchAvailable,
                         onForceSync: onForceSync,
@@ -143,7 +141,6 @@ struct IdleView: View {
     IdleView(
         viewModel: SessionViewModel(modelContext: container.mainContext),
         amenAlarmSettings: AmenAlarmSettings(),
-        logExportSettings: LogExportSettings(),
         consent: AnalyticsConsent()
     )
 }

@@ -166,33 +166,30 @@ final class PrayerLogEditingTests: XCTestCase {
         XCTAssertEqual(viewModel.sortedEntries.first?.timestamp, editedRemotely.timestamp)
     }
 
-    // MARK: - Session log composition
+    // MARK: - Exported log composition
 
-    func test_composeSessionLogText_containsPrayersIntentionsAndChanges() {
-        viewModel.startNewSession()
-        viewModel.logPrayer()
-        viewModel.logPrayer()
-        let entries = viewModel.sortedEntries
-        viewModel.setIntention(entries[1], note: "For Grandma")
-        viewModel.deletePrayer(entries[2])
+    func test_composeDay_containsPrayersIntentionsAndChanges() {
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        let session = ArchivedSession(
+            id: UUID(),
+            endedAt: start.addingTimeInterval(1800),
+            prayers: [
+                ArchivedPrayer(timestamp: start, note: nil),
+                ArchivedPrayer(timestamp: start.addingTimeInterval(600), note: "For Grandma")
+            ],
+            changes: [PrayerLogChange(
+                kind: .deleted,
+                occurredAt: start.addingTimeInterval(700),
+                originalTimestamp: start.addingTimeInterval(650),
+                newTimestamp: nil
+            )]
+        )
 
-        let text = viewModel.composeSessionLogText()
+        let text = SessionLogFormatter.composeDay(sessions: [session])
 
         XCTAssertTrue(text.contains("GRACE'S HOLY BELL"))
         XCTAssertTrue(text.contains("Prayers: 2"))
         XCTAssertTrue(text.contains("For Grandma"))
         XCTAssertTrue(text.contains("deleted"))
-    }
-
-    func test_clearLog_resetsChangeHistory() {
-        viewModel.startNewSession()
-        viewModel.logPrayer()
-        viewModel.deletePrayer(viewModel.sortedEntries[1])
-        viewModel.clearLog()
-
-        viewModel.startNewSession()
-        let text = viewModel.composeSessionLogText()
-
-        XCTAssertFalse(text.contains("deleted"), "change history must not leak across sessions")
     }
 }
