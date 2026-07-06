@@ -16,7 +16,11 @@ struct PrayerDetailSheet: View {
     @State private var intentionText: String
     @State private var showDeleteConfirmation = false
     @State private var showTimeWheel = false
+    @State private var showCurrentPrayerConfirmation = false
     @State private var detent: PresentationDetent = .medium
+    /// Measured height of the TIME pill, applied to the date arrows so both
+    /// controls in the row are the same height.
+    @State private var controlHeight: CGFloat = 40
     @FocusState private var intentionFocused: Bool
 
     private let calendar = Calendar.current
@@ -53,6 +57,13 @@ struct PrayerDetailSheet: View {
 
     private var hasChanges: Bool {
         timeChanged || intentionChanged
+    }
+
+    /// True when this entry is the most recent active prayer — the one the
+    /// live "since last prayer" timer is currently counting from. Changing
+    /// its time immediately jumps that running timer, so SAVE confirms first.
+    private var isCurrentPrayer: Bool {
+        viewModel.sortedEntries.last?.id == entry.id
     }
 
     // MARK: - Date bounds (±1 calendar day from the original prayer day)
@@ -128,6 +139,7 @@ struct PrayerDetailSheet: View {
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.6)
                                         .frame(maxWidth: .infinity)
+                                        .frame(height: controlHeight)
 
                                     dateArrow(">", reversed: false, enabled: canGoForwardDay) { shiftDay(by: 1) }
                                         .accessibilityIdentifier("prayer-date-forward")
@@ -168,6 +180,11 @@ struct PrayerDetailSheet: View {
                                             .stroke(Color.lcdDark, lineWidth: showTimeWheel ? 2.5 : 1.5)
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .background(
+                                        GeometryReader { geo in
+                                            Color.clear.preference(key: ControlHeightKey.self, value: geo.size.height)
+                                        }
+                                    )
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("prayer-time-pill")
@@ -215,10 +232,15 @@ struct PrayerDetailSheet: View {
                     }
                 }
             }
+            .onPreferenceChange(ControlHeightKey.self) { controlHeight = $0 }
 
             // ── Save ─────────────────────────────────────────────────
             Button {
-                applyChanges()
+                if timeChanged && isCurrentPrayer {
+                    showCurrentPrayerConfirmation = true
+                } else {
+                    applyChanges()
+                }
             } label: {
                 Text("SAVE")
                     .font(.pixelFont(12))
@@ -267,6 +289,18 @@ struct PrayerDetailSheet: View {
         } message: {
             Text("Remove the \(TimeFormatter.wallClockString(from: entry.timestamp)) prayer from the log. This CANNOT BE UNDONE")
         }
+        .confirmationDialog(
+            "Change Prayer Time?",
+            isPresented: $showCurrentPrayerConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Change Time") {
+                applyChanges()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure? This will change the current prayer timer.")
+        }
     }
 
     /// "SAT, JUL 5" for the date row. Weekday + short month/day; the year is
@@ -290,7 +324,7 @@ struct PrayerDetailSheet: View {
                 .font(.pixelFont(12))
                 .foregroundStyle(enabled ? Color.lcdThumbText : Color.lcdMid.opacity(0.35))
                 .scaleEffect(x: reversed ? -1 : 1, y: 1)
-                .frame(width: 46, height: 40)
+                .frame(width: 46, height: controlHeight)
                 .background(enabled ? Color.lcdSlider : Color.lcdSlider.opacity(0.25))
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
@@ -310,6 +344,15 @@ struct PrayerDetailSheet: View {
             viewModel.editPrayerTime(entry, to: editedTime)
         }
         dismiss()
+    }
+}
+
+/// Measures the TIME pill's rendered height so the date arrow buttons can
+/// match it exactly instead of guessing a fixed value.
+private struct ControlHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 40
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
