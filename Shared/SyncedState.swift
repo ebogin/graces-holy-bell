@@ -11,6 +11,10 @@ struct SyncSnapshot: Codable {
     let lastClearedAt: Date?
     /// When the Amen Alarm should fire on the Watch. Nil when disabled/idle.
     let amenAlarmFireAt: Date?
+    /// Whether the alarm should also play the loud clanging bell on the Watch.
+    /// Optional with a default so snapshots from builds without the field
+    /// still decode (missing key → nil → treated as off).
+    var amenAlarmSoundEnabled: Bool? = nil
 
     private static let payloadKey = "snapshot"
 

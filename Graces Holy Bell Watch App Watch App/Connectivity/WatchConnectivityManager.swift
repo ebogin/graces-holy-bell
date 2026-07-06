@@ -23,6 +23,14 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     private let session = WCSession.default
     private static let alarmNotificationID = "watchAmenAlarm"
 
+    /// Follow-up wrist-tap pulses after the initial fire (seconds).
+    private static let repeatOffsets: [TimeInterval] = [8, 16, 24]
+
+    /// Every identifier this manager may have scheduled.
+    private static var allAlarmIDs: [String] {
+        [alarmNotificationID] + repeatOffsets.indices.map { "\(alarmNotificationID).repeat\($0)" }
+    }
+
     // Latest local snapshot, kept current by the ViewModel. Lets us reply to a
     // phone-initiated sendMessage without hopping back to the @MainActor
     // ViewModel from this background delegate queue. Guarded by a lock since the
@@ -102,35 +110,58 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
 
     // MARK: - Watch Amen Alarm
 
-    func scheduleWatchAlarm(fireDate: Date) {
+    /// Schedules the local Watch Amen Alarm notifications.
+    ///
+    /// Persistence (background delivery): a burst of four notifications spreads
+    /// wrist taps across 30 seconds so the alarm repeats instead of tapping
+    /// once and vanishing. watchOS doesn't allow custom notification sounds,
+    /// so Bell Sound uses the default audible tone on each pulse — the real
+    /// clanging bell plays in-app when the takeover is up.
+    func scheduleWatchAlarm(fireDate: Date, soundEnabled: Bool = false) {
         guard fireDate > .now else { return }
         let center = UNUserNotificationCenter.current()
+        let sound: UNNotificationSound? = soundEnabled ? .default : nil
         Task {
             let settings = await center.notificationSettings()
             if settings.authorizationStatus == .notDetermined {
-                try? await center.requestAuthorization(options: [.alert, .sound])
+                _ = try? await center.requestAuthorization(options: [.alert, .sound])
             }
-            center.removePendingNotificationRequests(withIdentifiers: [Self.alarmNotificationID])
-            let content = UNMutableNotificationContent()
-            content.title = "🔔 Amen"
-            content.sound = nil
-            let components = Calendar.current.dateComponents(
-                [.year, .month, .day, .hour, .minute, .second],
-                from: fireDate
-            )
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let request = UNNotificationRequest(
-                identifier: Self.alarmNotificationID,
-                content: content,
-                trigger: trigger
-            )
-            try? await center.add(request)
+            center.removePendingNotificationRequests(withIdentifiers: Self.allAlarmIDs)
+
+            await Self.add(id: Self.alarmNotificationID, fireDate: fireDate, sound: sound, to: center)
+            for (index, offset) in Self.repeatOffsets.enumerated() {
+                await Self.add(
+                    id: "\(Self.alarmNotificationID).repeat\(index)",
+                    fireDate: fireDate.addingTimeInterval(offset),
+                    sound: sound,
+                    to: center
+                )
+            }
         }
     }
 
     func cancelWatchAlarm() {
         UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [Self.alarmNotificationID])
+            .removePendingNotificationRequests(withIdentifiers: Self.allAlarmIDs)
+    }
+
+    private static func add(
+        id: String,
+        fireDate: Date,
+        sound: UNNotificationSound?,
+        to center: UNUserNotificationCenter
+    ) async {
+        let content = UNMutableNotificationContent()
+        content.title = "🔔 Amen"
+        content.sound = sound
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: fireDate
+        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        try? await center.add(
+            UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        )
     }
 }
 
@@ -151,7 +182,10 @@ extension WatchConnectivityManager: WCSessionDelegate {
             if let snapshot = SyncSnapshot.fromDictionary(session.receivedApplicationContext) {
                 self.latestSnapshot = snapshot
                 if let fireDate = snapshot.amenAlarmFireAt {
-                    self.scheduleWatchAlarm(fireDate: fireDate)
+                    self.scheduleWatchAlarm(
+                        fireDate: fireDate,
+                        soundEnabled: snapshot.amenAlarmSoundEnabled ?? false
+                    )
                 }
             }
         }
@@ -164,7 +198,10 @@ extension WatchConnectivityManager: WCSessionDelegate {
     ) {
         guard let snapshot = SyncSnapshot.fromDictionary(applicationContext) else { return }
         if let fireDate = snapshot.amenAlarmFireAt {
-            scheduleWatchAlarm(fireDate: fireDate)
+            scheduleWatchAlarm(
+                fireDate: fireDate,
+                soundEnabled: snapshot.amenAlarmSoundEnabled ?? false
+            )
         } else {
             cancelWatchAlarm()
         }

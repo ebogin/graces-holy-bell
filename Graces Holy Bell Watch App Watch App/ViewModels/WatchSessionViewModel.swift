@@ -36,6 +36,12 @@ final class WatchSessionViewModel {
     /// When the Amen Alarm should fire on this Watch, or nil.
     private(set) var amenAlarmFireAt: Date?
 
+    /// Whether the alarm should also play the loud clanging bell (synced from
+    /// the phone's Bell Sound setting).
+    var amenSoundEnabled: Bool {
+        storeState.lastSyncedSoundEnabled ?? false
+    }
+
     var appState: AppState {
         sortedEntries.isEmpty ? .idle : .active
     }
@@ -121,6 +127,11 @@ final class WatchSessionViewModel {
             }
         }
 
+        // Persist the phone's Bell Sound setting (missing on old-build phones).
+        if let soundEnabled = incoming.amenAlarmSoundEnabled {
+            storeState.lastSyncedSoundEnabled = soundEnabled
+        }
+
         pruneStore()
         saveStore()
         refreshDerived()
@@ -188,7 +199,7 @@ final class WatchSessionViewModel {
         let fireAt = lastTS.addingTimeInterval(interval)
         amenAlarmFireAt = fireAt > .now ? fireAt : nil
         if let fireAt = amenAlarmFireAt {
-            connectivityManager.scheduleWatchAlarm(fireDate: fireAt)
+            connectivityManager.scheduleWatchAlarm(fireDate: fireAt, soundEnabled: amenSoundEnabled)
         } else {
             connectivityManager.cancelWatchAlarm()
         }
@@ -207,7 +218,8 @@ final class WatchSessionViewModel {
         SyncSnapshot(
             events: storeState.events,
             lastClearedAt: storeState.lastClearedAt,
-            amenAlarmFireAt: amenAlarmFireAt
+            amenAlarmFireAt: amenAlarmFireAt,
+            amenAlarmSoundEnabled: storeState.lastSyncedSoundEnabled
         )
     }
 }

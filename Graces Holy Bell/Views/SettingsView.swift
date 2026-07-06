@@ -60,6 +60,15 @@ struct SettingsView: View {
                     }
                 )
 
+                // Loud bell-clang sound toggle row
+                alarmToggleRow(
+                    label: "  Bell Sound",
+                    isOn: $settings.soundEnabled,
+                    onChange: { enabled in
+                        if enabled { requestNotificationPermission() }
+                    }
+                )
+
                 divider()
 
                 // "Force Watch Sync" row — hidden from the UI for now (2026-06-30,

@@ -204,7 +204,12 @@ final class SessionViewModel {
                   let last = lastPrayerTimestamp else { return nil }
             return last.addingTimeInterval(settings.duration.rawValue)
         }()
-        return SyncSnapshot(events: events, lastClearedAt: lastClearedAt, amenAlarmFireAt: amenAlarmFireAt)
+        return SyncSnapshot(
+            events: events,
+            lastClearedAt: lastClearedAt,
+            amenAlarmFireAt: amenAlarmFireAt,
+            amenAlarmSoundEnabled: amenAlarmSettings?.soundEnabled
+        )
     }
 
     // MARK: - Elapsed Time Computation
@@ -301,6 +306,6 @@ final class SessionViewModel {
             return
         }
         let fireDate = lastTimestamp.addingTimeInterval(settings.duration.rawValue)
-        amenAlarmManager.scheduleAlarm(fireDate: fireDate)
+        amenAlarmManager.scheduleAlarm(fireDate: fireDate, soundEnabled: settings.soundEnabled)
     }
 }

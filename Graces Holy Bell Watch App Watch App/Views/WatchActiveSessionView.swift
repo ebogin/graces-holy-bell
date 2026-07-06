@@ -8,6 +8,9 @@ struct WatchActiveSessionView: View {
 
     let viewModel: WatchSessionViewModel
     @State private var showStopConfirmation = false
+    /// Fire date of the last AMEN takeover the user dismissed — a new fire
+    /// (next alarm interval) presents the takeover again.
+    @State private var acknowledgedFireDate: Date?
 
     var body: some View {
         // Single per-second clock for the whole screen — the timer and the
@@ -23,6 +26,38 @@ struct WatchActiveSessionView: View {
     }
 
     private func screen(now: Date) -> some View {
+        ZStack {
+            mainScreen(now: now)
+
+            // Full-screen AMEN takeover: bell tower ringing, 30s of dot-dot-dot
+            // wrist haptics, and (when enabled) the clanging bell. Tap dismisses.
+            if let fireAt = takeoverFireDate(at: now), acknowledgedFireDate != fireAt {
+                WatchAmenTakeoverView(
+                    fireDate: fireAt,
+                    soundEnabled: viewModel.amenSoundEnabled
+                ) {
+                    acknowledgedFireDate = fireAt
+                }
+                .transition(.opacity)
+                .zIndex(1)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: takeoverFireDate(at: now))
+    }
+
+    /// How long after the fire moment the takeover keeps presenting — opening
+    /// the app well after the alarm still shows AMEN until acknowledged.
+    private static let takeoverWindow: TimeInterval = 600
+
+    /// The current alarm fire date when the takeover should be up, or nil.
+    private func takeoverFireDate(at now: Date) -> Date? {
+        guard let fireAt = viewModel.amenAlarmFireAt,
+              now >= fireAt,
+              now.timeIntervalSince(fireAt) <= Self.takeoverWindow else { return nil }
+        return fireAt
+    }
+
+    private func mainScreen(now: Date) -> some View {
         WatchScreenLayout(figurePose: .praying) {
 
             // Header: small title over the live timer + "SINCE LAST PRAYER"

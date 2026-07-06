@@ -66,6 +66,15 @@ final class AmenAlarmSettings {
         }
     }
 
+    /// Whether the alarm also plays a loud clanging bell (notification sound
+    /// in the background, looping in-app audio during the AMEN takeover).
+    var soundEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(soundEnabled, forKey: Keys.soundEnabled)
+            onChange?()
+        }
+    }
+
     init() {
         // Load persisted values, falling back to defaults
         let rawDuration = UserDefaults.standard.double(forKey: Keys.duration)
@@ -82,11 +91,14 @@ final class AmenAlarmSettings {
         } else {
             self.watchEnabled = false
         }
+
+        self.soundEnabled = UserDefaults.standard.bool(forKey: Keys.soundEnabled)
     }
 
     private enum Keys {
         static let duration     = "amenAlarm.duration"
         static let phoneEnabled = "amenAlarm.phoneEnabled"
         static let watchEnabled = "amenAlarm.watchEnabled"
+        static let soundEnabled = "amenAlarm.soundEnabled"
     }
 }
