@@ -65,11 +65,16 @@ struct SettingsView: View {
 
                 divider()
 
-                // PRAYER LOG section — past-session history (exportable per day)
-                settingsSectionHeader("PRAYER LOG")
-                historyRow()
+                // PRAYER LOG section — past-session history (exportable per day).
+                // Gated behind a feature flag while the history view is buggy;
+                // when off, the whole section (header, row, trailing divider) is
+                // hidden. See FeatureFlags.prayerHistoryEnabled.
+                if FeatureFlags.prayerHistoryEnabled {
+                    settingsSectionHeader("PRAYER LOG")
+                    historyRow()
 
-                divider()
+                    divider()
+                }
 
                 // "Force Watch Sync" row — hidden from the UI for now (2026-06-30,
                 // Eric's call: the reconcile is too slow to be a satisfying manual
