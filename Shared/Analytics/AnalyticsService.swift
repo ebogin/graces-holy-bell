@@ -143,6 +143,49 @@ final class AnalyticsService {
         stateStore.closedSessionStart = sessionStart
     }
 
+    // MARK: - Log editing (phone-only features)
+
+    /// A prayer was deleted. `loggedAt` is the prayer's original timestamp —
+    /// only the bucketed age (delete time − logged time) is sent.
+    func recordPrayerDeleted(index: Int, loggedAt: Date, at timestamp: Date = Date()) {
+        transport.capture(factory().prayerDeleted(
+            prayerIndexInSession: index,
+            prayerAgeBucket: DurationBucket.label(for: timestamp.timeIntervalSince(loggedAt)),
+            at: timestamp
+        ))
+    }
+
+    /// A prayer's time was edited from `oldTime` to `newTime`.
+    func recordPrayerTimeEdited(oldTime: Date, newTime: Date, at timestamp: Date = Date()) {
+        let shift = newTime.timeIntervalSince(oldTime)
+        transport.capture(factory().prayerTimeEdited(
+            direction: shift < 0 ? "earlier" : "later",
+            adjustmentBucket: DurationBucket.label(for: abs(shift)),
+            at: timestamp
+        ))
+    }
+
+    /// A prayer intention was added, edited, or removed. Content never leaves the device.
+    enum IntentionAction: String { case added, edited, removed }
+    func recordPrayerIntentionSet(action: IntentionAction, at timestamp: Date = Date()) {
+        transport.capture(factory().prayerIntentionSet(action: action.rawValue, at: timestamp))
+    }
+
+    /// The "Save Log to Notes" setting was toggled.
+    func recordNotesAutosaveSet(enabled: Bool, at timestamp: Date = Date()) {
+        transport.capture(factory().notesAutosaveSet(enabled: enabled, at: timestamp))
+    }
+
+    /// The session log was offered to the share sheet (session end with the
+    /// Notes setting on). `completed` = user finished the share vs cancelled.
+    func recordSessionLogExported(prayersInSession: Int, completed: Bool, at timestamp: Date = Date()) {
+        transport.capture(factory().sessionLogExported(
+            prayersInSession: prayersInSession,
+            completed: completed,
+            at: timestamp
+        ))
+    }
+
     // MARK: - Persistence health
 
     /// The prayer store failed at `stage` (migration recovery, load, or save).

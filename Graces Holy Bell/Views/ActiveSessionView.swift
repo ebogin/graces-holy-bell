@@ -8,12 +8,19 @@ struct ActiveSessionView: View {
 
     let viewModel: SessionViewModel
     let amenAlarmSettings: AmenAlarmSettings
+    let logExportSettings: LogExportSettings
     let consent: AnalyticsConsent
     var isWatchAvailable: Bool = false
     var onForceSync: () -> Void = {}
+    /// Session ended with "Save Log to Notes" on — the parent (ContentView)
+    /// presents the share sheet, because this view unmounts when the state
+    /// flips to idle. Arguments: composed log text, prayer count.
+    var onExportLog: (String, Int) -> Void = { _, _ in }
     @State private var showStopConfirmation = false
     @State private var showSettings = false
     @State private var showShareWithFriend = false
+    /// Log row tapped — drives the edit/delete/intention detail sheet.
+    @State private var selectedEntry: PrayerEntry?
 
     var body: some View {
         // Single per-second clock for the whole screen: the header timer, the
@@ -60,7 +67,9 @@ struct ActiveSessionView: View {
                         .foregroundStyle(Color.lcdMid)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    PrayerLogView(viewModel: viewModel, now: now)
+                    PrayerLogView(viewModel: viewModel, now: now) { entry in
+                        selectedEntry = entry
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .opacity(showSettings ? 0 : 1)
@@ -69,6 +78,7 @@ struct ActiveSessionView: View {
                 if showSettings {
                     SettingsView(
                         settings: amenAlarmSettings,
+                        logExport: logExportSettings,
                         consent: consent,
                         isWatchAvailable: isWatchAvailable,
                         onForceSync: onForceSync
@@ -137,14 +147,31 @@ struct ActiveSessionView: View {
             titleVisibility: .visible
         ) {
             Button("Clear Log", role: .destructive) {
-                viewModel.clearLog()
+                endSession()
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Clear the log and start fresh. This CANNOT BE UNDONE")
+            Text(logExportSettings.saveToNotesEnabled
+                 ? "Clear the log and start fresh. This CANNOT BE UNDONE. Your log WILL be saved to Notes."
+                 : "Clear the log and start fresh. This CANNOT BE UNDONE. Your log will NOT be saved to Notes.")
         }
         .sheet(isPresented: $showShareWithFriend) {
             ShareWithFriendView()
+        }
+        .sheet(item: $selectedEntry) { entry in
+            PrayerDetailSheet(viewModel: viewModel, entry: entry)
+        }
+    }
+
+    /// Ends the session: composes the Notes log first (clearing prunes the
+    /// entries it reads), clears, then hands the text up for the share sheet.
+    private func endSession() {
+        let shouldExport = logExportSettings.saveToNotesEnabled && !viewModel.sortedEntries.isEmpty
+        let logText = shouldExport ? viewModel.composeSessionLogText() : ""
+        let prayerCount = viewModel.sortedEntries.count
+        viewModel.clearLog()
+        if shouldExport {
+            onExportLog(logText, prayerCount)
         }
     }
 
@@ -176,6 +203,7 @@ struct ActiveSessionView: View {
     ActiveSessionView(
         viewModel: SessionViewModel(modelContext: container.mainContext),
         amenAlarmSettings: AmenAlarmSettings(),
+        logExportSettings: LogExportSettings(),
         consent: AnalyticsConsent()
     )
 }

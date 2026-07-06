@@ -42,7 +42,7 @@ struct Graces_Holy_BellApp: App {
     /// so without this fallback the failure is invisible.
     private static func makeModelContainer() -> (ModelContainer, recovered: Bool) {
         let logger = Logger(subsystem: "Boginfactory.Graces-Holy-Bell", category: "persistence")
-        let schema = Schema(versionedSchema: PrayerSchemaV2.self)
+        let schema = Schema(versionedSchema: PrayerSchemaV3.self)
         let config = ModelConfiguration(schema: schema)
 
         do {

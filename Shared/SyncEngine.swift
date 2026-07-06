@@ -13,8 +13,10 @@ enum SyncEngine {
     ///
     /// Rules:
     /// 1. `lastClearedAt` = max of both (nil treated as distant past).
-    /// 2. Union events by `id` (incoming events not already present are added).
-    /// 3. Prune any event with `timestamp <= lastClearedAt`.
+    /// 2. Union events by `id`; when both sides carry the same `id`, the
+    ///    version with the later `updatedAt` wins (LWW). This is what lets a
+    ///    phone-side edit/delete survive the Watch echoing back its stale copy.
+    /// 3. Prune any event with `timestamp <= lastClearedAt` (tombstones included).
     ///
     /// Returns the merged (events, lastClearedAt) — ready to persist.
     static func merge(
@@ -27,8 +29,14 @@ enum SyncEngine {
         let mergedClearedAt = maxDate(localClearedAt, incomingClearedAt)
 
         var byID = Dictionary(uniqueKeysWithValues: localEvents.map { ($0.id, $0) })
-        for event in incomingEvents where byID[event.id] == nil {
-            byID[event.id] = event
+        for event in incomingEvents {
+            if let existing = byID[event.id] {
+                if event.updatedAt > existing.updatedAt {
+                    byID[event.id] = event
+                }
+            } else {
+                byID[event.id] = event
+            }
         }
 
         let pruned = byID.values.filter { event in
@@ -41,10 +49,11 @@ enum SyncEngine {
 
     // MARK: - Derivations
 
-    /// Returns events after `lastClearedAt`, sorted ascending by timestamp.
+    /// Returns non-deleted events after `lastClearedAt`, sorted ascending by timestamp.
     static func activeLog(events: [PrayerEvent], lastClearedAt: Date?) -> [PrayerEvent] {
         events
             .filter { event in
+                guard !event.isDeleted else { return false }
                 guard let cleared = lastClearedAt else { return true }
                 return event.timestamp > cleared
             }

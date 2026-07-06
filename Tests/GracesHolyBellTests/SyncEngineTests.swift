@@ -216,6 +216,75 @@ final class SyncEngineTests: XCTestCase {
         XCTAssertTrue(SyncEngine.isActive(events: [e], lastClearedAt: t(20)))
     }
 
+    // MARK: - Last-writer-wins (phone edits vs stale Watch echoes)
+
+    func test_merge_sameID_laterUpdatedAtWins() {
+        let id = UUID()
+        let original = PrayerEvent(id: id, timestamp: t(10), origin: .phone, updatedAt: t(10))
+        let edited = PrayerEvent(id: id, timestamp: t(5), origin: .phone, updatedAt: t(50))
+
+        // Edited version is local, stale echo incoming — edit survives.
+        let (a, _) = SyncEngine.merge(
+            localEvents: [edited], localClearedAt: nil,
+            incomingEvents: [original], incomingClearedAt: nil
+        )
+        XCTAssertEqual(a.first?.timestamp, t(5))
+
+        // Edited version incoming — it overwrites the stale local copy.
+        let (b, _) = SyncEngine.merge(
+            localEvents: [original], localClearedAt: nil,
+            incomingEvents: [edited], incomingClearedAt: nil
+        )
+        XCTAssertEqual(b.first?.timestamp, t(5))
+    }
+
+    func test_merge_tombstoneSurvivesStaleEcho() {
+        let id = UUID()
+        let live = PrayerEvent(id: id, timestamp: t(10), origin: .phone, updatedAt: t(10))
+        let deleted = PrayerEvent(id: id, timestamp: t(10), origin: .phone, updatedAt: t(40), isDeleted: true)
+
+        // The Watch echoing the pre-delete version must not resurrect the prayer.
+        let (merged, _) = SyncEngine.merge(
+            localEvents: [deleted], localClearedAt: nil,
+            incomingEvents: [live], incomingClearedAt: nil
+        )
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertTrue(merged.first?.isDeleted ?? false)
+    }
+
+    func test_merge_notePropagates() {
+        let id = UUID()
+        let plain = PrayerEvent(id: id, timestamp: t(10), origin: .phone, updatedAt: t(10))
+        let noted = PrayerEvent(id: id, timestamp: t(10), origin: .phone, updatedAt: t(30), note: "For Grandma")
+
+        let (merged, _) = SyncEngine.merge(
+            localEvents: [plain], localClearedAt: nil,
+            incomingEvents: [noted], incomingClearedAt: nil
+        )
+        XCTAssertEqual(merged.first?.note, "For Grandma")
+    }
+
+    // MARK: - Tombstones excluded from derivations
+
+    func test_activeLog_excludesDeletedEvents() {
+        let live = event(at: 10)
+        let dead = PrayerEvent(id: UUID(), timestamp: t(20), origin: .phone, isDeleted: true)
+
+        let log = SyncEngine.activeLog(events: [live, dead], lastClearedAt: nil)
+        XCTAssertEqual(log.map(\.id), [live.id])
+    }
+
+    func test_isActive_falseWhenOnlyTombstonesRemain() {
+        let dead = PrayerEvent(id: UUID(), timestamp: t(20), origin: .phone, isDeleted: true)
+        XCTAssertFalse(SyncEngine.isActive(events: [dead], lastClearedAt: nil))
+    }
+
+    func test_lastTimestamp_skipsTombstones() {
+        let live = event(at: 10)
+        let dead = PrayerEvent(id: UUID(), timestamp: t(30), origin: .phone, isDeleted: true)
+        XCTAssertEqual(SyncEngine.lastTimestamp(events: [live, dead], lastClearedAt: nil), t(10))
+    }
+
     // MARK: - lastTimestamp
 
     func test_lastTimestamp_isMaxActiveTimestamp() {

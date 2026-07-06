@@ -40,7 +40,7 @@ final class PrayerSchemaMigrationTests: XCTestCase {
     }
 
     private func openCurrent() throws -> ModelContainer {
-        let schema = Schema(versionedSchema: PrayerSchemaV2.self)
+        let schema = Schema(versionedSchema: PrayerSchemaV3.self)
         return try ModelContainer(
             for: schema,
             migrationPlan: PrayerMigrationPlan.self,
@@ -98,7 +98,7 @@ final class PrayerSchemaMigrationTests: XCTestCase {
         XCTAssertEqual(secondOpen.map(\.id), firstOpenIDs)
     }
 
-    // MARK: - Already-V2 stores (fresh 1.42 installs) are untouched
+    // MARK: - V2 stores (1.42/1.43 installs) migrate to V3 with defaults
 
     func test_v2Store_reopensThroughPlan_withIDsUnchanged() throws {
         let schema = Schema(versionedSchema: PrayerSchemaV2.self)
@@ -109,7 +109,7 @@ final class PrayerSchemaMigrationTests: XCTestCase {
                 configurations: ModelConfiguration(schema: schema, url: storeURL)
             )
             let context = ModelContext(container)
-            context.insert(PrayerEntry(id: knownID, timestamp: .now, origin: "watch"))
+            context.insert(PrayerSchemaV2.PrayerEntry(id: knownID, timestamp: .now, origin: "watch"))
             try context.save()
         }
 
@@ -118,5 +118,25 @@ final class PrayerSchemaMigrationTests: XCTestCase {
         XCTAssertEqual(entries.count, 1)
         XCTAssertEqual(entries.first?.id, knownID)
         XCTAssertEqual(entries.first?.origin, "watch")
+    }
+
+    func test_v2Store_migratesToV3_withEditFieldDefaults() throws {
+        let schema = Schema(versionedSchema: PrayerSchemaV2.self)
+        do {
+            let container = try ModelContainer(
+                for: schema,
+                configurations: ModelConfiguration(schema: schema, url: storeURL)
+            )
+            let context = ModelContext(container)
+            context.insert(PrayerSchemaV2.PrayerEntry(id: UUID(), timestamp: .now, origin: "phone"))
+            try context.save()
+        }
+
+        let entries = try fetchEntries(try openCurrent())
+
+        // The new V3 columns must default cleanly (the 1.42 lesson).
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.isRemoved, false)
+        XCTAssertNil(entries.first?.note)
     }
 }

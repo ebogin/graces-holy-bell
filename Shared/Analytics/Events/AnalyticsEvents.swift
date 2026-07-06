@@ -107,6 +107,45 @@ struct AnalyticsEventFactory {
         ], at: timestamp)
     }
 
+    // MARK: - Log editing (phone-only features)
+
+    /// A prayer was deleted from the active log. `prayerAgeBucket` is how long
+    /// after being logged the prayer was deleted (bucketed — no raw durations).
+    func prayerDeleted(prayerIndexInSession: Int, prayerAgeBucket: String, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("prayer_deleted", [
+            "prayer_index_in_session": .int(prayerIndexInSession),
+            "prayer_age_bucket": .string(prayerAgeBucket)
+        ], at: timestamp)
+    }
+
+    /// A prayer's time was edited. `direction` is "earlier"/"later";
+    /// `adjustmentBucket` is the bucketed size of the shift.
+    func prayerTimeEdited(direction: String, adjustmentBucket: String, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("prayer_time_edited", [
+            "direction": .string(direction),
+            "adjustment_bucket": .string(adjustmentBucket)
+        ], at: timestamp)
+    }
+
+    /// A prayer intention was added/edited/removed. Content is never sent.
+    func prayerIntentionSet(action: String, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("prayer_intention_set", ["action": .string(action)], at: timestamp)
+    }
+
+    /// The "Save Log to Notes" setting was toggled.
+    func notesAutosaveSet(enabled: Bool, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("notes_autosave_set", ["enabled": .bool(enabled)], at: timestamp)
+    }
+
+    /// The composed session log was handed to the share sheet at session end.
+    /// `completed` is whether the user finished the share (vs cancelled).
+    func sessionLogExported(prayersInSession: Int, completed: Bool, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("session_log_exported", [
+            "prayers_in_session": .int(prayersInSession),
+            "completed": .bool(completed)
+        ], at: timestamp)
+    }
+
     // MARK: - Amen Alarm / notifications
 
     func amenAlarmSet(at timestamp: Date = Date()) -> AnalyticsEvent {

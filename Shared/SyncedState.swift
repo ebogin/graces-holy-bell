@@ -36,7 +36,8 @@ struct EventMessage {
             "msg": "event",
             "id": event.id.uuidString,
             "timestamp": event.timestamp,
-            "origin": event.origin.rawValue
+            "origin": event.origin.rawValue,
+            "updatedAt": event.updatedAt
         ]
     }
 
@@ -47,7 +48,8 @@ struct EventMessage {
               let timestamp = dict["timestamp"] as? Date,
               let originString = dict["origin"] as? String,
               let origin = PrayerEvent.Origin(rawValue: originString) else { return nil }
-        return EventMessage(event: PrayerEvent(id: id, timestamp: timestamp, origin: origin))
+        let updatedAt = dict["updatedAt"] as? Date ?? timestamp
+        return EventMessage(event: PrayerEvent(id: id, timestamp: timestamp, origin: origin, updatedAt: updatedAt))
     }
 }
 

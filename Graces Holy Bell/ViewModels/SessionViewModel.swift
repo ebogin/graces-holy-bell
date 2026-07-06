@@ -136,7 +136,76 @@ final class SessionViewModel {
         applyAndSaveClearedAt(Date())
         pruneAndRefresh()
         amenAlarmManager.cancelAlarm()
+        changeStore.clear()
         onStateChanged?()
+    }
+
+    // MARK: - Log editing (phone-only)
+
+    /// Deletes a prayer from the active log (accidental slider fire).
+    ///
+    /// The entry becomes a tombstone rather than being removed: it stays in the
+    /// store (excluded from the log) so the deletion syncs to the Watch instead
+    /// of the Watch resurrecting it on the next merge. Timer and durations
+    /// recalculate automatically from the remaining entries.
+    func deletePrayer(_ entry: PrayerEntry) {
+        let index = sortedEntries.firstIndex(where: { $0.id == entry.id }).map { $0 + 1 } ?? 0
+        let now = Date()
+        entry.isRemoved = true
+        entry.updatedAt = now
+        changeStore.append(PrayerLogChange(
+            kind: .deleted, occurredAt: now, originalTimestamp: entry.timestamp, newTimestamp: nil
+        ))
+        save()
+        refreshEntries()
+        refreshAmenAlarm()
+        onStateChanged?()
+        analytics?.recordPrayerDeleted(index: index, loggedAt: entry.timestamp, at: now)
+    }
+
+    /// Changes a prayer's time (forgot to fire the slider until later).
+    /// The log re-sorts and all durations + the live timer recalculate.
+    func editPrayerTime(_ entry: PrayerEntry, to newTime: Date) {
+        let oldTime = entry.timestamp
+        guard newTime != oldTime else { return }
+        let now = Date()
+        entry.timestamp = newTime
+        entry.updatedAt = now
+        changeStore.append(PrayerLogChange(
+            kind: .timeEdited, occurredAt: now, originalTimestamp: oldTime, newTimestamp: newTime
+        ))
+        save()
+        refreshEntries()
+        refreshAmenAlarm()
+        onStateChanged?()
+        analytics?.recordPrayerTimeEdited(oldTime: oldTime, newTime: newTime, at: now)
+    }
+
+    /// Sets (or clears, when empty/whitespace) a prayer's intention note.
+    func setIntention(_ entry: PrayerEntry, note: String?) {
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newNote = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        let oldNote = entry.note
+        guard newNote != oldNote else { return }
+        entry.note = newNote
+        entry.updatedAt = Date()
+        save()
+        refreshEntries()
+        onStateChanged?()
+
+        let action: AnalyticsService.IntentionAction =
+            oldNote == nil ? .added : (newNote == nil ? .removed : .edited)
+        analytics?.recordPrayerIntentionSet(action: action)
+    }
+
+    /// The composed plain-text log for saving to Notes. Call BEFORE clearLog()
+    /// — clearing prunes the entries and change history it reads.
+    func composeSessionLogText(endedAt: Date = Date()) -> String {
+        SessionLogFormatter.compose(
+            prayers: sortedEntries.map { .init(timestamp: $0.timestamp, note: $0.note) },
+            endedAt: endedAt,
+            changes: changeStore.load()
+        )
     }
 
     /// Re-applies the Amen Alarm schedule after a settings change.
@@ -154,9 +223,7 @@ final class SessionViewModel {
     /// Inserts new watch-origin events, advances lastClearedAt if needed.
     /// Never emits analytics — each prayer is counted exactly once at its origin.
     func mergeIncoming(snapshot: SyncSnapshot) {
-        let localPrayerEvents = allEvents.map {
-            PrayerEvent(id: $0.id, timestamp: $0.timestamp, origin: PrayerEvent.Origin(rawValue: $0.origin) ?? .phone)
-        }
+        let localPrayerEvents = allEvents.map { $0.asPrayerEvent }
         let (merged, mergedClearedAt) = SyncEngine.merge(
             localEvents: localPrayerEvents,
             localClearedAt: lastClearedAt,
@@ -173,16 +240,35 @@ final class SessionViewModel {
         // Advance the clear epoch if the incoming one is later.
         if let newCleared = mergedClearedAt, newCleared != lastClearedAt {
             applyAndSaveClearedAt(newCleared)
+            changeStore.clear()
             changed = true
         }
 
-        // Insert new events that came from the Watch.
-        let existingIDs = Set(allEvents.map(\.id))
-        for event in merged where !existingIDs.contains(event.id) {
-            let entry = PrayerEntry(id: event.id, timestamp: event.timestamp, origin: event.origin.rawValue)
-            modelContext.insert(entry)
-            allEvents.append(entry)
-            changed = true
+        // Apply the merged result: insert events we didn't have, and update
+        // entries where a newer version (LWW by updatedAt) won the merge.
+        let entriesByID = Dictionary(uniqueKeysWithValues: allEvents.map { ($0.id, $0) })
+        for event in merged {
+            if let entry = entriesByID[event.id] {
+                if event.updatedAt > entry.updatedAt {
+                    entry.timestamp = event.timestamp
+                    entry.updatedAt = event.updatedAt
+                    entry.isRemoved = event.isDeleted
+                    entry.note = event.note
+                    changed = true
+                }
+            } else {
+                let entry = PrayerEntry(
+                    id: event.id,
+                    timestamp: event.timestamp,
+                    origin: event.origin.rawValue,
+                    updatedAt: event.updatedAt,
+                    isRemoved: event.isDeleted,
+                    note: event.note
+                )
+                modelContext.insert(entry)
+                allEvents.append(entry)
+                changed = true
+            }
         }
 
         guard changed else { return }
@@ -193,10 +279,15 @@ final class SessionViewModel {
     }
 
     /// Builds a SyncSnapshot from the current active state for sending to the Watch.
+    /// Includes tombstones (deleted prayers) — that's how a phone-side delete
+    /// reaches the Watch instead of being resurrected by its next snapshot.
     func makeSnapshot(amenAlarmSettings: AmenAlarmSettings?) -> SyncSnapshot {
-        let events = sortedEntries.map {
-            PrayerEvent(id: $0.id, timestamp: $0.timestamp, origin: PrayerEvent.Origin(rawValue: $0.origin) ?? .phone)
-        }
+        let events = allEvents
+            .filter { entry in
+                guard let cleared = lastClearedAt else { return true }
+                return entry.timestamp > cleared
+            }
+            .map { $0.asPrayerEvent }
         let amenAlarmFireAt: Date? = {
             guard let settings = amenAlarmSettings,
                   settings.watchEnabled,
@@ -227,6 +318,9 @@ final class SessionViewModel {
 
     private static let lastClearedAtKey = "prayer.lastClearedAt"
 
+    /// Session change history (deletes / time edits) for the saved Notes log.
+    private let changeStore = PrayerLogChangeStore()
+
     private let logger = Logger(subsystem: "Boginfactory.Graces-Holy-Bell", category: "persistence")
 
     /// Set when load() failed before the analytics sink was attached.
@@ -251,12 +345,12 @@ final class SessionViewModel {
     }
 
     private func refreshEntries() {
-        guard let cleared = lastClearedAt else {
-            sortedEntries = allEvents.sorted { $0.timestamp < $1.timestamp }
-            return
-        }
         sortedEntries = allEvents
-            .filter { $0.timestamp > cleared }
+            .filter { entry in
+                guard !entry.isRemoved else { return false }
+                guard let cleared = lastClearedAt else { return true }
+                return entry.timestamp > cleared
+            }
             .sorted { $0.timestamp < $1.timestamp }
     }
 
@@ -302,5 +396,20 @@ final class SessionViewModel {
         }
         let fireDate = lastTimestamp.addingTimeInterval(settings.duration.rawValue)
         amenAlarmManager.scheduleAlarm(fireDate: fireDate)
+    }
+}
+
+// MARK: - PrayerEntry → PrayerEvent
+
+private extension PrayerEntry {
+    var asPrayerEvent: PrayerEvent {
+        PrayerEvent(
+            id: id,
+            timestamp: timestamp,
+            origin: PrayerEvent.Origin(rawValue: origin) ?? .phone,
+            updatedAt: updatedAt,
+            isDeleted: isRemoved,
+            note: note
+        )
     }
 }

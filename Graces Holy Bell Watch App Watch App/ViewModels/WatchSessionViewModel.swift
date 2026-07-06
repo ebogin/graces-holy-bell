@@ -113,8 +113,9 @@ final class WatchSessionViewModel {
         storeState.lastClearedAt = mergedClearedAt
 
         // Persist the alarm interval the phone encoded so we can refire offline later.
+        // Tombstones excluded — the phone computed fireAt from its last *active* prayer.
         if let fireAt = incoming.amenAlarmFireAt,
-           let lastTS = incoming.events.map(\.timestamp).max() {
+           let lastTS = incoming.events.filter({ !$0.isDeleted }).map(\.timestamp).max() {
             let interval = fireAt.timeIntervalSince(lastTS)
             if interval > 0 {
                 storeState.lastSyncedAlarmInterval = interval
