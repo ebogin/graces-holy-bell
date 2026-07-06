@@ -21,7 +21,7 @@ struct PrayerLiveActivityWidget: Widget {
             DynamicIsland {
                 // Expanded (long-press the island)
                 DynamicIslandExpandedRegion(.leading) {
-                    BellGlyph(size: 30, color: .lcdThumbText)
+                    BellGlyph(size: 30)
                         .padding(.leading, 6)
                         .padding(.top, 8)
                 }
@@ -43,14 +43,14 @@ struct PrayerLiveActivityWidget: Widget {
                     }
                 }
             } compactLeading: {
-                BellGlyph(size: 20, color: .lcdThumbText)
+                BellGlyph(size: 20)
             } compactTrailing: {
                 TimerText(since: context.state.lastPrayerAt)
                     .font(.pixelFont(9))
                     .foregroundStyle(Color.lcdThumbText)
                     .frame(maxWidth: 74)
             } minimal: {
-                BellGlyph(size: 18, color: .lcdThumbText)
+                BellGlyph(size: 18)
             }
             .keylineTint(Color.lcdSlider)
         }
@@ -91,7 +91,7 @@ private struct PrayerLockScreenView: View {
                         .font(.pixelFont(9))
                         .foregroundStyle(Color.lcdTitle)
                     Spacer()
-                    BellGlyph(size: 20, color: .lcdDark)
+                    BellGlyph(size: 20)
                 }
                 TimerText(since: state.lastPrayerAt)
                     .font(.pixelFont(26))
@@ -151,18 +151,16 @@ private struct TimerText: View {
     }
 }
 
-/// Praying-hands silhouette (from the 🙏 emoji) rendered as a template image
-/// so it takes the LCD-green tint on every surface.
+/// The 🙏 emoji with its shading remapped onto the LCD palette — pale-green
+/// hands, mid-green creases, dark sleeves — so it reads as the actual emoji
+/// on both the dark island and the pale Lock Screen.
 private struct BellGlyph: View {
     let size: CGFloat
-    let color: Color
 
     var body: some View {
         Image("PrayingHands")
-            .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .frame(width: size, height: size)
-            .foregroundStyle(color)
     }
 }
