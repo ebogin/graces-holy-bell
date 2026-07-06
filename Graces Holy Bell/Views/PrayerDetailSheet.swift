@@ -21,8 +21,9 @@ struct PrayerDetailSheet: View {
     @FocusState private var intentionFocused: Bool
 
     /// Shared height for the date arrows, the date label, and the time pill so
-    /// every control on the DATE/TIME row lines up exactly.
-    private let controlHeight: CGFloat = 44
+    /// every control on the DATE/TIME row lines up exactly. Matches the earlier
+    /// padding-based pill height (pixelFont(9) + ~11pt vertical padding).
+    private let controlHeight: CGFloat = 34
 
     private let calendar = Calendar.current
 
