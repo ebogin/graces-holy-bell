@@ -62,10 +62,19 @@ struct ActiveSessionView: View {
 
                 // Prayer log with label (hidden behind settings when open)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("PRAYER LOG")
-                        .font(.pixelFont(7, relativeTo: .caption2))
-                        .foregroundStyle(Color.lcdMid)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack {
+                        Text("PRAYER LOG")
+                            .font(.pixelFont(7, relativeTo: .caption2))
+                            .foregroundStyle(Color.lcdMid)
+
+                        Spacer()
+
+                        // Discoverability cue for the row long-press.
+                        Text("HOLD TO EDIT")
+                            .font(.pixelFont(7, relativeTo: .caption2))
+                            .foregroundStyle(Color.lcdMid.opacity(0.7))
+                    }
+                    .frame(maxWidth: .infinity)
 
                     PrayerLogView(viewModel: viewModel, now: now) { entry in
                         selectedEntry = entry
@@ -81,7 +90,8 @@ struct ActiveSessionView: View {
                         logExport: logExportSettings,
                         consent: consent,
                         isWatchAvailable: isWatchAvailable,
-                        onForceSync: onForceSync
+                        onForceSync: onForceSync,
+                        analytics: viewModel.analytics
                     )
                     .transition(.move(edge: .leading))
                 }

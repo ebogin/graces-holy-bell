@@ -75,8 +75,9 @@ final class SessionViewModel {
 
     // MARK: - Initialization
 
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext, archiveStore: SessionArchiveStore = SessionArchiveStore()) {
         self.modelContext = modelContext
+        self.archiveStore = archiveStore
         load()
     }
 
@@ -91,8 +92,10 @@ final class SessionViewModel {
                 sessionStart: sessionStartedAt ?? Date(),
                 prayerTimestamps: sortedEntries.map(\.timestamp)
             )
+            archiveCurrentSession(endedAt: Date())
             applyAndSaveClearedAt(Date())
             pruneAndRefresh()
+            changeStore.clear()
         }
         logPrayer()
     }
@@ -133,6 +136,7 @@ final class SessionViewModel {
                 prayerTimestamps: sortedEntries.map(\.timestamp)
             )
         }
+        archiveCurrentSession(endedAt: Date())
         applyAndSaveClearedAt(Date())
         pruneAndRefresh()
         amenAlarmManager.cancelAlarm()
@@ -237,8 +241,12 @@ final class SessionViewModel {
         // again — an unbounded ping-pong even though state has converged.
         var changed = false
 
-        // Advance the clear epoch if the incoming one is later.
+        // Advance the clear epoch if the incoming one is later. The session
+        // ended remotely (Watch clear) — archive it first, folding in any
+        // incoming pre-clear prayers the phone hadn't seen yet (Watch logged
+        // offline, then cleared, then synced both at once).
         if let newCleared = mergedClearedAt, newCleared != lastClearedAt {
+            archiveRemotelyEndedSession(endedAt: newCleared, incomingEvents: snapshot.events)
             applyAndSaveClearedAt(newCleared)
             changeStore.clear()
             changed = true
@@ -320,6 +328,44 @@ final class SessionViewModel {
 
     /// Session change history (deletes / time edits) for the saved Notes log.
     private let changeStore = PrayerLogChangeStore()
+
+    /// Append-only archive of ended sessions, browsed in Prayer History.
+    private let archiveStore: SessionArchiveStore
+
+    /// Freezes the current active session into the history archive.
+    /// Call BEFORE advancing the clear epoch — it reads the live log.
+    private func archiveCurrentSession(endedAt: Date) {
+        guard !sortedEntries.isEmpty else { return }
+        archiveStore.append(ArchivedSession(
+            id: UUID(),
+            endedAt: endedAt,
+            prayers: sortedEntries.map { ArchivedPrayer(timestamp: $0.timestamp, note: $0.note) },
+            changes: changeStore.load()
+        ))
+    }
+
+    /// Archives a session that was ended by a remote (Watch) clear. Unions the
+    /// local active log with incoming pre-clear events so prayers the Watch
+    /// logged offline still make it into history.
+    private func archiveRemotelyEndedSession(endedAt: Date, incomingEvents: [PrayerEvent]) {
+        let localActive = sortedEntries.map {
+            ArchivedPrayer(timestamp: $0.timestamp, note: $0.note)
+        }
+        let localIDs = Set(sortedEntries.map(\.id))
+        let epoch = lastClearedAt ?? .distantPast
+        let incomingActive = incomingEvents
+            .filter { !$0.isDeleted && !localIDs.contains($0.id) && $0.timestamp > epoch && $0.timestamp <= endedAt }
+            .map { ArchivedPrayer(timestamp: $0.timestamp, note: $0.note) }
+
+        let prayers = (localActive + incomingActive).sorted { $0.timestamp < $1.timestamp }
+        guard !prayers.isEmpty else { return }
+        archiveStore.append(ArchivedSession(
+            id: UUID(),
+            endedAt: endedAt,
+            prayers: prayers,
+            changes: changeStore.load()
+        ))
+    }
 
     private let logger = Logger(subsystem: "Boginfactory.Graces-Holy-Bell", category: "persistence")
 

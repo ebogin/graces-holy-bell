@@ -17,8 +17,11 @@ struct SettingsView: View {
     var isWatchAvailable: Bool = false
     /// User tapped "Sync Up" — force a reconcile with the Watch.
     var onForceSync: () -> Void = {}
+    /// Analytics sink for feature-usage events fired from Settings (history).
+    var analytics: AnalyticsService? = nil
     @State private var showPrivacyPolicy = false
     @State private var showShareWithFriend = false
+    @State private var showHistory = false
 
     /// 1px outline around the toggle switches, matching the duration dropdown.
     private let toggleBorder = Color(hex: "#4d6139")
@@ -63,8 +66,9 @@ struct SettingsView: View {
 
                 divider()
 
-                // PRAYER LOG section — save the session log to Notes on session end
+                // PRAYER LOG section — past-session history + Notes autosave
                 settingsSectionHeader("PRAYER LOG")
+                historyRow()
                 alarmToggleRow(
                     label: "  Save Log to Notes",
                     isOn: $logExport.saveToNotesEnabled,
@@ -114,6 +118,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showShareWithFriend) {
             ShareWithFriendView()
+        }
+        .sheet(isPresented: $showHistory) {
+            PrayerHistoryView(analytics: analytics)
         }
     }
 
@@ -282,6 +289,30 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("share-with-friend-row")
+    }
+
+    @ViewBuilder
+    private func historyRow() -> some View {
+        Button {
+            showHistory = true
+        } label: {
+            HStack {
+                Text("  History")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdDark)
+
+                Spacer()
+
+                Text(">")
+                    .font(.pixelFont(9))
+                    .foregroundStyle(Color.lcdMid)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("prayer-history-row")
     }
 
     @ViewBuilder

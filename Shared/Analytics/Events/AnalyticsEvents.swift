@@ -137,6 +137,12 @@ struct AnalyticsEventFactory {
         event("notes_autosave_set", ["enabled": .bool(enabled)], at: timestamp)
     }
 
+    /// The in-app Prayer History was opened. `daysWithSessions` is how many
+    /// calendar days currently hold archived sessions (a rough depth signal).
+    func prayerHistoryViewed(daysWithSessions: Int, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("prayer_history_viewed", ["days_with_sessions": .int(daysWithSessions)], at: timestamp)
+    }
+
     /// The composed session log was handed to the share sheet at session end.
     /// `completed` is whether the user finished the share (vs cancelled).
     func sessionLogExported(prayersInSession: Int, completed: Bool, at timestamp: Date = Date()) -> AnalyticsEvent {

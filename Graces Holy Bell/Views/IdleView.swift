@@ -67,7 +67,8 @@ struct IdleView: View {
                         logExport: logExportSettings,
                         consent: consent,
                         isWatchAvailable: isWatchAvailable,
-                        onForceSync: onForceSync
+                        onForceSync: onForceSync,
+                        analytics: viewModel.analytics
                     )
                     .transition(.move(edge: .leading))
                 }

@@ -176,6 +176,11 @@ final class AnalyticsService {
         transport.capture(factory().notesAutosaveSet(enabled: enabled, at: timestamp))
     }
 
+    /// The in-app Prayer History sheet was opened.
+    func recordPrayerHistoryViewed(daysWithSessions: Int, at timestamp: Date = Date()) {
+        transport.capture(factory().prayerHistoryViewed(daysWithSessions: daysWithSessions, at: timestamp))
+    }
+
     /// The session log was offered to the share sheet (session end with the
     /// Notes setting on). `completed` = user finished the share vs cancelled.
     func recordSessionLogExported(prayersInSession: Int, completed: Bool, at timestamp: Date = Date()) {
