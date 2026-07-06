@@ -176,6 +176,11 @@ final class AnalyticsService {
         transport.capture(factory().prayerHistoryViewed(daysWithSessions: daysWithSessions, at: timestamp))
     }
 
+    /// The ADVANCED "Prayer Log Editing" master toggle was flipped.
+    func recordPrayerLogEditingSet(enabled: Bool, at timestamp: Date = Date()) {
+        transport.capture(factory().prayerLogEditingSet(enabled: enabled, at: timestamp))
+    }
+
     /// A day's logs were exported to text from Prayer History.
     /// `completed` = user finished the share vs cancelled.
     func recordHistoryDayExported(sessionsInDay: Int, completed: Bool, at timestamp: Date = Date()) {

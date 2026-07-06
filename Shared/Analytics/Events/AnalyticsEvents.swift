@@ -138,6 +138,11 @@ struct AnalyticsEventFactory {
         event("prayer_history_viewed", ["days_with_sessions": .int(daysWithSessions)], at: timestamp)
     }
 
+    /// The ADVANCED "Prayer Log Editing" master toggle was flipped.
+    func prayerLogEditingSet(enabled: Bool, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("prayer_log_editing_set", ["enabled": .bool(enabled)], at: timestamp)
+    }
+
     /// A day's logs were exported to text from Prayer History.
     /// `completed` is whether the user finished the share (vs cancelled).
     func historyDayExported(sessionsInDay: Int, completed: Bool, at timestamp: Date = Date()) -> AnalyticsEvent {

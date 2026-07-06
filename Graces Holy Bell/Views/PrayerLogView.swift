@@ -66,8 +66,10 @@ struct PrayerEntryRow: View {
                 .font(.pixelFont(9))
                 .foregroundStyle(Color.lcdDark)
 
-            // Subtle marker: this prayer has an intention attached.
-            if entry.note != nil {
+            // Subtle marker: this prayer has an intention attached. Shown only
+            // when editing is enabled (onSelect set) — intentions are a
+            // Prayer Log Editing feature, so the icon hides with the rest.
+            if onSelect != nil, entry.note != nil {
                 NoteGlyphIcon(size: 12, color: .lcdMid)
                     .accessibilityLabel("Has intention")
             }

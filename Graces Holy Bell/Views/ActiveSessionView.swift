@@ -8,6 +8,7 @@ struct ActiveSessionView: View {
 
     let viewModel: SessionViewModel
     let amenAlarmSettings: AmenAlarmSettings
+    let advancedSettings: AdvancedSettings
     let consent: AnalyticsConsent
     var isWatchAvailable: Bool = false
     var onForceSync: () -> Void = {}
@@ -64,16 +65,25 @@ struct ActiveSessionView: View {
 
                         Spacer()
 
-                        // Discoverability cue for the row long-press.
-                        Text("HOLD TO EDIT")
-                            .font(.pixelFont(7, relativeTo: .caption2))
-                            .foregroundStyle(Color.lcdMid.opacity(0.7))
+                        // Discoverability cue for the row long-press — only when
+                        // Prayer Log Editing is enabled (ADVANCED settings).
+                        if advancedSettings.prayerLogEditingEnabled {
+                            Text("HOLD TO EDIT")
+                                .font(.pixelFont(7, relativeTo: .caption2))
+                                .foregroundStyle(Color.lcdMid.opacity(0.7))
+                        }
                     }
                     .frame(maxWidth: .infinity)
 
-                    PrayerLogView(viewModel: viewModel, now: now) { entry in
-                        selectedEntry = entry
-                    }
+                    // When editing is off, pass no select handler — this hides
+                    // the edit chevron + intention icon and disables long-press.
+                    PrayerLogView(
+                        viewModel: viewModel,
+                        now: now,
+                        onSelectEntry: advancedSettings.prayerLogEditingEnabled
+                            ? { entry in selectedEntry = entry }
+                            : nil
+                    )
                 }
                 .frame(maxWidth: .infinity)
                 .opacity(showSettings ? 0 : 1)
@@ -82,6 +92,7 @@ struct ActiveSessionView: View {
                 if showSettings {
                     SettingsView(
                         settings: amenAlarmSettings,
+                        advanced: advancedSettings,
                         consent: consent,
                         isWatchAvailable: isWatchAvailable,
                         onForceSync: onForceSync,
@@ -193,6 +204,7 @@ struct ActiveSessionView: View {
     ActiveSessionView(
         viewModel: SessionViewModel(modelContext: container.mainContext),
         amenAlarmSettings: AmenAlarmSettings(),
+        advancedSettings: AdvancedSettings(),
         consent: AnalyticsConsent()
     )
 }

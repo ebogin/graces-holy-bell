@@ -11,6 +11,7 @@ import UserNotifications
 struct SettingsView: View {
 
     @Bindable var settings: AmenAlarmSettings
+    @Bindable var advanced: AdvancedSettings
     let consent: AnalyticsConsent
     /// Whether a paired Watch with the app installed is present (grays the Sync Up row).
     var isWatchAvailable: Bool = false
@@ -84,6 +85,16 @@ struct SettingsView: View {
                 // rendered. Uncomment the two lines below to bring it back.
                 // syncUpRow()
                 // divider()
+
+                // ADVANCED section — opt-in experimental / power-user features
+                settingsSectionHeader("ADVANCED")
+                alarmToggleRow(
+                    label: "  Prayer Log Editing",
+                    isOn: $advanced.prayerLogEditingEnabled,
+                    onChange: { _ in }
+                )
+
+                divider()
 
                 // Share with a Friend — opens the personal QR / waitlist share sheet
                 shareWithFriendRow()
@@ -185,8 +196,10 @@ struct SettingsView: View {
             Text(label)
                 .font(.pixelFont(9))
                 .foregroundStyle(Color.lcdDark)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-            Spacer()
+            Spacer(minLength: 8)
 
             Toggle("", isOn: isOn)
                 .labelsHidden()
@@ -373,7 +386,7 @@ struct SettingsView: View {
 #Preview {
     ZStack {
         Color.lcdBackground.ignoresSafeArea()
-        SettingsView(settings: AmenAlarmSettings(), consent: AnalyticsConsent())
+        SettingsView(settings: AmenAlarmSettings(), advanced: AdvancedSettings(), consent: AnalyticsConsent())
             .padding(16)
     }
 }

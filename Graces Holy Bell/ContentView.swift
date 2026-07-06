@@ -19,6 +19,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: SessionViewModel?
     @State private var amenAlarmSettings = AmenAlarmSettings()
+    @State private var advancedSettings = AdvancedSettings()
     // Analytics consent — applies the geo-gated default on first launch. Single
     // source of truth behind the Settings toggle and the EU opt-in banner.
     @State private var consent = AnalyticsConsent()
@@ -37,6 +38,7 @@ struct ContentView: View {
                     IdleView(
                         viewModel: viewModel,
                         amenAlarmSettings: amenAlarmSettings,
+                        advancedSettings: advancedSettings,
                         consent: consent,
                         isWatchAvailable: viewModel.isWatchAvailable,
                         onForceSync: { connectivityManager?.forceSync() }
@@ -45,6 +47,7 @@ struct ContentView: View {
                     ActiveSessionView(
                         viewModel: viewModel,
                         amenAlarmSettings: amenAlarmSettings,
+                        advancedSettings: advancedSettings,
                         consent: consent,
                         isWatchAvailable: viewModel.isWatchAvailable,
                         onForceSync: { connectivityManager?.forceSync() }
@@ -112,6 +115,10 @@ struct ContentView: View {
                     vm?.refreshAmenAlarm()
                     connectivityManager?.sendSnapshotToWatch()
                     analytics?.recordAmenAlarmSet() // additive
+                }
+
+                advancedSettings.onChange = { [weak analytics] enabled in
+                    analytics?.recordPrayerLogEditingSet(enabled: enabled)
                 }
 
                 // Forward Amen Alarm notification taps into analytics (additive;
