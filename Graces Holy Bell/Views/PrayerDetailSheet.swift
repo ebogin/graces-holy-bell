@@ -18,10 +18,11 @@ struct PrayerDetailSheet: View {
     @State private var showTimeWheel = false
     @State private var showCurrentPrayerConfirmation = false
     @State private var detent: PresentationDetent = .medium
-    /// Measured height of the TIME pill, applied to the date arrows so both
-    /// controls in the row are the same height.
-    @State private var controlHeight: CGFloat = 40
     @FocusState private var intentionFocused: Bool
+
+    /// Shared height for the date arrows, the date label, and the time pill so
+    /// every control on the DATE/TIME row lines up exactly.
+    private let controlHeight: CGFloat = 44
 
     private let calendar = Calendar.current
 
@@ -171,20 +172,14 @@ struct PrayerDetailSheet: View {
                                             .foregroundStyle(Color.lcdThumbText)
                                             .rotationEffect(.degrees(showTimeWheel ? 90 : 0))
                                     }
-                                    .frame(maxWidth: .infinity)
                                     .padding(.horizontal, 10)
-                                    .padding(.vertical, 11)
+                                    .frame(maxWidth: .infinity, minHeight: controlHeight, maxHeight: controlHeight)
                                     .background(showTimeWheel ? Color.lcdProgress : Color.lcdSlider)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 4)
                                             .stroke(Color.lcdDark, lineWidth: showTimeWheel ? 2.5 : 1.5)
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 4))
-                                    .background(
-                                        GeometryReader { geo in
-                                            Color.clear.preference(key: ControlHeightKey.self, value: geo.size.height)
-                                        }
-                                    )
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("prayer-time-pill")
@@ -232,7 +227,6 @@ struct PrayerDetailSheet: View {
                     }
                 }
             }
-            .onPreferenceChange(ControlHeightKey.self) { controlHeight = $0 }
 
             // ── Save ─────────────────────────────────────────────────
             Button {
@@ -294,7 +288,7 @@ struct PrayerDetailSheet: View {
             isPresented: $showCurrentPrayerConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Change Time") {
+            Button("Make this change", role: .destructive) {
                 applyChanges()
             }
             Button("Cancel", role: .cancel) { }
@@ -344,15 +338,6 @@ struct PrayerDetailSheet: View {
             viewModel.editPrayerTime(entry, to: editedTime)
         }
         dismiss()
-    }
-}
-
-/// Measures the TIME pill's rendered height so the date arrow buttons can
-/// match it exactly instead of guessing a fixed value.
-private struct ControlHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 40
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }
 
