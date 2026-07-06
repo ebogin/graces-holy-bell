@@ -6,8 +6,8 @@ import SwiftUI
 ///
 /// Renders the "since last prayer" count-up timer on the Lock Screen, in the
 /// Dynamic Island, and (via the .small supplemental family) in the watchOS
-/// Smart Stack — all in the app's LCD-green / pixel-font look. The timer uses
-/// `Text(timerInterval:)` so the system ticks it without any app updates.
+/// Smart Stack — all in the app's LCD-green / pixel-font look. The timer is
+/// a system-ticking live text, so it advances without any app updates.
 struct PrayerLiveActivityWidget: Widget {
 
     var body: some WidgetConfiguration {
@@ -21,7 +21,7 @@ struct PrayerLiveActivityWidget: Widget {
             DynamicIsland {
                 // Expanded (long-press the island)
                 DynamicIslandExpandedRegion(.leading) {
-                    BellGlyph(size: 22, color: .lcdThumbText)
+                    BellGlyph(size: 30, color: .lcdThumbText)
                         .padding(.leading, 6)
                         .padding(.top, 8)
                 }
@@ -43,14 +43,14 @@ struct PrayerLiveActivityWidget: Widget {
                     }
                 }
             } compactLeading: {
-                BellGlyph(size: 14, color: .lcdThumbText)
+                BellGlyph(size: 20, color: .lcdThumbText)
             } compactTrailing: {
                 TimerText(since: context.state.lastPrayerAt)
                     .font(.pixelFont(9))
                     .foregroundStyle(Color.lcdThumbText)
-                    .frame(maxWidth: 58)
+                    .frame(maxWidth: 74)
             } minimal: {
-                BellGlyph(size: 13, color: .lcdThumbText)
+                BellGlyph(size: 18, color: .lcdThumbText)
             }
             .keylineTint(Color.lcdSlider)
         }
@@ -91,7 +91,7 @@ private struct PrayerLockScreenView: View {
                         .font(.pixelFont(9))
                         .foregroundStyle(Color.lcdTitle)
                     Spacer()
-                    BellGlyph(size: 14, color: .lcdDark)
+                    BellGlyph(size: 20, color: .lcdDark)
                 }
                 TimerText(since: state.lastPrayerAt)
                     .font(.pixelFont(26))
@@ -115,27 +115,54 @@ private struct PrayerLockScreenView: View {
 // MARK: - Shared pieces
 
 /// System-ticking count-up timer — no app process needed to advance it.
+///
+/// Always shows HH:MM:SS, zero-padded. `Text(timerInterval:)` and the timer/
+/// stopwatch system styles all drop the hours field below one hour, so this
+/// uses `Duration.TimeFormatStyle` (the one live-tickable style with
+/// `padHourToLength`) over a `durationOffset` time data source.
+///
+/// The dimmed (always-on) render can't tick that data source and shows a
+/// "__:__:__" placeholder instead, so that pass gets the elapsed time frozen
+/// at the moment the system took the dimmed snapshot.
 private struct TimerText: View {
     let since: Date
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     var body: some View {
-        Text(timerInterval: since...Date.distantFuture, countsDown: false)
-            .monospacedDigit()
-            .multilineTextAlignment(.center)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
+        Group {
+            if isLuminanceReduced {
+                Text(frozenElapsed)
+            } else {
+                Text(
+                    .durationOffset(to: since),
+                    format: .time(pattern: .hourMinuteSecond(padHourToLength: 2))
+                )
+            }
+        }
+        .monospacedDigit()
+        .multilineTextAlignment(.center)
+        .lineLimit(1)
+        .minimumScaleFactor(0.5)
+    }
+
+    private var frozenElapsed: String {
+        Duration.seconds(max(Date.now.timeIntervalSince(since), 0))
+            .formatted(.time(pattern: .hourMinuteSecond(padHourToLength: 2)))
     }
 }
 
-/// Bell rendered as an SF Symbol tinted to the LCD palette — reads cleanly at
-/// Dynamic Island sizes where the pixel font would smear.
+/// Praying-hands silhouette (from the 🙏 emoji) rendered as a template image
+/// so it takes the LCD-green tint on every surface.
 private struct BellGlyph: View {
     let size: CGFloat
     let color: Color
 
     var body: some View {
-        Image(systemName: "bell.fill")
-            .font(.system(size: size, weight: .bold))
+        Image("PrayingHands")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
             .foregroundStyle(color)
     }
 }
