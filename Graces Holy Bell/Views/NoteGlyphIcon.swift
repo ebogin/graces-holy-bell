@@ -2,9 +2,9 @@ import SwiftUI
 
 /// Sticky-note glyph for prayer rows with an intention attached.
 ///
-/// Vector recreation of "Note" by Omar Safaa (Noun Project #2893934): a note
-/// outline with a folded bottom-right corner and three text lines, redrawn as
-/// stroked paths so it renders crisply at log-row size in any LCD color.
+/// Simplified from "Note" by Omar Safaa (Noun Project #2893934): just the
+/// note outline with a folded bottom-right corner — the inner text lines are
+/// dropped so the shape stays legible at log-row size.
 struct NoteGlyphShape: Shape {
 
     func path(in rect: CGRect) -> Path {
@@ -29,28 +29,21 @@ struct NoteGlyphShape: Shape {
         path.addLine(to: pt(13, 14))
         path.addLine(to: pt(20, 14))
 
-        // Text lines.
-        path.move(to: pt(8, 7.5))
-        path.addLine(to: pt(16, 7.5))
-        path.move(to: pt(8, 11.5))
-        path.addLine(to: pt(16, 11.5))
-        path.move(to: pt(8, 15.5))
-        path.addLine(to: pt(10.5, 15.5))
-
         return path
     }
 }
 
 /// Ready-to-place icon view: stroked NoteGlyphShape at a given point size.
+/// Sized a touch larger than the 9pt row text and center-aligned with it.
 struct NoteGlyphIcon: View {
 
-    var size: CGFloat = 9
+    var size: CGFloat = 12
     var color: Color = .lcdMid
 
     var body: some View {
         NoteGlyphShape()
             .stroke(color, style: StrokeStyle(
-                lineWidth: size * 2 / 24,
+                lineWidth: size * 2.6 / 24,
                 lineCap: .round,
                 lineJoin: .round
             ))

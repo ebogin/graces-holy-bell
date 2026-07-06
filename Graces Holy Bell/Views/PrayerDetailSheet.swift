@@ -71,19 +71,21 @@ struct PrayerDetailSheet: View {
                 .font(.pixelFont(7, relativeTo: .caption2))
                 .foregroundStyle(Color.lcdMid)
 
-            DatePicker(
-                "",
-                selection: $editedTime,
-                in: timeRange,
-                displayedComponents: [.date, .hourAndMinute]
-            )
-            .datePickerStyle(.compact)
-            .labelsHidden()
-            .tint(Color.lcdDark)
-            .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .pixelBorder()
-            .accessibilityIdentifier("prayer-time-picker")
+            // App-styled date + time buttons (Duration-dropdown pill style).
+            // An invisible system DatePicker sits on top of each pill, so a
+            // tap opens the standard calendar / time wheel popovers.
+            HStack(spacing: 10) {
+                pickerPill(
+                    label: Self.editDateFormatter.string(from: editedTime).uppercased(),
+                    components: .date,
+                    identifier: "prayer-date-picker"
+                )
+                pickerPill(
+                    label: TimeFormatter.wallClockString(from: editedTime),
+                    components: .hourAndMinute,
+                    identifier: "prayer-time-picker"
+                )
+            }
 
             // ── Intention ────────────────────────────────────────────
             Text("INTENTION")
@@ -152,6 +154,54 @@ struct PrayerDetailSheet: View {
         } message: {
             Text("Remove the \(TimeFormatter.wallClockString(from: entry.timestamp)) prayer from the log. This CANNOT BE UNDONE")
         }
+    }
+
+    /// "JUL 5, 2026" for the date pill.
+    private static let editDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d, yyyy"
+        return f
+    }()
+
+    /// A Duration-dropdown-styled pill showing the current value, with an
+    /// invisible compact DatePicker stretched over it so tapping opens the
+    /// system picker popover for just that component.
+    @ViewBuilder
+    private func pickerPill(
+        label: String,
+        components: DatePickerComponents,
+        identifier: String
+    ) -> some View {
+        Text(label)
+            .font(.pixelFont(9))
+            .foregroundStyle(Color.lcdThumbText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .background(Color.lcdSlider)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.lcdDark, lineWidth: 1.5)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .overlay(
+                DatePicker(
+                    "",
+                    selection: $editedTime,
+                    in: timeRange,
+                    displayedComponents: components
+                )
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .tint(Color.lcdDark)
+                .contentShape(Rectangle())
+                // Nearly invisible but still hit-testable — the pill below is
+                // the visible control, the system picker supplies the popover.
+                .opacity(0.011)
+            )
+            .accessibilityIdentifier(identifier)
     }
 
     private func applyChanges() {

@@ -59,17 +59,16 @@ struct PrayerEntryRow: View {
     @State private var isPressing = false
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
+        // Center alignment (not baseline) so the note glyph — slightly taller
+        // than the 9pt text — middles with the row text.
+        HStack(alignment: .center) {
             Text("#\(index + 1)  \(TimeFormatter.wallClockString(from: entry.timestamp))")
                 .font(.pixelFont(9))
                 .foregroundStyle(Color.lcdDark)
 
-            // Subtle marker: this prayer has an intention attached. Baseline
-            // guide = icon bottom, so with the icon sized to the 9pt cap height
-            // its TOP aligns with the top of the time text.
+            // Subtle marker: this prayer has an intention attached.
             if entry.note != nil {
-                NoteGlyphIcon(size: 9, color: .lcdMid)
-                    .alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
+                NoteGlyphIcon(size: 12, color: .lcdMid)
                     .accessibilityLabel("Has intention")
             }
 
@@ -90,7 +89,6 @@ struct PrayerEntryRow: View {
                 Text(">")
                     .font(.pixelFont(7))
                     .foregroundStyle(Color.lcdMid.opacity(0.7))
-                    .alignmentGuide(.firstTextBaseline) { d in d[.firstTextBaseline] }
             }
         }
         .contentShape(Rectangle())
