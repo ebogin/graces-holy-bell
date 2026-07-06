@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		C73274DF2F5671EB004B75A5 /* Graces Holy Bell Watch App Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = C73274D52F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CAFE00000000000000000E01 /* GraceTimerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CAFE00000000000000000101 /* GraceTimerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DEADBEEF0000000000000003 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = DEADBEEF0000000000000002 /* PostHog */; };
 /* End PBXBuildFile section */
 
@@ -26,6 +27,13 @@
 			remoteGlobalIDString = C73274AA2F56663A004B75A5;
 			remoteInfo = "Graces Holy Bell";
 		};
+		CAFE00000000000000000B01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C73274A32F56663A004B75A5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CAFE00000000000000000401;
+			remoteInfo = GraceTimerWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -40,13 +48,35 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CAFE00000000000000000D01 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CAFE00000000000000000E01 /* GraceTimerWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		C73274AB2F56663A004B75A5 /* Graces Holy Bell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Graces Holy Bell.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C73274D52F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Graces Holy Bell Watch App Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7AA00112F567002004B75A5 /* GracesHolyBellTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GracesHolyBellTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CAFE00000000000000000101 /* GraceTimerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GraceTimerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CAFE00000000000000000F01 /* Exceptions for "GraceTimerWidget" folder in "GraceTimerWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CAFE00000000000000000401 /* GraceTimerWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C73274AD2F56663A004B75A5 /* Graces Holy Bell */ = {
@@ -68,6 +98,19 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			name = GracesHolyBellTests;
 			path = Tests/GracesHolyBellTests;
+			sourceTree = "<group>";
+		};
+		CAFE00000000000000000201 /* GraceTimerWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CAFE00000000000000000F01 /* Exceptions for "GraceTimerWidget" folder in "GraceTimerWidgetExtension" target */,
+			);
+			path = GraceTimerWidget;
+			sourceTree = "<group>";
+		};
+		CAFE00000000000000000301 /* LiveActivityShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LiveActivityShared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -95,6 +138,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CAFE00000000000000000601 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -103,6 +153,8 @@
 			children = (
 				C73274AD2F56663A004B75A5 /* Graces Holy Bell */,
 				C73274D62F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */,
+				CAFE00000000000000000201 /* GraceTimerWidget */,
+				CAFE00000000000000000301 /* LiveActivityShared */,
 				C7AA00012F567000004B75A5 /* Shared */,
 				C7AA00122F567003004B75A5 /* GracesHolyBellTests */,
 				C73274AC2F56663A004B75A5 /* Products */,
@@ -115,6 +167,7 @@
 				C73274AB2F56663A004B75A5 /* Graces Holy Bell.app */,
 				C73274D52F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App.app */,
 				C7AA00112F567002004B75A5 /* GracesHolyBellTests.xctest */,
+				CAFE00000000000000000101 /* GraceTimerWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -130,15 +183,18 @@
 				C73274A82F56663A004B75A5 /* Frameworks */,
 				C73274A92F56663A004B75A5 /* Resources */,
 				C73274E32F5671EB004B75A5 /* Embed Watch Content */,
+				CAFE00000000000000000D01 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				C73274DE2F5671EB004B75A5 /* PBXTargetDependency */,
+				CAFE00000000000000000C01 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				C73274AD2F56663A004B75A5 /* Graces Holy Bell */,
 				C7AA00012F567000004B75A5 /* Shared */,
+				CAFE00000000000000000301 /* LiveActivityShared */,
 			);
 			name = "Graces Holy Bell";
 			packageProductDependencies = (
@@ -194,6 +250,29 @@
 			productReference = C7AA00112F567002004B75A5 /* GracesHolyBellTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		CAFE00000000000000000401 /* GraceTimerWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CAFE00000000000000000801 /* Build configuration list for PBXNativeTarget "GraceTimerWidgetExtension" */;
+			buildPhases = (
+				CAFE00000000000000000501 /* Sources */,
+				CAFE00000000000000000601 /* Frameworks */,
+				CAFE00000000000000000701 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CAFE00000000000000000201 /* GraceTimerWidget */,
+				CAFE00000000000000000301 /* LiveActivityShared */,
+			);
+			name = GraceTimerWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = GraceTimerWidgetExtension;
+			productReference = CAFE00000000000000000101 /* GraceTimerWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -213,6 +292,9 @@
 					C7AA00162F567007004B75A5 = {
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = C73274AA2F56663A004B75A5;
+					};
+					CAFE00000000000000000401 = {
+						CreatedOnToolsVersion = 26.3;
 					};
 				};
 			};
@@ -236,6 +318,7 @@
 				C73274AA2F56663A004B75A5 /* Graces Holy Bell */,
 				C73274D42F5671E8004B75A5 /* Graces Holy Bell Watch App Watch App */,
 				C7AA00162F567007004B75A5 /* GracesHolyBellTests */,
+				CAFE00000000000000000401 /* GraceTimerWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -256,6 +339,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C7AA00152F567006004B75A5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CAFE00000000000000000701 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -286,6 +376,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CAFE00000000000000000501 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -298,6 +395,11 @@
 			isa = PBXTargetDependency;
 			target = C73274AA2F56663A004B75A5 /* Graces Holy Bell */;
 			targetProxy = C7AA00102F567001004B75A5 /* PBXContainerItemProxy */;
+		};
+		CAFE00000000000000000C01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CAFE00000000000000000401 /* GraceTimerWidgetExtension */;
+			targetProxy = CAFE00000000000000000B01 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -422,13 +524,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIAppFonts = "PressStart2P-Regular.ttf";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -467,13 +570,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIAppFonts = "PressStart2P-Regular.ttf";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -512,7 +616,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -548,7 +652,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -584,7 +688,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
@@ -607,7 +711,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 5GWLV9DSB5;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
@@ -622,6 +726,67 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Graces Holy Bell.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Graces Holy Bell";
+			};
+			name = Release;
+		};
+		CAFE00000000000000000901 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GraceTimerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Grace Timer";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.43;
+				PRODUCT_BUNDLE_IDENTIFIER = "Boginfactory.Graces-Holy-Bell.GraceTimerWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		CAFE00000000000000000A01 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 5GWLV9DSB5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GraceTimerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Grace Timer";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.43;
+				PRODUCT_BUNDLE_IDENTIFIER = "Boginfactory.Graces-Holy-Bell.GraceTimerWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -651,6 +816,15 @@
 			buildConfigurations = (
 				C73274E12F5671EB004B75A5 /* Debug */,
 				C73274E22F5671EB004B75A5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CAFE00000000000000000801 /* Build configuration list for PBXNativeTarget "GraceTimerWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CAFE00000000000000000901 /* Debug */,
+				CAFE00000000000000000A01 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

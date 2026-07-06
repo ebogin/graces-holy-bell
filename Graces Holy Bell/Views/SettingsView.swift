@@ -12,6 +12,8 @@ struct SettingsView: View {
 
     @Bindable var settings: AmenAlarmSettings
     @Bindable var advanced: AdvancedSettings
+    /// Live Activity preference — defaulted so previews don't need to build one.
+    @Bindable var liveActivitySettings = LiveActivitySettings()
     let consent: AnalyticsConsent
     /// Whether a paired Watch with the app installed is present (grays the Sync Up row).
     var isWatchAvailable: Bool = false
@@ -76,6 +78,12 @@ struct SettingsView: View {
 
                     divider()
                 }
+
+                // LIVE ACTIVITY section — Lock Screen / Dynamic Island timer
+                settingsSectionHeader("LIVE ACTIVITY")
+                liveActivityToggleRow()
+
+                divider()
 
                 // "Force Watch Sync" row — hidden from the UI for now (2026-06-30,
                 // Eric's call: the reconcile is too slow to be a satisfying manual
@@ -212,6 +220,30 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private func liveActivityToggleRow() -> some View {
+        HStack {
+            Text("  Lock Screen Timer")
+                .font(.pixelFont(9))
+                .foregroundStyle(Color.lcdDark)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Spacer(minLength: 8)
+
+            Toggle("", isOn: $liveActivitySettings.enabled)
+                .labelsHidden()
+                .tint(Color.lcdSlider)
+                .overlay(
+                    Capsule()
+                        .stroke(toggleBorder, lineWidth: 1)
+                )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .accessibilityIdentifier("live-activity-row")
     }
 
     @ViewBuilder

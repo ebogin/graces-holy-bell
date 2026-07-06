@@ -9,6 +9,9 @@ struct ActiveSessionView: View {
     let viewModel: SessionViewModel
     let amenAlarmSettings: AmenAlarmSettings
     let advancedSettings: AdvancedSettings
+    /// Defaulted so previews don't need to construct one — UserDefaults-backed,
+    /// so every instance reflects the same persisted value.
+    var liveActivitySettings = LiveActivitySettings()
     let consent: AnalyticsConsent
     var isWatchAvailable: Bool = false
     var onForceSync: () -> Void = {}
@@ -93,6 +96,7 @@ struct ActiveSessionView: View {
                     SettingsView(
                         settings: amenAlarmSettings,
                         advanced: advancedSettings,
+                        liveActivitySettings: liveActivitySettings,
                         consent: consent,
                         isWatchAvailable: isWatchAvailable,
                         onForceSync: onForceSync,
