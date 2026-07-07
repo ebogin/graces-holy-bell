@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<!--
+  Grace's Holy Bell — marketing landing page.
+  Intended to live at https://boginfactory.com/grace-holy-bell.html
+
+  ⚠️ THIS FILE (under docs/) IS THE SOURCE COPY ONLY. boginfactory.com is served
+  by a SEPARATE repo: ebogin/Boginfactory-Landing-Page. To publish, mirror this
+  file AND the three images it references —
+      grace-phone-active.jpg, grace-watch-active.jpg, grace-watch-log.jpg
+  — into that repo's root and push there. Editing docs/ here does nothing to the
+  live site. Same mirror pattern as grace-waitlist.html / graces-privacy-policy.html.
+
+  Styling mirrors grace-waitlist.html (the app's LCD-green pixel theme).
+
+  ▶ BEFORE LAUNCH: set APP_STORE_URL on the two "Download" links below to the real
+    App Store listing. They currently point to "#" (placeholder).
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grace's Holy Bell — A prayer timer built for prayer</title>
+  <meta name="description" content="Grace's Holy Bell is a prayer timer designed for the way people actually pray. A deliberate slider you won't trigger by accident, a live interval clock, and a log of how often you pray. On iPhone and Apple Watch.">
+
+  <!-- Open Graph / social preview -->
+  <meta property="og:title" content="Grace's Holy Bell — A prayer timer built for prayer">
+  <meta property="og:description" content="A deliberate slider you won't trigger by accident, a live interval clock, and a log of how often you pray. On iPhone and Apple Watch.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="grace-phone-active.jpg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --lcd-bg-light: #d4e4bc;
+      --lcd-bg-dark:  #c4d4ac;
+      --lcd-surface:  #c0d0a8;
+      --lcd-inner:    #c8d8b0;
+      --lcd-border:   #a0b080;
+      --lcd-slider:   #8aaa6a;
+      --lcd-progress: #6a8a4a;
+      --lcd-dark:     #1a2a0a;
+      --lcd-mid:      #4a6a3a;
+      --lcd-title:    #5f7c4d;
+      --lcd-on-dark:  #c8d8b0;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; padding: 0; min-height: 100%; }
+
+    body {
+      font-family: "Press Start 2P", monospace;
+      background: linear-gradient(135deg, var(--lcd-bg-light), var(--lcd-bg-dark));
+      background-attachment: fixed;
+      color: var(--lcd-dark);
+      line-height: 1.9;
+      -webkit-font-smoothing: none;
+      padding: 40px 20px 56px;
+    }
+
+    .wrap { max-width: 760px; margin: 0 auto; }
+
+    /* ── Hero ─────────────────────────────────────────────────────────── */
+    .hero { text-align: center; margin: 0 0 8px; }
+
+    .hero h1 {
+      font-size: 26px;
+      line-height: 1.5;
+      color: var(--lcd-title);
+      margin: 0 0 18px;
+      letter-spacing: 1px;
+    }
+
+    /* Animated pixel praying figure — same 4 frames, 300ms/frame (1.2s loop)
+       as the app's PrayingFigureView. Cell aspect matches the app (50:63). */
+    .pray-figure {
+      width: 104px;
+      height: 131px;
+      margin: 6px auto 22px;
+      background: url("pray-sprite-strip.png") 0 0 / 416px 131px no-repeat;
+      image-rendering: pixelated;
+      animation: pray-cycle 1.2s steps(4) infinite;
+    }
+    @keyframes pray-cycle {
+      to { background-position-x: -416px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pray-figure { animation: none; }
+    }
+
+    .tagline {
+      font-size: 11px;
+      color: var(--lcd-dark);
+      line-height: 1.9;
+      margin: 0 auto 10px;
+      max-width: 520px;
+    }
+
+    .subtag {
+      font-size: 9px;
+      color: var(--lcd-mid);
+      line-height: 1.9;
+      margin: 0 auto 28px;
+      max-width: 520px;
+    }
+
+    /* Official Apple "Download on the App Store" badge. */
+    .app-store-badge {
+      display: inline-block;
+      margin: 4px 0 6px;
+      line-height: 0;
+    }
+    .app-store-badge img {
+      height: 52px;
+      width: auto;
+      display: block;
+    }
+    .app-store-badge:hover { opacity: 0.85; }
+
+    .cta-note { font-size: 7px; color: var(--lcd-mid); margin: 14px 0 0; }
+
+    /* ── Screenshot showcase (screens set into device frames) ─────────── */
+    .showcase {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+      flex-wrap: wrap;
+      margin: 48px 0 8px;
+    }
+
+    .shot { text-align: center; }
+
+    .shot .caption {
+      font-size: 8px;
+      color: var(--lcd-mid);
+      margin: 18px 0 0;
+      line-height: 1.8;
+    }
+
+    /* iPhone frame — titanium body, rounded screen. The screenshot already
+       includes the status bar / Dynamic Island, so the frame adds none. */
+    .iphone {
+      position: relative;
+      width: 214px;
+      padding: 11px;
+      margin: 0 auto;
+      background: linear-gradient(150deg, #40433d 0%, #16160f 55%, #2c2d26 100%);
+      border-radius: 40px;
+      box-shadow: 7px 8px 0 rgba(26, 42, 10, 0.18), inset 0 0 0 2px #000;
+    }
+    .iphone img {
+      display: block;
+      width: 100%;
+      border-radius: 30px;
+      image-rendering: pixelated;
+    }
+    /* volume + power side buttons */
+    .iphone::before,
+    .iphone::after {
+      content: "";
+      position: absolute;
+      background: #14140f;
+      border-radius: 2px;
+    }
+    .iphone::before { left: -3px; top: 92px; width: 3px; height: 44px; }
+    .iphone::after  { right: -3px; top: 112px; width: 3px; height: 60px; }
+
+    /* Apple Watch Ultra frame — natural-titanium case with the signature
+       orange Action Button on the left, crown + side button on the right. */
+    .watch-ultra {
+      position: relative;
+      width: 166px;
+      padding: 16px 15px;
+      margin: 0 auto;
+      background: linear-gradient(150deg, #8f8a7c 0%, #504c42 60%, #6d675a 100%);
+      border-radius: 46px;
+      box-shadow: 6px 7px 0 rgba(26, 42, 10, 0.18);
+    }
+    .watch-ultra .screen {
+      background: #000;
+      border-radius: 34px;
+      padding: 8px;
+    }
+    .watch-ultra img {
+      display: block;
+      width: 100%;
+      border-radius: 26px;
+      image-rendering: pixelated;
+    }
+    /* digital crown + side button (right) */
+    .watch-ultra::after {
+      content: "";
+      position: absolute;
+      right: -5px;
+      top: 62px;
+      width: 6px;
+      height: 30px;
+      background: linear-gradient(#9a9488, #5f5a4e);
+      border-radius: 3px;
+      box-shadow: 0 42px 0 -1px #5f5a4e;
+    }
+    /* orange Action Button (left) */
+    .watch-ultra::before {
+      content: "";
+      position: absolute;
+      left: -5px;
+      top: 90px;
+      width: 6px;
+      height: 34px;
+      background: linear-gradient(#ff7a1a, #d85f00);
+      border-radius: 3px;
+    }
+
+    /* ── Feature cards ────────────────────────────────────────────────── */
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin: 48px 0 0;
+    }
+
+    .card {
+      background: var(--lcd-surface);
+      border: 4px solid var(--lcd-border);
+      border-radius: 10px;
+      padding: 24px 22px;
+    }
+
+    .card h2 {
+      font-size: 11px;
+      line-height: 1.7;
+      color: var(--lcd-title);
+      margin: 0 0 14px;
+    }
+
+    .card p {
+      font-size: 9px;
+      color: var(--lcd-mid);
+      line-height: 2.0;
+      margin: 0;
+    }
+
+    .card.wide { grid-column: 1 / -1; }
+
+    /* ── Closing band ─────────────────────────────────────────────────── */
+    .closing {
+      text-align: center;
+      margin: 48px auto 0;
+      max-width: 560px;
+    }
+    .closing p {
+      font-size: 10px;
+      color: var(--lcd-dark);
+      line-height: 2.0;
+      margin: 0 0 26px;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    .footer {
+      max-width: 760px;
+      margin: 44px auto 0;
+      text-align: center;
+      font-size: 8px;
+      color: var(--lcd-mid);
+      line-height: 1.8;
+    }
+    .footer a { color: var(--lcd-title); }
+
+    @media (max-width: 620px) {
+      body { padding: 28px 14px 44px; }
+      .hero h1 { font-size: 19px; }
+      .features { grid-template-columns: 1fr; }
+      .showcase { gap: 28px; }
+      .iphone { width: 184px; }
+      .watch-ultra { width: 146px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- Hero -->
+    <header class="hero">
+      <h1>GRACE'S<br>HOLY BELL</h1>
+      <div class="pray-figure" role="img" aria-label="Pixel-art figure kneeling in prayer"></div>
+      <p class="tagline">A prayer timer built to track your own devotion.</p>
+      <p class="subtag">
+        A deliberate slider you won't trigger by accident, a live interval clock,
+        and a log of how often you pray. On iPhone and Apple Watch.
+      </p>
+      <a class="app-store-badge" href="#" aria-label="Download Grace's Holy Bell on the App Store">
+        <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+             alt="Download on the App Store">
+      </a>
+      <p class="cta-note">Now available on the Apple App Store.</p>
+    </header>
+
+    <!-- Screenshots set into device frames -->
+    <section class="showcase">
+      <div class="shot">
+        <div class="iphone">
+          <img src="grace-phone-active.jpg" alt="Grace's Holy Bell on iPhone showing the live timer, praying figure, and prayer log">
+        </div>
+        <p class="caption">iPhone</p>
+      </div>
+      <div class="shot">
+        <div class="watch-ultra">
+          <div class="screen">
+            <img src="grace-watch-active.jpg" alt="Grace's Holy Bell on Apple Watch Ultra showing the live prayer timer">
+          </div>
+        </div>
+        <p class="caption">Apple Watch Ultra<br>&mdash; timer</p>
+      </div>
+      <div class="shot">
+        <div class="watch-ultra">
+          <div class="screen">
+            <img src="grace-watch-log.jpg" alt="Grace's Holy Bell on Apple Watch Ultra showing the prayer log">
+          </div>
+        </div>
+        <p class="caption">Apple Watch Ultra<br>&mdash; log</p>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+      <div class="card">
+        <h2>BUILT FOR PRAYER,<br>NOT ACCIDENTS</h2>
+        <p>
+          Every action uses an intentional slider or a confirmation step. Hold
+          your phone or rest your wrist during prayer without worrying that a
+          bump will stop the timer or reset a session. Accurate timekeeping is
+          the whole point, and the app is built to protect it.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>KEEP TRACK OF YOUR<br>TIME BETWEEN PRAYERS</h2>
+        <p>
+          Slide PRAY to log a prayer. The app starts a live timer counting the
+          interval until the next one. Each session builds a clear log of when
+          every prayer happened and how long each interval lasted &mdash; so you
+          can see the rhythm and frequency of your prayer at a glance.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>AMEN ALARM</h2>
+        <p>
+          Turn on an optional reminder that vibrates your iPhone or Apple
+          Watch a set interval after your last prayer, from 30 minutes to 2
+          hours. No jarring sounds &mdash; just a quiet nudge.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>ON YOUR PHONE,<br>OR ON YOUR WRIST</h2>
+        <p>
+          Log and view your prayers from either device. Your iPhone keeps
+          accurate time even when the Watch screen is off, and the two stay in
+          sync automatically, including after they briefly lose connection.
+        </p>
+      </div>
+    </section>
+
+    <!-- Closing -->
+    <section class="closing">
+      <p>
+        With a calm, retro look, Grace's Holy Bell stays out of your way &mdash;
+        so the focus stays on prayer, not the app.
+      </p>
+      <a class="app-store-badge" href="#" aria-label="Download Grace's Holy Bell on the App Store">
+        <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+             alt="Download on the App Store">
+      </a>
+    </section>
+
+  </div>
+
+  <p class="footer">
+    Grace's Holy Bell &middot; Boginfactory &middot;
+    <a href="graces-privacy-policy.html">Privacy Policy</a> &middot;
+    <a href="grace-waitlist.html">Waitlist</a>
+  </p>
+</body>
+</html>
