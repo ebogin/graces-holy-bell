@@ -15,12 +15,37 @@ function makeDB() {
   const rows = [];
   const clicksInserted = [];
   const clickRows = [];
+  const rateEvents = [];
   return {
     inserted,
     rows,
     clicksInserted,
     clickRows,
+    rateEvents,
     prepare(sql) {
+      if (/rate_events/i.test(sql)) {
+        return {
+          _sql: sql,
+          _args: [],
+          bind(...args) {
+            this._args = args;
+            return this;
+          },
+          async run() {
+            if (/INSERT/i.test(this._sql)) {
+              rateEvents.push({ created_at: this._args[0], ip_hash: this._args[1] });
+            }
+            return { success: true };
+          },
+          async first() {
+            const [ipHash, windowStart] = this._args;
+            const n = rateEvents.filter(
+              (e) => e.ip_hash === ipHash && e.created_at > windowStart
+            ).length;
+            return { n };
+          },
+        };
+      }
       if (/ref_clicks/i.test(sql)) {
         return {
           _sql: sql,
@@ -75,6 +100,14 @@ function makeDB() {
         async all() {
           return { results: rows };
         },
+        async first() {
+          // Dedupe lookup: SELECT ... FROM signups WHERE email = ? LIMIT 1
+          if (/SELECT/i.test(this._sql) && /email\s*=/i.test(this._sql)) {
+            const email = this._args[0];
+            return rows.find((r) => r.email === email) || null;
+          }
+          return rows[0] || null;
+        },
       };
     },
   };
@@ -107,10 +140,10 @@ function makeCtx() {
   };
 }
 
-function postRequest(body, origin = "https://boginfactory.com") {
+function postRequest(body, origin = "https://boginfactory.com", extraHeaders = {}) {
   return new Request("https://grace-waitlist.workers.dev/", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Origin: origin },
+    headers: { "Content-Type": "application/json", Origin: origin, ...extraHeaders },
     body: JSON.stringify(body),
   });
 }
@@ -250,6 +283,99 @@ test("CSV export returns stored rows with valid token", async () => {
   assert.match(text, /created_at,email,name,country,phone,instagram,sms_consent,referrer,my_code,source/);
   assert.match(text, /a@b\.com/);
   assert.match(text, /"A,B"/); // comma-containing cell is quoted
+});
+
+// ── Abuse guards: rate limit, dedupe, CSV formula injection ─────────────────
+
+test("duplicate email is absorbed: no second row, no second round of emails", async () => {
+  await withFetchStub(async (calls) => {
+    const env = makeEnv();
+    const first = await handleRequest(postRequest({ email: "friend@example.com" }), env);
+    assert.equal(first.status, 200);
+    const callsAfterFirst = calls.length;
+
+    const second = await handleRequest(postRequest({ email: "friend@example.com" }), env);
+    assert.equal(second.status, 200); // idempotent success, not an error
+    assert.equal(env.DB.inserted.length, 1);
+    assert.equal(calls.length, callsAfterFirst); // no repeat confirmation/admin email
+  });
+});
+
+test("signups from one IP are rate-limited after the cap", async () => {
+  await withFetchStub(async () => {
+    const env = makeEnv();
+    const fromIP = (name) =>
+      postRequest({ name }, "https://boginfactory.com", { "CF-Connecting-IP": "203.0.113.7" });
+
+    for (let i = 0; i < 5; i++) {
+      const res = await handleRequest(fromIP(`Pat ${i}`), env);
+      assert.equal(res.status, 200, `submission ${i + 1} within the cap must pass`);
+    }
+    const blocked = await handleRequest(fromIP("Pat 6"), env);
+    assert.equal(blocked.status, 429);
+    assert.equal(env.DB.inserted.length, 5);
+    // Only the IP's hash is stored, never the address itself.
+    assert.ok(env.DB.rateEvents.length > 0);
+    assert.ok(env.DB.rateEvents.every((e) => e.ip_hash !== "203.0.113.7"));
+  });
+});
+
+test("a different IP is not affected by another IP's rate limit", async () => {
+  await withFetchStub(async () => {
+    const env = makeEnv();
+    for (let i = 0; i < 5; i++) {
+      await handleRequest(
+        postRequest({ name: `Pat ${i}` }, "https://boginfactory.com", {
+          "CF-Connecting-IP": "203.0.113.7",
+        }),
+        env
+      );
+    }
+    const other = await handleRequest(
+      postRequest({ name: "Sam" }, "https://boginfactory.com", { "CF-Connecting-IP": "198.51.100.9" }),
+      env
+    );
+    assert.equal(other.status, 200);
+  });
+});
+
+test("rate limit fails open when the rate_events table is unavailable", async () => {
+  await withFetchStub(async () => {
+    const env = makeEnv();
+    const realPrepare = env.DB.prepare.bind(env.DB);
+    env.DB.prepare = (sql) => {
+      if (/rate_events/i.test(sql)) {
+        return {
+          bind() { return this; },
+          async run() { throw new Error("no such table: rate_events"); },
+          async first() { throw new Error("no such table: rate_events"); },
+        };
+      }
+      return realPrepare(sql);
+    };
+    const res = await handleRequest(
+      postRequest({ name: "Pat" }, "https://boginfactory.com", { "CF-Connecting-IP": "203.0.113.7" }),
+      env
+    );
+    assert.equal(res.status, 200, "a missing rate table must never take signups down");
+  });
+});
+
+test("CSV export neutralizes spreadsheet formula injection", async () => {
+  await withFetchStub(async () => {
+    const env = makeEnv();
+    await handleRequest(
+      postRequest({ email: "evil@example.com", name: '=HYPERLINK("http://evil","x")' }),
+      env
+    );
+    const res = await handleRequest(
+      new Request("https://x/export.csv?token=secret-token", { method: "GET" }),
+      env
+    );
+    const text = await res.text();
+    assert.match(text, /'=HYPERLINK/, "leading = must be prefixed so Excel treats it as text");
+    assert.doesNotMatch(text, /(^|,)"?=HYPERLINK/m);
+  });
 });
 
 // ── Referral click tracking (GET /r/<code>) ─────────────────────────────────

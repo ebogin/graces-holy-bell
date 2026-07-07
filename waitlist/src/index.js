@@ -14,11 +14,20 @@
 //   GET  /export-clicks.csv  Download all referral clicks as CSV (same token).
 //
 // All form fields are optional, but a submission with no email/name/phone is
-// rejected as empty. See ../SETUP.md for deployment.
+// rejected as empty. Signups are rate-limited per client IP (see rate_events
+// in schema.sql) and duplicate emails are absorbed idempotently, so the
+// endpoint can't be used to spam confirmations. See ../SETUP.md for deployment.
 
 const MAX_LEN = 200;
 const REF_CODE_RE = /^[a-z0-9]{4,16}$/;
 const POSTHOG_CAPTURE_URL = "https://eu.i.posthog.com/i/v0/e/";
+
+// Signup rate limit: max submissions per client IP per rolling window. The
+// endpoint sends email on every accepted signup, so without this it is an
+// open relay for spamming arbitrary addresses from our domain (and for
+// burning the Resend quota / flooding D1).
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 export default {
   async fetch(request, env, ctx) {
@@ -91,6 +100,17 @@ export async function handleRequest(request, env, ctx) {
     return json({ error: "Please enter at least one field" }, 400, cors);
   }
 
+  if (!(await checkRateLimit(env, request))) {
+    return json({ error: "Too many requests — please try again later" }, 429, cors);
+  }
+
+  // Duplicate email: pretend success without a second row or a second round of
+  // emails. Keeps resubmits idempotent and stops repeat-POSTs from spamming
+  // the address with confirmations.
+  if (data.email && (await emailAlreadySignedUp(env, data.email))) {
+    return json({ ok: true }, 200, cors);
+  }
+
   const createdAt = new Date().toISOString();
   await env.DB.prepare(
     `INSERT INTO signups (created_at, email, name, country, phone, instagram, sms_consent, referrer, my_code, source)
@@ -124,6 +144,53 @@ export async function handleRequest(request, env, ctx) {
   );
 
   return json({ ok: true }, 200, cors);
+}
+
+// ── Abuse guards (rate limit + dedupe) ──────────────────────────────────────
+//
+// Both guards FAIL OPEN: a D1 error (e.g. the rate_events table not yet
+// migrated on the live DB) must never take signups down — it just means one
+// unguarded request, logged for visibility.
+
+async function checkRateLimit(env, request) {
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  if (!ip) return true; // no client IP (local dev/tests) — nothing to key on
+  try {
+    const ipHash = await sha256Hex(ip);
+    const now = Date.now();
+    const windowStart = new Date(now - RATE_LIMIT_WINDOW_MS).toISOString();
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM rate_events WHERE ip_hash = ? AND created_at > ?`
+    )
+      .bind(ipHash, windowStart)
+      .first();
+    if ((row?.n ?? 0) >= RATE_LIMIT_MAX) return false;
+    await env.DB.prepare(`INSERT INTO rate_events (created_at, ip_hash) VALUES (?, ?)`)
+      .bind(new Date(now).toISOString(), ipHash)
+      .run();
+    return true;
+  } catch (err) {
+    console.error("rate limit check failed (allowing request)", err);
+    return true;
+  }
+}
+
+async function emailAlreadySignedUp(env, email) {
+  try {
+    const row = await env.DB.prepare(`SELECT id FROM signups WHERE email = ? LIMIT 1`)
+      .bind(email)
+      .first();
+    return Boolean(row);
+  } catch (err) {
+    console.error("email dedupe check failed (allowing request)", err);
+    return false;
+  }
+}
+
+// Only the hash of the IP is stored — enough to rate-limit, no address at rest.
+async function sha256Hex(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ── Referral click tracking ─────────────────────────────────────────────────
@@ -429,7 +496,11 @@ function json(obj, status, headers) {
 }
 
 function csvCell(v) {
-  const s = (v ?? "").toString();
+  let s = (v ?? "").toString();
+  // Neutralize spreadsheet formula injection: a leading =, +, -, @, or tab in
+  // attacker-supplied text (name, email, …) would execute when the admin opens
+  // the export in Excel/Sheets. The apostrophe forces text interpretation.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
