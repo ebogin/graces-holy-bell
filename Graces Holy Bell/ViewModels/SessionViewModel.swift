@@ -100,13 +100,24 @@ final class SessionViewModel {
         logPrayer()
     }
 
+    /// Minimum gap between two logged prayers — absorbs an accidental rapid
+    /// double-fire of the slider (which would create a 0-second log row).
+    /// Tests zero this so they can log prayers back-to-back.
+    var prayerDebounceInterval: TimeInterval = 1.0
+
     /// Appends a phone-origin prayer.
     ///
     /// Always succeeds — when called from idle it starts a new session;
-    /// when called from active it adds to the current session.
+    /// when called from active it adds to the current session. The only
+    /// exception is a second fire within `prayerDebounceInterval` of the
+    /// last prayer, which is dropped as an accidental double-slide.
     func logPrayer() {
         let wasIdle = appState == .idle
         let timestamp = Date()
+        if let last = lastPrayerTimestamp,
+           timestamp.timeIntervalSince(last) < prayerDebounceInterval {
+            return
+        }
 
         let entry = PrayerEntry(id: UUID(), timestamp: timestamp, origin: PrayerEvent.Origin.phone.rawValue)
         modelContext.insert(entry)
@@ -153,7 +164,7 @@ final class SessionViewModel {
     /// of the Watch resurrecting it on the next merge. Timer and durations
     /// recalculate automatically from the remaining entries.
     func deletePrayer(_ entry: PrayerEntry) {
-        let index = sortedEntries.firstIndex(where: { $0.id == entry.id }).map { $0 + 1 } ?? 0
+        let index = sortedEntries.firstIndex(where: { $0.id == entry.id }).map { $0 + 1 }
         let now = Date()
         entry.isRemoved = true
         entry.updatedAt = now
@@ -164,7 +175,11 @@ final class SessionViewModel {
         refreshEntries()
         refreshAmenAlarm()
         onStateChanged?()
-        analytics?.recordPrayerDeleted(index: index, loggedAt: entry.timestamp, at: now)
+        // No event when the entry wasn't in the active log (already-removed
+        // edge) — a fabricated index-0 would pollute the 1-based buckets.
+        if let index {
+            analytics?.recordPrayerDeleted(index: index, loggedAt: entry.timestamp, at: now)
+        }
     }
 
     /// Changes a prayer's time (forgot to fire the slider until later).
@@ -212,12 +227,22 @@ final class SessionViewModel {
         }
     }
 
-    // MARK: - Cross-device Merge (called by PhoneConnectivityManager; never emits analytics)
+    // MARK: - Cross-device Merge (called by PhoneConnectivityManager)
 
     /// Merges an incoming Watch snapshot into the local SwiftData store.
     /// Inserts new watch-origin events, advances lastClearedAt if needed.
-    /// Never emits analytics — each prayer is counted exactly once at its origin.
+    ///
+    /// Analytics: the Watch has no transport of its own, so a *new* watch-origin
+    /// prayer is counted here, exactly once, when it first reaches the phone —
+    /// tagged `device_source = watch` with its true timestamp (§8 of the sync
+    /// vision: counted once, at origin, late arrival is fine). Echoes of events
+    /// the phone already knows never re-emit, and a repeated delivery of the
+    /// same clear can't double-close (`newCleared != lastClearedAt` plus the
+    /// service's no-double-close guard).
     func mergeIncoming(snapshot: SyncSnapshot) {
+        let wasActive = appState == .active
+        let knownIDs = Set(allEvents.map(\.id))
+
         let localPrayerEvents = allEvents.map { $0.asPrayerEvent }
         let (merged, mergedClearedAt) = SyncEngine.merge(
             localEvents: localPrayerEvents,
@@ -232,12 +257,46 @@ final class SessionViewModel {
         // again — an unbounded ping-pong even though state has converged.
         var changed = false
 
+        // Analytics owed for this merge, accumulated as the state is applied.
+        var owed = MergeAnalytics()
+
         // Advance the clear epoch if the incoming one is later. The session
         // ended remotely (Watch clear) — archive it first, folding in any
         // incoming pre-clear prayers the phone hadn't seen yet (Watch logged
         // offline, then cleared, then synced both at once).
         if let newCleared = mergedClearedAt, newCleared != lastClearedAt {
-            archiveRemotelyEndedSession(endedAt: newCleared, incomingEvents: snapshot.events)
+            let localIDs = Set(sortedEntries.map(\.id))
+            let epoch = lastClearedAt ?? .distantPast
+            let incomingActive = snapshot.events.filter {
+                !$0.isDeleted && !localIDs.contains($0.id)
+                    && $0.timestamp > epoch && $0.timestamp <= newCleared
+            }
+
+            // Every prayer of the ended session, flagging the ones that are
+            // genuinely new watch prayers (never seen on this phone before).
+            var endedSession: [(timestamp: Date, note: String?, newFromWatch: Bool)] =
+                sortedEntries.map { ($0.timestamp, $0.note, false) }
+            for event in incomingActive {
+                endedSession.append((event.timestamp, event.note, event.origin == .watch && !knownIDs.contains(event.id)))
+            }
+            endedSession.sort { $0.timestamp < $1.timestamp }
+
+            if !endedSession.isEmpty {
+                archiveStore.append(ArchivedSession(
+                    id: ArchivedSession.deterministicID(prayerTimestamps: endedSession.map(\.timestamp)),
+                    endedAt: newCleared,
+                    prayers: endedSession.map { ArchivedPrayer(timestamp: $0.timestamp, note: $0.note) },
+                    changes: changeStore.load()
+                ))
+                for (i, prayer) in endedSession.enumerated() where prayer.newFromWatch {
+                    let sinceLast = i > 0 ? prayer.timestamp.timeIntervalSince(endedSession[i - 1].timestamp) : 0
+                    owed.endedSessionPrayers.append((prayer.timestamp, i + 1, sinceLast))
+                }
+                if !wasActive, let first = endedSession.first, first.newFromWatch {
+                    owed.endedSessionStartedAt = first.timestamp
+                }
+                owed.remoteEnd = (endedSession[0].timestamp, endedSession.map(\.timestamp), newCleared)
+            }
             applyAndSaveClearedAt(newCleared)
             changeStore.clear()
             changed = true
@@ -245,6 +304,7 @@ final class SessionViewModel {
 
         // Apply the merged result: insert events we didn't have, and update
         // entries where a newer version (LWW by updatedAt) won the merge.
+        var insertedWatchIDs: Set<UUID> = []
         let entriesByID = Dictionary(uniqueKeysWithValues: allEvents.map { ($0.id, $0) })
         for event in merged {
             if let entry = entriesByID[event.id] {
@@ -266,6 +326,9 @@ final class SessionViewModel {
                 )
                 modelContext.insert(entry)
                 allEvents.append(entry)
+                if event.origin == .watch && !event.isDeleted {
+                    insertedWatchIDs.insert(event.id)
+                }
                 changed = true
             }
         }
@@ -273,8 +336,87 @@ final class SessionViewModel {
         guard changed else { return }
 
         pruneAndRefresh()
+
+        // Count the new watch prayers now in the active log at their refreshed
+        // positions (an insertion can re-sort earlier prayers in). These are
+        // post-clear when a clear also arrived — the pruning inside
+        // SyncEngine.merge guarantees no inserted event predates the epoch.
+        if !insertedWatchIDs.isEmpty {
+            for (i, entry) in sortedEntries.enumerated() where insertedWatchIDs.contains(entry.id) {
+                let sinceLast = i > 0 ? entry.timestamp.timeIntervalSince(sortedEntries[i - 1].timestamp) : 0
+                owed.livePrayers.append((entry.timestamp, i + 1, sinceLast))
+            }
+            // This merge opened the running session when the phone wasn't in
+            // one (or a remote clear just ended the old one) and the log now
+            // leads with a newly arrived watch prayer.
+            if !wasActive || owed.remoteEnd != nil,
+               appState == .active,
+               let first = sortedEntries.first, insertedWatchIDs.contains(first.id) {
+                owed.liveSessionStartedAt = first.timestamp
+            }
+        }
+
+        emitMergeAnalytics(owed)
+
         scheduleAmenAlarmIfNeeded()
         onStateChanged?()
+    }
+
+    /// Analytics owed for one merge: the lifecycle of a remotely ended session
+    /// (started/prayed/ended entirely away from the phone), and new watch
+    /// prayers in the still-running session.
+    private struct MergeAnalytics {
+        /// Set when a watch prayer opened the (now ended) session.
+        var endedSessionStartedAt: Date?
+        /// Newly arrived watch prayers belonging to the ended session.
+        var endedSessionPrayers: [(timestamp: Date, index: Int, sinceLast: TimeInterval)] = []
+        /// Set when an incoming clear ended a session — session_ended is
+        /// emitted on the phone because the Watch never emits.
+        var remoteEnd: (sessionStart: Date, prayerTimestamps: [Date], endedAt: Date)?
+        /// Set when a watch prayer opened the currently running session.
+        var liveSessionStartedAt: Date?
+        /// Newly arrived watch prayers in the currently running session.
+        var livePrayers: [(timestamp: Date, index: Int, sinceLast: TimeInterval)] = []
+
+        var isEmpty: Bool {
+            endedSessionStartedAt == nil && endedSessionPrayers.isEmpty
+                && remoteEnd == nil && liveSessionStartedAt == nil && livePrayers.isEmpty
+        }
+    }
+
+    /// Emits the analytics owed for a merge, all tagged `device_source = watch`,
+    /// in chronological order: the remotely ended session's lifecycle first,
+    /// then the running session's arrivals.
+    private func emitMergeAnalytics(_ owed: MergeAnalytics) {
+        guard let analytics, !owed.isEmpty else { return }
+
+        analytics.deviceSource = .watch
+        defer { analytics.deviceSource = .phone }
+
+        // recordSessionStarted emits session_started plus the opening
+        // prayer_logged (index 1), so the index-1 arrival is skipped below.
+        if let startedAt = owed.endedSessionStartedAt {
+            analytics.recordSessionStarted(at: startedAt)
+        }
+        for prayer in owed.endedSessionPrayers
+        where !(owed.endedSessionStartedAt != nil && prayer.index == 1) {
+            analytics.recordPrayerLogged(index: prayer.index, sinceLast: prayer.sinceLast, at: prayer.timestamp)
+        }
+        if let remoteEnd = owed.remoteEnd {
+            analytics.recordSessionEnded(
+                sessionStart: remoteEnd.sessionStart,
+                prayerTimestamps: remoteEnd.prayerTimestamps,
+                at: remoteEnd.endedAt
+            )
+        }
+
+        if let startedAt = owed.liveSessionStartedAt {
+            analytics.recordSessionStarted(at: startedAt)
+        }
+        for prayer in owed.livePrayers
+        where !(owed.liveSessionStartedAt != nil && prayer.index == 1) {
+            analytics.recordPrayerLogged(index: prayer.index, sinceLast: prayer.sinceLast, at: prayer.timestamp)
+        }
     }
 
     /// Builds a SyncSnapshot from the current active state for sending to the Watch.
@@ -294,7 +436,18 @@ final class SessionViewModel {
                   let last = lastPrayerTimestamp else { return nil }
             return last.addingTimeInterval(settings.duration.rawValue)
         }()
-        return SyncSnapshot(events: events, lastClearedAt: lastClearedAt, amenAlarmFireAt: amenAlarmFireAt)
+        // The setting itself (not just the next fire date) — nil means the
+        // Watch alarm is OFF, which the Watch applies authoritatively.
+        let watchAlarmInterval: TimeInterval? = {
+            guard let settings = amenAlarmSettings, settings.watchEnabled else { return nil }
+            return settings.duration.rawValue
+        }()
+        return SyncSnapshot(
+            events: events,
+            lastClearedAt: lastClearedAt,
+            amenAlarmFireAt: amenAlarmFireAt,
+            watchAlarmInterval: watchAlarmInterval
+        )
     }
 
     // MARK: - Elapsed Time Computation
@@ -325,35 +478,14 @@ final class SessionViewModel {
 
     /// Freezes the current active session into the history archive.
     /// Call BEFORE advancing the clear epoch — it reads the live log.
+    /// (A remote Watch clear archives inline in `mergeIncoming`, where the
+    /// incoming pre-clear prayers are folded in.)
     private func archiveCurrentSession(endedAt: Date) {
         guard !sortedEntries.isEmpty else { return }
         archiveStore.append(ArchivedSession(
-            id: UUID(),
+            id: ArchivedSession.deterministicID(prayerTimestamps: sortedEntries.map(\.timestamp)),
             endedAt: endedAt,
             prayers: sortedEntries.map { ArchivedPrayer(timestamp: $0.timestamp, note: $0.note) },
-            changes: changeStore.load()
-        ))
-    }
-
-    /// Archives a session that was ended by a remote (Watch) clear. Unions the
-    /// local active log with incoming pre-clear events so prayers the Watch
-    /// logged offline still make it into history.
-    private func archiveRemotelyEndedSession(endedAt: Date, incomingEvents: [PrayerEvent]) {
-        let localActive = sortedEntries.map {
-            ArchivedPrayer(timestamp: $0.timestamp, note: $0.note)
-        }
-        let localIDs = Set(sortedEntries.map(\.id))
-        let epoch = lastClearedAt ?? .distantPast
-        let incomingActive = incomingEvents
-            .filter { !$0.isDeleted && !localIDs.contains($0.id) && $0.timestamp > epoch && $0.timestamp <= endedAt }
-            .map { ArchivedPrayer(timestamp: $0.timestamp, note: $0.note) }
-
-        let prayers = (localActive + incomingActive).sorted { $0.timestamp < $1.timestamp }
-        guard !prayers.isEmpty else { return }
-        archiveStore.append(ArchivedSession(
-            id: UUID(),
-            endedAt: endedAt,
-            prayers: prayers,
             changes: changeStore.load()
         ))
     }

@@ -14,6 +14,8 @@ final class SessionViewModelTests: XCTestCase {
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         viewModel = SessionViewModel(modelContext: container.mainContext)
+        // Tests log prayers back-to-back; the double-slide debounce would drop them.
+        viewModel.prayerDebounceInterval = 0
     }
 
     override func tearDown() {
@@ -80,6 +82,14 @@ final class SessionViewModelTests: XCTestCase {
     func test_logPrayer_setsOriginToPhone() {
         viewModel.logPrayer()
         XCTAssertEqual(viewModel.sortedEntries.first?.origin, PrayerEvent.Origin.phone.rawValue)
+    }
+
+    func test_logPrayer_withinDebounceInterval_isDropped() {
+        viewModel.prayerDebounceInterval = 1.0
+        viewModel.startNewSession()
+        viewModel.logPrayer()  // immediate second fire — accidental double-slide
+        XCTAssertEqual(viewModel.sortedEntries.count, 1)
+        XCTAssertEqual(viewModel.appState, .active)
     }
 
     func test_logPrayer_assignsStableUUID() {

@@ -74,10 +74,15 @@ struct WatchShareView: View {
         .padding(.bottom, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
-        .onAppear {
-            if modules == nil {
-                modules = WatchQRCodeView.matrix(for: shareURL.absoluteString)
-            }
+        .task {
+            // Encode off the main actor — the pure-Swift encoder (Reed-Solomon
+            // + 8-mask penalty scan) is heavy enough to jank the screen's
+            // entrance animation on older watches.
+            guard modules == nil else { return }
+            let text = shareURL.absoluteString
+            modules = await Task.detached(priority: .userInitiated) {
+                WatchQRCodeView.matrix(for: text)
+            }.value
         }
     }
 }

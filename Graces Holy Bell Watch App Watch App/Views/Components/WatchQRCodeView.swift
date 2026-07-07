@@ -55,7 +55,8 @@ extension WatchQRCodeView {
 
     /// Encodes `text` to a row-major module matrix (`true` = dark), or nil on
     /// failure. Uses medium error correction to match the iPhone's QR ("M").
-    static func matrix(for text: String) -> [[Bool]]? {
+    /// Pure and isolation-free so callers can run it off the main actor.
+    nonisolated static func matrix(for text: String) -> [[Bool]]? {
         guard let qr = try? QRCode.encode(text: text, ecl: .medium) else { return nil }
         let n = qr.size
         return (0..<n).map { y in (0..<n).map { x in qr.getModule(x: x, y: y) } }

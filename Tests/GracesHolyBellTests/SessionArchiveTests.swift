@@ -64,6 +64,31 @@ final class SessionArchiveTests: XCTestCase {
         )
     }
 
+    // MARK: - Deterministic identity / idempotent append
+
+    func test_deterministicID_stable_andOrderInsensitive() {
+        let stamps = [Date(timeIntervalSince1970: 1_000_000), Date(timeIntervalSince1970: 1_000_600)]
+        XCTAssertEqual(
+            ArchivedSession.deterministicID(prayerTimestamps: stamps),
+            ArchivedSession.deterministicID(prayerTimestamps: Array(stamps.reversed()))
+        )
+        XCTAssertNotEqual(
+            ArchivedSession.deterministicID(prayerTimestamps: stamps),
+            ArchivedSession.deterministicID(prayerTimestamps: [stamps[0]])
+        )
+    }
+
+    func test_append_sameSessionTwice_archivesOnce() {
+        let stamps = [Date(timeIntervalSince1970: 1_000_000), Date(timeIntervalSince1970: 1_000_600)]
+        let id = ArchivedSession.deterministicID(prayerTimestamps: stamps)
+        let prayers = stamps.map { ArchivedPrayer(timestamp: $0, note: nil) }
+        // Same session archived by two racing paths (local clear + Watch echo),
+        // possibly stamping slightly different end times.
+        store.append(ArchivedSession(id: id, endedAt: stamps[1].addingTimeInterval(60), prayers: prayers, changes: []))
+        store.append(ArchivedSession(id: id, endedAt: stamps[1].addingTimeInterval(120), prayers: prayers, changes: []))
+        XCTAssertEqual(store.load().count, 1)
+    }
+
     // MARK: - ViewModel archiving
 
     private func makeViewModel() throws -> SessionViewModel {
@@ -71,7 +96,10 @@ final class SessionArchiveTests: XCTestCase {
             for: PrayerSession.self, PrayerEntry.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
-        return SessionViewModel(modelContext: container.mainContext, archiveStore: store)
+        let vm = SessionViewModel(modelContext: container.mainContext, archiveStore: store)
+        // Tests log prayers back-to-back; the double-slide debounce would drop them.
+        vm.prayerDebounceInterval = 0
+        return vm
     }
 
     func test_clearLog_archivesTheSession_withIntentionsAndChanges() throws {

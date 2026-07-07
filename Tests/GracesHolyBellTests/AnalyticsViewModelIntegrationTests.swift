@@ -28,6 +28,8 @@ final class AnalyticsViewModelIntegrationTests: XCTestCase {
 
     private func makeViewModel() -> (SessionViewModel, SpyAnalytics) {
         let vm = SessionViewModel(modelContext: container.mainContext)
+        // Tests log prayers back-to-back; the double-slide debounce would drop them.
+        vm.prayerDebounceInterval = 0
         let spy = SpyAnalytics()
         vm.analytics = AnalyticsService(transport: spy, stateStore: InMemoryAnalyticsStateStore()) {
             EventContext(deviceSource: .phone, alarmStatus: .off, alarmDurationSeconds: 5400,
@@ -72,20 +74,32 @@ final class AnalyticsViewModelIntegrationTests: XCTestCase {
     }
 
     // MARK: - The analytics invariant: each prayer counted exactly once, at origin.
-    // (Group G — the merge path must never emit prayer_logged.)
+    // The Watch has no transport of its own, so a watch-origin event is counted
+    // when it FIRST reaches the phone, tagged device_source=watch. Echoes of
+    // events the phone already knows must never re-emit.
 
-    func test_mergeIncoming_watchPrayer_isVisibleButEmitsNoAnalytics() {
+    func test_mergeIncoming_newWatchPrayer_countedOnce_taggedWatch() {
         let (vm, spy) = makeViewModel()
         vm.startNewSession()                       // session_started + 1 prayer_logged (phone)
         let before = spy.captured.count
 
-        // A Watch-origin prayer arrives via sync. It was already counted once at
-        // its origin (the Watch); merging it on the phone must NOT re-emit.
-        let watchEvent = PrayerEvent(id: UUID(), timestamp: Date().addingTimeInterval(60), origin: .watch)
+        // A new Watch-origin prayer arrives via sync — its one and only count.
+        let timestamp = Date().addingTimeInterval(60)
+        let watchEvent = PrayerEvent(id: UUID(), timestamp: timestamp, origin: .watch)
         vm.mergeIncoming(snapshot: SyncSnapshot(events: [watchEvent], lastClearedAt: nil, amenAlarmFireAt: nil))
 
-        XCTAssertEqual(vm.sortedEntries.count, 2)        // the Watch prayer is now shown
-        XCTAssertEqual(spy.captured.count, before)       // ...but no analytics fired
+        XCTAssertEqual(vm.sortedEntries.count, 2)
+        XCTAssertEqual(spy.captured.count, before + 1)
+        let event = spy.captured.last
+        XCTAssertEqual(event?.name, "prayer_logged")
+        XCTAssertEqual(event?.deviceSource, .watch)
+        XCTAssertEqual(event?.properties["prayer_index_in_session"], .int(2))
+        XCTAssertEqual(event?.captureTimestamp, timestamp, "true prayer time, not merge time")
+
+        // The same event echoed again (e.g. via a second sync channel) must
+        // not re-emit — it is no longer new to the phone.
+        vm.mergeIncoming(snapshot: SyncSnapshot(events: [watchEvent], lastClearedAt: nil, amenAlarmFireAt: nil))
+        XCTAssertEqual(spy.captured.count, before + 1)
     }
 
     func test_mergeIncoming_duplicateEvent_doesNotDoubleCountOrRelog() {
@@ -105,16 +119,71 @@ final class AnalyticsViewModelIntegrationTests: XCTestCase {
         XCTAssertEqual(spy.captured.count, before)
     }
 
-    func test_mergeIncoming_clearFromWatch_emitsNoAnalytics() {
+    func test_mergeIncoming_clearFromWatch_closesTheSession_taggedWatch() {
         let (vm, spy) = makeViewModel()
         vm.startNewSession()
         let before = spy.captured.count
 
-        // A clear performed on the Watch arrives via sync. session_ended was
-        // already emitted at the origin; the merge must not emit it again.
+        // A clear performed on the Watch arrives via sync. The Watch never
+        // emits, so the phone closes the session here — tagged watch.
         vm.mergeIncoming(snapshot: SyncSnapshot(events: [], lastClearedAt: Date().addingTimeInterval(60), amenAlarmFireAt: nil))
 
-        XCTAssertEqual(vm.appState, .idle)               // the clear took effect
-        XCTAssertEqual(spy.captured.count, before)       // ...silently
+        XCTAssertEqual(vm.appState, .idle)
+        XCTAssertEqual(spy.captured.count, before + 1)
+        XCTAssertEqual(spy.captured.last?.name, "session_ended")
+        XCTAssertEqual(spy.captured.last?.deviceSource, .watch)
+        XCTAssertEqual(spy.captured.last?.properties["prayers_in_session"], .int(1))
+
+        // The same clear replayed on another channel must not double-close.
+        let clearedAt = vm.lastClearedAt
+        vm.mergeIncoming(snapshot: SyncSnapshot(events: [], lastClearedAt: clearedAt, amenAlarmFireAt: nil))
+        XCTAssertEqual(spy.captured.count, before + 1)
+    }
+
+    func test_mergeIncoming_watchOnlyOfflineSession_emitsFullLifecycle() {
+        let (vm, spy) = makeViewModel()
+
+        // The Watch ran a whole session offline — two prayers, then a clear —
+        // and it all arrives in one snapshot. The phone owes the entire
+        // lifecycle, backdated to the true times, tagged watch.
+        let t0 = Date().addingTimeInterval(-1800)
+        let t1 = t0.addingTimeInterval(600)
+        let clearedAt = t1.addingTimeInterval(300)
+        vm.mergeIncoming(snapshot: SyncSnapshot(
+            events: [
+                PrayerEvent(id: UUID(), timestamp: t0, origin: .watch),
+                PrayerEvent(id: UUID(), timestamp: t1, origin: .watch)
+            ],
+            lastClearedAt: clearedAt,
+            amenAlarmFireAt: nil
+        ))
+
+        XCTAssertEqual(vm.appState, .idle)
+        XCTAssertEqual(
+            spy.captured.map(\.name),
+            ["session_started", "prayer_logged", "prayer_logged", "session_ended"]
+        )
+        XCTAssertTrue(spy.captured.allSatisfy { $0.deviceSource == .watch })
+        XCTAssertEqual(spy.captured[0].captureTimestamp, t0)
+        XCTAssertEqual(spy.captured[2].captureTimestamp, t1)
+        XCTAssertEqual(spy.captured[2].properties["prayer_index_in_session"], .int(2))
+        XCTAssertEqual(spy.captured[3].properties["prayers_in_session"], .int(2))
+    }
+
+    func test_mergeIncoming_watchPrayerStartsSession_whenPhoneIdle() {
+        let (vm, spy) = makeViewModel()
+
+        // Phone is idle; a single Watch prayer arrives (session still running).
+        let timestamp = Date().addingTimeInterval(-60)
+        vm.mergeIncoming(snapshot: SyncSnapshot(
+            events: [PrayerEvent(id: UUID(), timestamp: timestamp, origin: .watch)],
+            lastClearedAt: nil,
+            amenAlarmFireAt: nil
+        ))
+
+        XCTAssertEqual(vm.appState, .active)
+        XCTAssertEqual(spy.captured.map(\.name), ["session_started", "prayer_logged"])
+        XCTAssertTrue(spy.captured.allSatisfy { $0.deviceSource == .watch })
+        XCTAssertEqual(spy.captured[0].captureTimestamp, timestamp)
     }
 }

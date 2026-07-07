@@ -54,12 +54,20 @@ xcodebuild build -project "Graces Holy Bell.xcodeproj" \
   `ConsentGatingAnalytics` → `AnalyticsService` → `vm.analytics`.
 
 ### Key decisions (do not silently undo)
-- **Option A — Watch is a thin proxy.** The phone processes all Watch actions, so
-  it is the sole emitter; `PhoneConnectivityManager.handleAction` tags those events
-  `device_source=watch`. The only Watch-originated event is `prayer_log_viewed`
-  (proxied via `transferUserInfo`). **Consequence:** the install_id→Watch sync is
-  NOT implemented and the Phase-1 `WatchIdentityCoordinator`/`IdentityTieBreak` are
+- **Option A — Watch is a thin proxy.** The phone is the sole emitter. A *new*
+  watch-origin prayer is counted when it first reaches the phone:
+  `SessionViewModel.mergeIncoming` emits `session_started` / `prayer_logged` /
+  `session_ended` for genuinely-new watch events (and for a remote Watch clear),
+  tagged `device_source=watch` with the true prayer timestamps (§8 of the sync
+  vision — counted once, at origin, late arrival acceptable). Echoes of events
+  the phone already knows never re-emit; duplicate clears can't double-close.
+  The only event emitted *by* the Watch is `prayer_log_viewed` (proxied via
+  `transferUserInfo`). **Consequence:** the install_id→Watch sync is NOT
+  implemented and the Phase-1 `WatchIdentityCoordinator`/`IdentityTieBreak` are
   tested-but-unexercised, reserved for a future Watch-side-emission model.
+  **Known undercount edge:** watch prayers whose clear outruns them across sync
+  channels (events arriving *after* their own clear was applied) are pruned
+  before they can be counted — FIFO `transferUserInfo` makes this rare.
 - **Consent posture:** non-EU = opt-out (default ON, disclosed); EU/EEA/UK/unknown
   = opt-in (`pending` → banner). Region from `Locale.region` (no IP/location).
   `ConsentGatingAnalytics` drops events unless `granted`. `consent_state` rides on
