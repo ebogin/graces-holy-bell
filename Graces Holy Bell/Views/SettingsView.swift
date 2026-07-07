@@ -45,9 +45,6 @@ struct SettingsView: View {
                 // AMEN Alarm section heading
                 settingsSectionHeader("AMEN Alarm")
 
-                // Duration picker row
-                durationRow()
-
                 // Phone toggle row
                 alarmToggleRow(
                     label: "  Phone",
@@ -65,6 +62,10 @@ struct SettingsView: View {
                         if enabled { requestNotificationPermission() }
                     }
                 )
+
+                // Duration picker row — grayed out when neither Phone nor Watch
+                // alarm is enabled (nothing to time until an alarm is on).
+                durationRow()
 
                 divider()
 
@@ -156,6 +157,9 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func durationRow() -> some View {
+        // The duration only matters once an alarm can fire; gray it out and
+        // disable the picker when both Phone and Watch alarms are off.
+        let alarmEnabled = settings.phoneEnabled || settings.watchEnabled
         HStack {
             Text("  Duration")
                 .font(.pixelFont(9))
@@ -189,9 +193,11 @@ struct SettingsView: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             }
+            .disabled(!alarmEnabled)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .opacity(alarmEnabled ? 1 : 0.4)
     }
 
     @ViewBuilder
@@ -315,7 +321,7 @@ struct SettingsView: View {
             showShareWithFriend = true
         } label: {
             HStack {
-                Text("Share with a Friend")
+                Text("SHARE app with a friend")
                     .font(.pixelFont(9))
                     .foregroundStyle(Color.lcdDark)
 
