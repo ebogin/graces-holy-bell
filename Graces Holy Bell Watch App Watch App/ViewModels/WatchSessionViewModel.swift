@@ -65,9 +65,17 @@ final class WatchSessionViewModel {
 
     // MARK: - Local Actions (instant, offline-safe)
 
+    /// Minimum gap between two logged prayers — absorbs an accidental rapid
+    /// double-fire of the slider (which would create a 0-second log row).
+    private static let prayerDebounceInterval: TimeInterval = 1.0
+
     /// Logs a watch-origin prayer and immediately updates the local display.
     /// The event is enqueued for delivery to the phone via WatchConnectivity.
     func sendPray() {
+        if let last = lastPrayerTimestamp,
+           Date().timeIntervalSince(last) < Self.prayerDebounceInterval {
+            return
+        }
         let event = PrayerEvent(id: UUID(), timestamp: Date(), origin: .watch)
         storeState.events.append(event)
         saveStore()
@@ -112,14 +120,21 @@ final class WatchSessionViewModel {
         storeState.events = merged
         storeState.lastClearedAt = mergedClearedAt
 
-        // Persist the alarm interval the phone encoded so we can refire offline later.
-        // Tombstones excluded — the phone computed fireAt from its last *active* prayer.
-        if let fireAt = incoming.amenAlarmFireAt,
-           let lastTS = incoming.events.filter({ !$0.isDeleted }).map(\.timestamp).max() {
-            let interval = fireAt.timeIntervalSince(lastTS)
-            if interval > 0 {
-                storeState.lastSyncedAlarmInterval = interval
-            }
+        // The phone's Watch-alarm setting rides on every snapshot: interval
+        // seconds when enabled, nil when disabled. Apply it unconditionally —
+        // this is what lets "turn the Watch alarm OFF on the phone" stick.
+        // (Inferring the interval from `amenAlarmFireAt` alone could never
+        // distinguish disabled from idle, so a stale persisted interval kept
+        // re-arming the alarm on every prayer, forever.)
+        if let interval = incoming.watchAlarmInterval, interval > 0 {
+            storeState.lastSyncedAlarmInterval = interval
+        } else if let fireAt = incoming.amenAlarmFireAt,
+                  let lastTS = incoming.events.filter({ !$0.isDeleted }).map(\.timestamp).max(),
+                  fireAt.timeIntervalSince(lastTS) > 0 {
+            // Fallback for a payload minted without the explicit field.
+            storeState.lastSyncedAlarmInterval = fireAt.timeIntervalSince(lastTS)
+        } else {
+            storeState.lastSyncedAlarmInterval = nil
         }
 
         pruneStore()
@@ -208,7 +223,8 @@ final class WatchSessionViewModel {
         SyncSnapshot(
             events: storeState.events,
             lastClearedAt: storeState.lastClearedAt,
-            amenAlarmFireAt: amenAlarmFireAt
+            amenAlarmFireAt: amenAlarmFireAt,
+            watchAlarmInterval: storeState.lastSyncedAlarmInterval
         )
     }
 }

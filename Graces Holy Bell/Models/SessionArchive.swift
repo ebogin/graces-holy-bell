@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// One prayer inside an archived (ended) session.
@@ -18,6 +19,28 @@ struct ArchivedSession: Codable, Equatable, Identifiable {
     /// Session start — the first prayer's time (endedAt for a defensive empty session).
     var startedAt: Date {
         prayers.first?.timestamp ?? endedAt
+    }
+
+    /// Deterministic identity derived from the prayers themselves, so archiving
+    /// the same ended session twice — e.g. a local clear racing the Watch's echo
+    /// of that clear across two sync channels — is idempotent:
+    /// `SessionArchiveStore.append` skips an id it already holds. Uses the exact
+    /// bit patterns of the timestamps, which both archive paths read from the
+    /// same stored `Date`s.
+    static func deterministicID(prayerTimestamps: [Date]) -> UUID {
+        var hasher = SHA256()
+        for timestamp in prayerTimestamps.sorted() {
+            withUnsafeBytes(of: timestamp.timeIntervalSinceReferenceDate.bitPattern) {
+                hasher.update(bufferPointer: $0)
+            }
+        }
+        let digest = Array(hasher.finalize())
+        return UUID(uuid: (
+            digest[0], digest[1], digest[2], digest[3],
+            digest[4], digest[5], digest[6], digest[7],
+            digest[8], digest[9], digest[10], digest[11],
+            digest[12], digest[13], digest[14], digest[15]
+        ))
     }
 }
 
@@ -48,6 +71,9 @@ struct SessionArchiveStore {
 
     func append(_ session: ArchivedSession) {
         var sessions = load()
+        // Idempotent: the same ended session (deterministic id) archives once,
+        // no matter how many sync channels replay its clear.
+        guard !sessions.contains(where: { $0.id == session.id }) else { return }
         sessions.append(session)
         if sessions.count > Self.maxSessions {
             sessions.removeFirst(sessions.count - Self.maxSessions)

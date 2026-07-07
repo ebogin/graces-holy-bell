@@ -16,6 +16,8 @@ final class PrayerLogEditingTests: XCTestCase {
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         viewModel = SessionViewModel(modelContext: container.mainContext)
+        // Tests log prayers back-to-back; the double-slide debounce would drop them.
+        viewModel.prayerDebounceInterval = 0
     }
 
     override func tearDown() {

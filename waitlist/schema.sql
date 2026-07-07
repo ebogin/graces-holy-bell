@@ -25,6 +25,19 @@ CREATE INDEX IF NOT EXISTS idx_signups_referrer   ON signups (referrer);
 --   npx wrangler d1 execute grace-waitlist --remote \
 --     --command "ALTER TABLE signups ADD COLUMN source TEXT"
 
+-- Signup rate limiting: one row per accepted-for-processing POST, keyed by a
+-- SHA-256 hash of the client IP (the raw address is never stored). The Worker
+-- counts rows in the last hour per ip_hash and rejects past the cap. The
+-- Worker FAILS OPEN if this table is missing, but apply it promptly — until
+-- then the signup endpoint has no rate limit.
+CREATE TABLE IF NOT EXISTS rate_events (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL,
+  ip_hash    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_events_ip_created ON rate_events (ip_hash, created_at);
+
 -- One row per open/scan of a referral short link (/r/<code>).
 CREATE TABLE IF NOT EXISTS ref_clicks (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,

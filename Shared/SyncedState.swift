@@ -11,6 +11,12 @@ struct SyncSnapshot: Codable {
     let lastClearedAt: Date?
     /// When the Amen Alarm should fire on the Watch. Nil when disabled/idle.
     let amenAlarmFireAt: Date?
+    /// The phone's Watch-alarm *setting*: the alarm interval in seconds, or nil
+    /// when the Watch alarm is disabled. Explicit because `amenAlarmFireAt`
+    /// alone cannot distinguish "disabled" from "idle" — the Watch needs this
+    /// to turn its alarm OFF instead of re-arming from a stale interval.
+    /// Optional-with-default so payloads minted before the field decode cleanly.
+    var watchAlarmInterval: TimeInterval? = nil
 
     private static let payloadKey = "snapshot"
 
@@ -32,13 +38,18 @@ struct EventMessage {
     let event: PrayerEvent
 
     func toUserInfo() -> [String: Any] {
-        [
+        var dict: [String: Any] = [
             "msg": "event",
             "id": event.id.uuidString,
             "timestamp": event.timestamp,
             "origin": event.origin.rawValue,
-            "updatedAt": event.updatedAt
+            "updatedAt": event.updatedAt,
+            "isDeleted": event.isDeleted
         ]
+        if let note = event.note {
+            dict["note"] = note
+        }
+        return dict
     }
 
     static func fromUserInfo(_ dict: [String: Any]) -> EventMessage? {
@@ -49,7 +60,16 @@ struct EventMessage {
               let originString = dict["origin"] as? String,
               let origin = PrayerEvent.Origin(rawValue: originString) else { return nil }
         let updatedAt = dict["updatedAt"] as? Date ?? timestamp
-        return EventMessage(event: PrayerEvent(id: id, timestamp: timestamp, origin: origin, updatedAt: updatedAt))
+        return EventMessage(event: PrayerEvent(
+            id: id,
+            timestamp: timestamp,
+            origin: origin,
+            updatedAt: updatedAt,
+            // Carry the full event so a tombstone or note is never silently
+            // reconstructed as a live, note-less prayer and resurrected by LWW.
+            isDeleted: dict["isDeleted"] as? Bool ?? false,
+            note: dict["note"] as? String
+        ))
     }
 }
 

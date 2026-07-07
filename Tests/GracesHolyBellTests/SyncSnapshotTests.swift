@@ -16,13 +16,15 @@ final class SyncSnapshotTests: XCTestCase {
                 PrayerEvent(id: UUID(), timestamp: t1, origin: .watch)
             ],
             lastClearedAt: t0,
-            amenAlarmFireAt: t1
+            amenAlarmFireAt: t1,
+            watchAlarmInterval: 5400
         )
         let restored = SyncSnapshot.fromDictionary(original.toDictionary())
         XCTAssertNotNil(restored)
         XCTAssertEqual(restored?.events.count, 2)
         XCTAssertEqual(restored?.lastClearedAt, t0)
         XCTAssertEqual(restored?.amenAlarmFireAt, t1)
+        XCTAssertEqual(restored?.watchAlarmInterval, 5400)
     }
 
     func test_toDictionary_fromDictionary_nilOptionals() {
@@ -32,6 +34,7 @@ final class SyncSnapshotTests: XCTestCase {
         XCTAssertTrue(restored!.events.isEmpty)
         XCTAssertNil(restored?.lastClearedAt)
         XCTAssertNil(restored?.amenAlarmFireAt)
+        XCTAssertNil(restored?.watchAlarmInterval, "omitted setting must decode as disabled")
     }
 
     func test_toDictionary_isPropertyListCompatible() {
@@ -85,6 +88,21 @@ final class SyncSnapshotTests: XCTestCase {
         XCTAssertEqual(restored?.event.id, event.id)
         XCTAssertEqual(restored?.event.timestamp, event.timestamp)
         XCTAssertEqual(restored?.event.origin, event.origin)
+        XCTAssertEqual(restored?.event.isDeleted, false)
+        XCTAssertNil(restored?.event.note)
+    }
+
+    func test_eventMessage_carriesTombstoneAndNote() {
+        // A deleted or annotated event must survive the wire intact — dropping
+        // these fields would resurrect a deleted prayer via LWW on the far side.
+        let event = PrayerEvent(
+            id: UUID(), timestamp: t0, origin: .watch,
+            updatedAt: t1, isDeleted: true, note: "For Grandma"
+        )
+        let restored = EventMessage.fromUserInfo(EventMessage(event: event).toUserInfo())
+        XCTAssertEqual(restored?.event.updatedAt, t1)
+        XCTAssertEqual(restored?.event.isDeleted, true)
+        XCTAssertEqual(restored?.event.note, "For Grandma")
     }
 
     func test_eventMessage_wrongMsg_returnsNil() {
