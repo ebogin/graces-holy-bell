@@ -67,6 +67,7 @@ final class AnalyticsViewModelIntegrationTests: XCTestCase {
 
     func test_noAnalyticsSink_appBehavesNormally() {
         let vm = SessionViewModel(modelContext: container.mainContext) // analytics nil
+        vm.prayerDebounceInterval = 0 // log prayers back-to-back without the double-slide guard
         vm.startNewSession()
         vm.logPrayer()
         XCTAssertEqual(vm.appState, .active)
