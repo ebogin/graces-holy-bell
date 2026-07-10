@@ -8,7 +8,7 @@
 # part safely: resolves the ADMIN_TOKEN, validates the payload against the app's tolerant
 # schema, publishes, and echoes back what actually got stored.
 #
-# See ../../../WELCOME_MESSAGE.md (repo root) for the full protocol and schema.
+# See WELCOME_MESSAGE.md at the graces-holy-bell repo root for the full protocol and schema.
 #
 # Usage:
 #   grace-welcome.sh verify                 # print what's currently live (public endpoint)
@@ -29,8 +29,20 @@ PUBLIC_URL="https://boginfactory.com/app-config"
 MAX_VALUE_BYTES=$((32 * 1024))   # Worker's per-key limit (postAppConfig in waitlist/src/index.js)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Repo root is three levels up from .claude/skills/grace-welcome/ (works from a worktree too).
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# Locate the graces-holy-bell repo so we can find the local ADMIN_TOKEN (waitlist/.dev.vars).
+# Prefer the git repo containing the current directory — correct whether this skill is installed
+# globally (~/.claude/skills) or lives in the repo, and works from any branch or worktree. Falls
+# back to the in-repo project-skill layout, then the CWD. The $ADMIN_TOKEN env var works no matter
+# what, so this only affects the .dev.vars convenience lookup.
+find_repo_root() {
+  local root
+  root="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || true)"
+  [[ -n "$root" && -d "$root/waitlist" ]] && { printf '%s' "$root"; return; }
+  root="$(cd "$SCRIPT_DIR/../../.." 2>/dev/null && pwd || true)"
+  [[ -n "$root" && -d "$root/waitlist" ]] && { printf '%s' "$root"; return; }
+  printf '%s' "$PWD"
+}
+REPO_ROOT="$(find_repo_root)"
 
 c_red=$'\033[31m'; c_yellow=$'\033[33m'; c_green=$'\033[32m'; c_dim=$'\033[2m'; c_off=$'\033[0m'
 err()  { printf '%sERROR%s %s\n' "$c_red" "$c_off" "$*" >&2; }

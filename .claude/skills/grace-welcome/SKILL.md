@@ -16,12 +16,16 @@ detail sheet, or targeting it to a subset of users needs **no app build and no A
 — just a token-protected POST. The app fetches it anonymously on launch/foreground and falls back
 to a bundled default if it never reaches the network.
 
-Full protocol + schema of record: [`WELCOME_MESSAGE.md`](../../../WELCOME_MESSAGE.md) at the repo
-root. This skill is the operational wrapper around it.
+Full protocol + schema of record: `WELCOME_MESSAGE.md` at the graces-holy-bell repo root. This
+skill is the operational wrapper around it.
+
+**Run this from inside the graces-holy-bell repo** (any branch/worktree). The skill is installed
+globally, so `/grace-welcome` is available in every conversation regardless of branch; the helper
+script locates the repo from your current directory to find the local `ADMIN_TOKEN`.
 
 ## Do it with the helper script
 
-`.claude/skills/grace-welcome/grace-welcome.sh` resolves the token, validates the payload against
+`~/.claude/skills/grace-welcome/grace-welcome.sh` resolves the token, validates the payload against
 the app's tolerant schema, publishes, and echoes back exactly what got stored. Use it rather than
 hand-writing the `curl` — it catches the mistakes that silently break a message (missing catch-all,
 non-https image, oversize body).
@@ -37,7 +41,7 @@ grace-welcome.sh rollback --yes          # restore the single default catch-all 
 
 1. **See what's live** (context for any change):
    ```bash
-   bash .claude/skills/grace-welcome/grace-welcome.sh verify
+   bash ~/.claude/skills/grace-welcome/grace-welcome.sh verify
    ```
 2. **Draft the payload** to a `welcome.json` (scratchpad is fine — it doesn't belong in the repo).
    Start from a template in [`examples/`](examples/): `simple-text.json` (text-only) or
@@ -46,12 +50,12 @@ grace-welcome.sh rollback --yes          # restore the single default catch-all 
    goes in a `detail` sheet).
 3. **Validate** and read the warnings:
    ```bash
-   bash .claude/skills/grace-welcome/grace-welcome.sh validate welcome.json
+   bash ~/.claude/skills/grace-welcome/grace-welcome.sh validate welcome.json
    ```
 4. **Confirm with the user, then publish.** Publishing changes what *every* app user sees — it's
    outward-facing. Show the user the exact payload and get an explicit yes, **then** pass `--yes`:
    ```bash
-   bash .claude/skills/grace-welcome/grace-welcome.sh post welcome.json --yes
+   bash ~/.claude/skills/grace-welcome/grace-welcome.sh post welcome.json --yes
    ```
    The POST response echoes the stored value back (authoritative, uncached) — that's your
    immediate confirmation. Without `--yes` and without a TTY the script refuses rather than
@@ -111,13 +115,13 @@ Use it for content too long for the small idle area.
 Restore the original default line (also the first-deploy seed payload):
 
 ```bash
-bash .claude/skills/grace-welcome/grace-welcome.sh rollback --yes   # after user confirms
+bash ~/.claude/skills/grace-welcome/grace-welcome.sh rollback --yes   # after user confirms
 ```
 This posts: `{"welcome":{"version":1,"messages":[{"id":"default","audience":"all","blocks":[{"type":"text","value":"Welcome to your favorite app to time prayer duration."}]}]}}`
 
 ## The ADMIN_TOKEN
 
-Same Worker secret as the waitlist CSV exports ([`waitlist/SETUP.md`](../../../waitlist/SETUP.md)).
+Same Worker secret as the waitlist CSV exports (`waitlist/SETUP.md`).
 Cloudflare won't let you read a secret back out, so it must be available locally. The script looks
 for it in this order:
 
