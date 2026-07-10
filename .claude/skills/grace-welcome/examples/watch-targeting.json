@@ -1,0 +1,30 @@
+{
+  "welcome": {
+    "version": 1,
+    "messages": [
+      {
+        "id": "watch-install-example",
+        "audience": "watch_not_installed",
+        "blocks": [
+          { "type": "text", "value": "GET GRACE ON YOUR WRIST", "align": "center", "size": "large" },
+          { "type": "text", "value": "Prayers sync from your Apple Watch automatically." },
+          { "type": "link", "label": "HOW TO INSTALL", "destination": "detail" }
+        ],
+        "detail": {
+          "title": "INSTALL ON APPLE WATCH",
+          "blocks": [
+            { "type": "image", "url": "https://boginfactory.com/img/watch-install.png", "caption": "Watch app -> Available Apps -> Install" },
+            { "type": "text", "value": "1. Open the Watch app on your iPhone.\n2. Scroll to Available Apps.\n3. Tap Install next to Grace's Holy Bell." }
+          ]
+        }
+      },
+      {
+        "id": "default",
+        "audience": "all",
+        "blocks": [
+          { "type": "text", "value": "Welcome to your favorite app to time prayer duration." }
+        ]
+      }
+    ]
+  }
+}
