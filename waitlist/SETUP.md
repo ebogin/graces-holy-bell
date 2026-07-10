@@ -218,3 +218,7 @@ email step is skipped.
 | secret | `RESEND_API_KEY` | Resend send key (Step 3) |
 | secret | `ADMIN_TOKEN` | Password for the CSV export (Step 4) |
 | `docs/grace-waitlist.html` | `WORKER_ENDPOINT` | Your Worker URL (Step 6) |
+
+App welcome message: see [`WELCOME_MESSAGE.md`](../WELCOME_MESSAGE.md) at the
+repo root — same `ADMIN_TOKEN` secret, a different endpoint
+(`GET/POST /app-config`).

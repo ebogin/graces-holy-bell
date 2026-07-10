@@ -16,13 +16,41 @@ function makeDB() {
   const clicksInserted = [];
   const clickRows = [];
   const rateEvents = [];
+  const configRows = [];
   return {
     inserted,
     rows,
     clicksInserted,
     clickRows,
     rateEvents,
+    configRows,
     prepare(sql) {
+      if (/app_config/i.test(sql)) {
+        return {
+          _sql: sql,
+          _args: [],
+          bind(...args) {
+            this._args = args;
+            return this;
+          },
+          async run() {
+            if (/INSERT/i.test(this._sql)) {
+              const [key, value, updatedAt] = this._args;
+              const existing = configRows.find((r) => r.key === key);
+              if (existing) {
+                existing.value = value;
+                existing.updated_at = updatedAt;
+              } else {
+                configRows.push({ key, value, updated_at: updatedAt });
+              }
+            }
+            return { success: true };
+          },
+          async all() {
+            return { results: configRows };
+          },
+        };
+      }
       if (/rate_events/i.test(sql)) {
         return {
           _sql: sql,
@@ -609,4 +637,108 @@ test("waitlist_signup capture uses 'organic' distinct_id when there is no referr
     assert.equal(sent.properties.ref_code, "");
     assert.equal(sent.properties.has_email, false);
   });
+});
+
+// ── Remote app config (GET /app-config, POST /admin/app-config) ────────────
+
+function appConfigGetRequest() {
+  return new Request("https://x/app-config", { method: "GET" });
+}
+
+function appConfigPostRequest(body, token = "secret-token") {
+  const headers = { "Content-Type": "application/json" };
+  if (token !== null) headers.Authorization = "Bearer " + token;
+  return new Request("https://x/admin/app-config", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
+test("GET /app-config returns seeded config as parsed JSON with correct headers", async () => {
+  const env = makeEnv();
+  env.DB.configRows.push({
+    key: "welcome",
+    value: JSON.stringify({ version: 1, messages: [{ id: "default", audience: "all", blocks: [] }] }),
+    updated_at: "2026-07-01T00:00:00.000Z",
+  });
+  const res = await handleRequest(appConfigGetRequest(), env);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("Content-Type"), "application/json");
+  assert.equal(res.headers.get("Cache-Control"), "public, max-age=300");
+  const body = await res.json();
+  // Parsed object, not a double-encoded string.
+  assert.equal(typeof body.welcome, "object");
+  assert.equal(body.welcome.version, 1);
+  assert.equal(body.welcome.messages[0].id, "default");
+});
+
+test("GET /app-config with empty table returns {}", async () => {
+  const env = makeEnv();
+  const res = await handleRequest(appConfigGetRequest(), env);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {});
+});
+
+test("GET /app-config skips a row with corrupt JSON instead of breaking the response", async () => {
+  const env = makeEnv();
+  env.DB.configRows.push({ key: "broken", value: "{not json", updated_at: "x" });
+  env.DB.configRows.push({ key: "welcome", value: JSON.stringify({ version: 1 }), updated_at: "x" });
+  const res = await handleRequest(appConfigGetRequest(), env);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.broken, undefined);
+  assert.deepEqual(body.welcome, { version: 1 });
+});
+
+test("POST /admin/app-config without a token is rejected", async () => {
+  const env = makeEnv();
+  const res = await handleRequest(appConfigPostRequest({ welcome: { version: 1 } }, null), env);
+  assert.equal(res.status, 401);
+  assert.equal(env.DB.configRows.length, 0);
+});
+
+test("POST /admin/app-config with the wrong token is rejected", async () => {
+  const env = makeEnv();
+  const res = await handleRequest(appConfigPostRequest({ welcome: { version: 1 } }, "wrong-token"), env);
+  assert.equal(res.status, 401);
+  assert.equal(env.DB.configRows.length, 0);
+});
+
+test("POST /admin/app-config upserts and echoes the full config", async () => {
+  const env = makeEnv();
+  const first = await handleRequest(
+    appConfigPostRequest({ welcome: { version: 1, messages: [{ id: "a" }] } }),
+    env
+  );
+  assert.equal(first.status, 200);
+  const firstBody = await first.json();
+  assert.equal(firstBody.welcome.messages[0].id, "a");
+  assert.equal(env.DB.configRows.length, 1);
+
+  // Overwrite the same key rather than inserting a second row.
+  const second = await handleRequest(
+    appConfigPostRequest({ welcome: { version: 2, messages: [{ id: "b" }] } }),
+    env
+  );
+  assert.equal(second.status, 200);
+  const secondBody = await second.json();
+  assert.equal(secondBody.welcome.version, 2);
+  assert.equal(secondBody.welcome.messages[0].id, "b");
+  assert.equal(env.DB.configRows.length, 1, "same key must overwrite, not duplicate");
+});
+
+test("POST /admin/app-config rejects a non-object body", async () => {
+  const env = makeEnv();
+  const res = await handleRequest(appConfigPostRequest([1, 2, 3]), env);
+  assert.equal(res.status, 400);
+  assert.equal(env.DB.configRows.length, 0);
+});
+
+test("POST /admin/app-config rejects a value over the 32KB limit", async () => {
+  const env = makeEnv();
+  const huge = "x".repeat(33 * 1024);
+  const res = await handleRequest(appConfigPostRequest({ welcome: huge }), env);
+  assert.equal(res.status, 400);
+  assert.equal(env.DB.configRows.length, 0);
 });

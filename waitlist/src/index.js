@@ -12,6 +12,11 @@
 //   GET  /export.csv         Download all signups as CSV (token-protected) so
 //                            they can be opened/imported into a spreadsheet.
 //   GET  /export-clicks.csv  Download all referral clicks as CSV (same token).
+//   GET  /app-config         Public, anonymous read of remotely-configurable
+//                            app content (e.g. the idle-screen welcome
+//                            message). See WELCOME_MESSAGE.md at the repo
+//                            root.
+//   POST /admin/app-config   Token-protected write of that same content.
 //
 // All form fields are optional, but a submission with no email/name/phone is
 // rejected as empty. Signups are rate-limited per client IP (see rate_events
@@ -59,6 +64,14 @@ export async function handleRequest(request, env, ctx) {
 
   if (request.method === "GET" && (url.pathname === "/r" || url.pathname.startsWith("/r/"))) {
     return handleReferralClick(url, request, env, ctx);
+  }
+
+  if (request.method === "GET" && url.pathname === "/app-config") {
+    return getAppConfig(env);
+  }
+
+  if (request.method === "POST" && url.pathname === "/admin/app-config") {
+    return postAppConfig(request, env);
   }
 
   if (request.method !== "POST") {
@@ -415,6 +428,77 @@ async function postHogCapture(env, { event, distinctId, properties, timestamp })
   } catch (err) {
     console.error("posthog capture failed", event, err);
   }
+}
+
+// ── Remote app config (welcome message, etc.) ───────────────────────────────
+//
+// The Worker is intentionally schema-agnostic about the *contents* of each
+// config value — the app is the tolerant interpreter (see WELCOME_MESSAGE.md).
+// This keeps future block/audience types addable without a Worker redeploy.
+
+const APP_CONFIG_MAX_VALUE_BYTES = 32 * 1024;
+
+async function getAppConfig(env) {
+  const headers = {
+    "Content-Type": "application/json",
+    "Cache-Control": "public, max-age=300",
+  };
+  try {
+    const { results } = await env.DB.prepare(`SELECT key, value FROM app_config`).all();
+    const config = {};
+    for (const row of results || []) {
+      try {
+        config[row.key] = JSON.parse(row.value);
+      } catch (err) {
+        // Corrupt row — skip it rather than breaking the whole response.
+        console.error("app_config row has invalid JSON, skipping", row.key, err);
+      }
+    }
+    return new Response(JSON.stringify(config), { status: 200, headers });
+  } catch (err) {
+    console.error("app-config read failed (returning empty)", err);
+    return new Response(JSON.stringify({}), { status: 200, headers });
+  }
+}
+
+async function postAppConfig(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  if (!env.ADMIN_TOKEN || auth !== "Bearer " + env.ADMIN_TOKEN) {
+    return json({ error: "Unauthorized" }, 401, {});
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON" }, 400, {});
+  }
+
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return json({ error: "Body must be a JSON object mapping keys to values" }, 400, {});
+  }
+
+  const entries = Object.entries(body);
+  const serializedByKey = {};
+  for (const [key, value] of entries) {
+    const serialized = JSON.stringify(value);
+    if (new TextEncoder().encode(serialized).length > APP_CONFIG_MAX_VALUE_BYTES) {
+      return json({ error: `Value for "${key}" exceeds ${APP_CONFIG_MAX_VALUE_BYTES} byte limit` }, 400, {});
+    }
+    serializedByKey[key] = serialized;
+  }
+
+  const updatedAt = new Date().toISOString();
+  for (const [key, serialized] of Object.entries(serializedByKey)) {
+    await env.DB.prepare(
+      `INSERT INTO app_config (key, value, updated_at) VALUES (?1, ?2, ?3)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+    )
+      .bind(key, serialized, updatedAt)
+      .run();
+  }
+
+  return getAppConfig(env);
 }
 
 // ── CSV export ─────────────────────────────────────────────────────────────

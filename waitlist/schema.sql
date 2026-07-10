@@ -50,3 +50,13 @@ CREATE TABLE IF NOT EXISTS ref_clicks (
 
 CREATE INDEX IF NOT EXISTS idx_ref_clicks_code       ON ref_clicks (code);
 CREATE INDEX IF NOT EXISTS idx_ref_clicks_created_at ON ref_clicks (created_at);
+
+-- Remotely-configurable app content (e.g. the idle-screen welcome message).
+-- One row per config key; `value` is an opaque JSON document the Worker never
+-- interprets beyond size/JSON validation on write. See WELCOME_MESSAGE.md at
+-- the repo root for the schema of the "welcome" key and how to update it.
+CREATE TABLE IF NOT EXISTS app_config (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,   -- JSON document, opaque to the Worker
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

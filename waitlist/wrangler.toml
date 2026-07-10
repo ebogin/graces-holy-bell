@@ -18,6 +18,14 @@ database_id = "11f9f9ca-2db5-420d-8dca-f366c00c647f"
 pattern = "boginfactory.com/r/*"
 zone_name = "boginfactory.com"
 
+# Public, anonymous read of remotely-configurable app content (e.g. the idle-
+# screen welcome message). Admin writes (POST /admin/app-config) intentionally
+# stay off this public domain — use the workers.dev hostname for those. See
+# WELCOME_MESSAGE.md at the repo root.
+[[routes]]
+pattern = "boginfactory.com/app-config"
+zone_name = "boginfactory.com"
+
 [vars]
 ALLOWED_ORIGIN = "https://boginfactory.com,https://www.boginfactory.com"
 FROM_EMAIL = "Grace's Holy Bell <gracesholybell@boginfactory.com>"

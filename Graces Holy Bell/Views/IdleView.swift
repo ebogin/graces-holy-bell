@@ -13,6 +13,8 @@ struct IdleView: View {
     /// so every instance reflects the same persisted value.
     var liveActivitySettings = LiveActivitySettings()
     let consent: AnalyticsConsent
+    /// Defaulted so previews don't need to construct one — see RemoteConfig.swift.
+    var remoteConfig = RemoteConfig()
     var isWatchAvailable: Bool = false
     var onForceSync: () -> Void = {}
     @State private var showSettings = false
@@ -39,13 +41,9 @@ struct IdleView: View {
                 // Welcome text (visible when settings hidden)
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    Text("Welcome to your favorite app to time prayer duration.")
-                        .font(.pixelFont(12, relativeTo: .body))
-                        .foregroundStyle(Color.lcdDark)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .lineSpacing(3)
+                    WelcomeMessageView(
+                        message: remoteConfig.currentMessage(isWatchAvailable: isWatchAvailable)
+                    )
 
                     Spacer().frame(height: 67)
 

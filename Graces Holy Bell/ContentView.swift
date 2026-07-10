@@ -22,6 +22,7 @@ struct ContentView: View {
     @State private var advancedSettings = AdvancedSettings()
     @State private var liveActivitySettings = LiveActivitySettings()
     @State private var liveActivityController = PrayerLiveActivityController()
+    @State private var remoteConfig = RemoteConfig()
     // Analytics consent — applies the geo-gated default on first launch. Single
     // source of truth behind the Settings toggle and the EU opt-in banner.
     @State private var consent = AnalyticsConsent()
@@ -43,6 +44,7 @@ struct ContentView: View {
                         advancedSettings: advancedSettings,
                         liveActivitySettings: liveActivitySettings,
                         consent: consent,
+                        remoteConfig: remoteConfig,
                         isWatchAvailable: viewModel.isWatchAvailable,
                         onForceSync: { connectivityManager?.forceSync() }
                     )
@@ -67,6 +69,11 @@ struct ContentView: View {
             set: { _ in }
         )) {
             AnalyticsConsentBanner(consent: consent)
+        }
+        // Remote welcome-message content: fetched in the background, throttled
+        // internally by RemoteConfig — never blocks the idle screen's render.
+        .task {
+            await remoteConfig.refresh()
         }
         .task {
             if viewModel == nil {
@@ -163,6 +170,7 @@ struct ContentView: View {
         // (launch open is recorded by recordLaunch).
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
+                Task { await remoteConfig.refresh() }
                 connectivityManager?.sendSnapshotToWatch()
                 // Catch up the Live Activity — a start attempted while
                 // backgrounded (e.g. a Watch merge) is rejected by the system.
