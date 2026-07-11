@@ -1,0 +1,14 @@
+{
+  "welcome": {
+    "version": 1,
+    "messages": [
+      {
+        "id": "example-simple-text",
+        "audience": "all",
+        "blocks": [
+          { "type": "text", "value": "Blessed Lent — may this Bell help you keep vigil." }
+        ]
+      }
+    ]
+  }
+}
