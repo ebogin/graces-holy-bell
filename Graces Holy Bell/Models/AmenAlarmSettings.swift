@@ -17,7 +17,7 @@ enum AmenAlarmDuration: TimeInterval, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .testThirtySeconds: return "30 sec (test)"
+        case .testThirtySeconds: return "30 sec"
         case .thirtyMins:    return "30 mins"
         case .fortyFiveMins: return "45 mins"
         case .oneHour:       return "1 hour"
