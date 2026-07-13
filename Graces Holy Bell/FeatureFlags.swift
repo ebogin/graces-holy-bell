@@ -14,4 +14,15 @@ enum FeatureFlags {
     ///
     /// Disabled 2026-07-06: history view has known display bugs; deferred.
     static let prayerHistoryEnabled = false
+
+    /// Remote-configurable idle-screen welcome message (RemoteConfig.swift /
+    /// WelcomeMessageView.swift), fetched from the grace-waitlist Worker. Off:
+    /// no config fetch runs and the idle screen shows the bundled default
+    /// message, unchanged from before this feature existed. RemoteConfig,
+    /// WelcomeMessageView, the Worker endpoint, and their tests are untouched
+    /// and ready to flip back on.
+    ///
+    /// Left out of the 1.5x release 2026-07-13: kept off the critical path
+    /// while it settles.
+    static let welcomeMessageEnabled = false
 }

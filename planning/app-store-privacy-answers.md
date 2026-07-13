@@ -8,7 +8,7 @@
 > `Shared/Analytics/Events/`, and the consent gate in `Shared/Analytics/Consent/`.
 
 ## TL;DR
-The app now collects three Apple data types, **all via PostHog analytics only**,
+The app now collects four Apple data types, **all via PostHog analytics only**,
 all **not linked to identity** and **not used for tracking**, purpose
 **Analytics**:
 
@@ -17,6 +17,7 @@ all **not linked to identity** and **not used for tracking**, purpose
 | **Device ID** | Identifiers | No | No | Analytics |
 | **Product Interaction** | Usage Data | No | No | Analytics |
 | **Coarse Location** | Location | No | No | Analytics |
+| **Other Usage Data** | Usage Data | No | No | Analytics |
 
 Everything else (prayer logs, Amen Alarm settings) stays on device and is **not
 collected**. The waitlist is a separate website form — see "Waitlist" below for
@@ -30,6 +31,7 @@ why it is not part of the app's privacy label.
    - **Identifiers → Device ID**
    - **Usage Data → Product Interaction**
    - **Location → Coarse Location**
+   - **Usage Data → Other Usage Data**
 
 3. For **Device ID**:
    - *Used to track you?* **No** (no cross-app/website tracking; `NSPrivacyTracking = false`).
@@ -51,6 +53,16 @@ why it is not part of the app's privacy label.
    - *Linked to your identity?* **No.**
    - *Purpose:* **Analytics.**
 
+6. For **Other Usage Data** (the default device/app/OS context PostHog's SDK
+   automatically attaches to every event — OS version, app version, device
+   model, screen dimensions, SDK build info — standard analytics metadata,
+   distinct from the §2 event taxonomy already covered under Product
+   Interaction):
+   - *Used to track you?* **No.**
+   - *Linked to your identity?* **No** (bundled with the anonymous event, same
+     `distinctId` as everything else — not tied to account/name/email).
+   - *Purpose:* **Analytics.**
+
 Do **not** add Precise Location, Contact Info, Health, Financial, Browsing
 History, Search History, or Sensitive Info.
 
@@ -64,11 +76,17 @@ History, Search History, or Sensitive Info.
   not content, not free text.
 - **No Crash/Performance Data:** no crash-reporting or APM SDK is wired (PostHog
   error tracking is not enabled here).
-- **App / OS / device version** ride on events as context. They are not a
-  standalone Apple data type that requires separate declaration; they're covered
-  under Product Interaction. (If App Review ever pushes back, the conservative
-  add is *Diagnostics → Other Diagnostic Data*, same answers: not linked, not
-  tracking, Analytics.)
+- **App / OS / device version** ride on our own events as context (covered under
+  Product Interaction) **and** are separately attached by the PostHog SDK itself
+  as default event metadata (OS version, app version, device model, screen
+  dimensions, SDK build info) — that SDK-attached layer is what **Other Usage
+  Data** (step 6 above) declares. Reconciled 2026-07-13 against PostHog's
+  bundled `PrivacyInfo.xcprivacy`, which declares both
+  `NSPrivacyCollectedDataTypeProductInteraction` and
+  `NSPrivacyCollectedDataTypeOtherUsageData` — Xcode aggregates the SDK's
+  manifest into the app's nutrition label regardless of whether our own answers
+  mention it, so declaring it ourselves keeps the two in sync rather than
+  leaving a gap App Review would have to catch.
 
 ## GeoIP / approximate location — DECIDED: keep it, declare it
 
@@ -121,8 +139,18 @@ publish at the same URL). The in-app/web policy already discloses it in full.
   Watch is a thin proxy and never transmits to PostHog itself.
 - PostHog's Swift SDK ships its own bundled privacy manifest for the
   required-reason APIs it calls; Xcode aggregates it into the app's nutrition
-  label, so we don't restate the SDK's API reasons in our manifest.
+  label, so we don't restate the SDK's API reasons in our manifest. As of
+  SDK 3.62.0 that bundled manifest declares two collected data types —
+  `NSPrivacyCollectedDataTypeProductInteraction` (already covered by our own
+  Product Interaction answer) and `NSPrivacyCollectedDataTypeOtherUsageData`
+  (now covered by step 6 above) — both `Linked = false`, purpose Analytics,
+  matching our answers.
 
-## Loose end noted while here
-`PostHogTransport.swift:26` uses the deprecated `PostHogConfig(apiKey:host:)` —
-swap to `init(projectToken:host:)` at some point (warning only, not blocking).
+## Loose ends noted while here
+- `PostHogTransport.swift:26` uses the deprecated `PostHogConfig(apiKey:host:)` —
+  swap to `init(projectToken:host:)` at some point (warning only, not blocking).
+- **2026-07-13:** reconciled this doc against PostHog SDK 3.62.0's bundled
+  `PrivacyInfo.xcprivacy` (checked out under SourcePackages) and added the
+  **Other Usage Data** answer above, which had been missing — the SDK declares
+  it alongside Product Interaction, and our own answers/manifest only had the
+  latter.
