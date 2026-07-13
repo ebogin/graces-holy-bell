@@ -26,6 +26,15 @@ struct ContentView: View {
     // Analytics consent — applies the geo-gated default on first launch. Single
     // source of truth behind the Settings toggle and the EU opt-in banner.
     @State private var consent = AnalyticsConsent()
+    // Transport seam AnalyticsService is built against; starts wrapping
+    // NoOpAnalytics and is swapped to the real PostHog transport in place,
+    // once consent allows it (see ConsentActivation below). Never rebuilt.
+    @State private var analyticsTransport = SwappableAnalytics(initial: NoOpAnalytics())
+    // One-shot latch: builds and activates the real transport the first time
+    // consent is seen as `.granted` — either synchronously at launch (non-EU
+    // users, who start `.granted` and never fire `onChange`) or later via
+    // `.onChange(of: consent.state)` (EU users tapping Allow).
+    @State private var analyticsActivation = ConsentActivation()
     // Retains the notification-tap delegate for the app's lifetime (analytics only).
     @State private var notificationForwarder: NotificationEventForwarder?
     var connectivityManager: PhoneConnectivityManager?
@@ -104,14 +113,23 @@ struct ContentView: View {
                 // Analytics: resolve/persist the canonical install_id.
                 let installID = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
 
-                // Real PostHog transport when a key is present (Secrets.plist),
-                // otherwise the no-op transport (fresh checkout / no secrets).
-                let backend: Analytics = PostHogTransport.make(installID: installID) ?? NoOpAnalytics()
-
                 // Consent gate: transmission only flows when granted. `consent`
-                // already applied the geo-gated default on first launch.
-                let transport = ConsentGatingAnalytics(wrapping: backend) { [consent] in
+                // already applied the geo-gated default on first launch. Wraps
+                // `analyticsTransport`, which starts as a no-op and is swapped
+                // to the real PostHog transport below, in place, once consent
+                // allows it — so `setup()`'s network call never happens before
+                // consent is granted.
+                let transport = ConsentGatingAnalytics(wrapping: analyticsTransport) { [consent] in
                     consent.isGranted
+                }
+
+                // Covers users who start `.granted` (non-EU default) — for them
+                // `.onChange(of: consent.state)` below never fires, so this
+                // synchronous check is the only activation they get. Must run
+                // before `recordLaunch` so their launch event actually reaches
+                // PostHog. EU users who grant later are covered by `onChange`.
+                analyticsActivation.activateIfGranted(consent.state, swappable: analyticsTransport) {
+                    PostHogTransport.make(installID: installID)
                 }
 
                 let analytics = AnalyticsService(
@@ -162,6 +180,27 @@ struct ContentView: View {
                 )
 
                 viewModel = vm
+            }
+        }
+        // Covers EU users who answer the opt-in banner after launch (non-EU
+        // users are already covered by the synchronous check in the setup
+        // block above, since `.granted` is their starting state and this
+        // never fires for them). Also hardens revocation: `ConsentGatingAnalytics`
+        // already drops events once denied, but opting the SDK itself out/in
+        // additionally silences/restores its own internal traffic for users
+        // who grant then later revoke.
+        .onChange(of: consent.state) { _, newState in
+            switch newState {
+            case .granted:
+                PostHogTransport.optIn()
+                let installID = InstallIDProvider(store: UserDefaultsInstallIDStore()).resolve()
+                analyticsActivation.activateIfGranted(newState, swappable: analyticsTransport) {
+                    PostHogTransport.make(installID: installID)
+                }
+            case .denied:
+                PostHogTransport.optOut()
+            case .pending:
+                break
             }
         }
         // On every foreground, proactively reconcile with the Watch so opening
