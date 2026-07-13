@@ -81,8 +81,12 @@ struct ContentView: View {
         }
         // Remote welcome-message content: fetched in the background, throttled
         // internally by RemoteConfig — never blocks the idle screen's render.
+        // Skipped entirely while FeatureFlags.welcomeMessageEnabled is off (no
+        // network call), so IdleView falls back to the bundled default text.
         .task {
-            await remoteConfig.refresh()
+            if FeatureFlags.welcomeMessageEnabled {
+                await remoteConfig.refresh()
+            }
         }
         .task {
             if viewModel == nil {
@@ -209,7 +213,9 @@ struct ContentView: View {
         // (launch open is recorded by recordLaunch).
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
-                Task { await remoteConfig.refresh() }
+                if FeatureFlags.welcomeMessageEnabled {
+                    Task { await remoteConfig.refresh() }
+                }
                 connectivityManager?.sendSnapshotToWatch()
                 // Catch up the Live Activity — a start attempted while
                 // backgrounded (e.g. a Watch merge) is rejected by the system.

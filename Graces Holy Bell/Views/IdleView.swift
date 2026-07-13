@@ -41,8 +41,14 @@ struct IdleView: View {
                 // Welcome text (visible when settings hidden)
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
+                    // Off (FeatureFlags.welcomeMessageEnabled): always the
+                    // bundled default, regardless of any previously-cached
+                    // remote content in `remoteConfig` — the idle screen reads
+                    // exactly as it did before this feature existed.
                     WelcomeMessageView(
-                        message: remoteConfig.currentMessage(isWatchAvailable: isWatchAvailable)
+                        message: FeatureFlags.welcomeMessageEnabled
+                            ? remoteConfig.currentMessage(isWatchAvailable: isWatchAvailable)
+                            : RemoteConfig.defaultWelcome.messages[0]
                     )
 
                     Spacer().frame(height: 67)
