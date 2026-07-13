@@ -148,6 +148,15 @@ final class WatchSessionViewModel {
         connectivityManager.sendPrayerLogViewed()
     }
 
+    /// The "JOIN US IN PRAYER" QR share screen was opened. The QR renders
+    /// immediately on this screen, so both events fire together — see
+    /// `AnalyticsService.recordWatchShareScreenOpened`/`recordWatchQRDisplayed`.
+    func recordShareOpened() {
+        let referralCode = WaitlistLink.referralCode
+        connectivityManager.sendShareScreenOpened(referralCode: referralCode)
+        connectivityManager.sendQRDisplayed(referralCode: referralCode)
+    }
+
     // MARK: - Elapsed Time
 
     func elapsedSinceLastPrayer(at now: Date = .now) -> TimeInterval {

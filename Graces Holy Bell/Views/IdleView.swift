@@ -129,7 +129,7 @@ struct IdleView: View {
             }
         }
         .sheet(isPresented: $showShareWithFriend) {
-            ShareWithFriendView()
+            ShareWithFriendView(analytics: viewModel.analytics)
         }
     }
 

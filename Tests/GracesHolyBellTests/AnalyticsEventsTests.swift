@@ -103,6 +103,33 @@ final class AnalyticsEventsTests: XCTestCase {
         XCTAssertEqual(event.properties["device_source"], .string("watch"))
     }
 
+    // MARK: - Share surface
+
+    func test_shareScreenOpened() {
+        let event = factory().shareScreenOpened(referralCode: "ab3de9fg")
+        XCTAssertEqual(event.name, "share_screen_opened")
+        XCTAssertEqual(event.properties["referral_code"], .string("ab3de9fg"))
+    }
+
+    func test_qrDisplayed() {
+        let event = factory().qrDisplayed(referralCode: "ab3de9fg")
+        XCTAssertEqual(event.name, "qr_displayed")
+        XCTAssertEqual(event.properties["referral_code"], .string("ab3de9fg"))
+    }
+
+    func test_shareLinkOpened() {
+        let event = factory().shareLinkOpened(referralCode: "ab3de9fg")
+        XCTAssertEqual(event.name, "share_link_opened")
+        XCTAssertEqual(event.properties["referral_code"], .string("ab3de9fg"))
+    }
+
+    func test_shareEvents_watchOrigin_carryDeviceSourceWatch() {
+        let event = factory(device: .watch).qrDisplayed(referralCode: "zz11yy22")
+        XCTAssertEqual(event.deviceSource, .watch)
+        XCTAssertEqual(event.properties["device_source"], .string("watch"))
+        XCTAssertEqual(event.properties["referral_code"], .string("zz11yy22"))
+    }
+
     func test_captureTimestamp_isPreserved() {
         let t = Date(timeIntervalSince1970: 1_650_000_000)
         let event = factory().sessionStarted(entryPoint: .icon, timeOfDay: "morning", dayOfWeek: "monday", localDate: "2026-07-06", at: t)

@@ -136,7 +136,7 @@ struct SettingsView: View {
             PrivacyPolicyView()
         }
         .sheet(isPresented: $showShareWithFriend) {
-            ShareWithFriendView()
+            ShareWithFriendView(analytics: analytics)
         }
         .sheet(isPresented: $showHistory) {
             PrayerHistoryView(analytics: analytics)

@@ -109,6 +109,16 @@ final class PhoneConnectivityManager: NSObject {
             return
         }
 
+        // Analytics proxy (share surface from Watch)
+        if let (code, timestamp) = WatchAnalyticsProxy.isShareScreenOpened(userInfo) {
+            viewModel.analytics?.recordWatchShareScreenOpened(referralCode: code, at: timestamp)
+            return
+        }
+        if let (code, timestamp) = WatchAnalyticsProxy.isQRDisplayed(userInfo) {
+            viewModel.analytics?.recordWatchQRDisplayed(referralCode: code, at: timestamp)
+            return
+        }
+
         // Single event from Watch
         if let msg = EventMessage.fromUserInfo(userInfo) {
             let snapshot = SyncSnapshot(events: [msg.event], lastClearedAt: nil, amenAlarmFireAt: nil)

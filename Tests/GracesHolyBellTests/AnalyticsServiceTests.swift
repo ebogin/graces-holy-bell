@@ -146,6 +146,70 @@ final class AnalyticsServiceTests: XCTestCase {
         XCTAssertEqual(svc.deviceSource, .phone, "service device source unchanged after")
     }
 
+    // MARK: - Share surface
+
+    func test_recordShareScreenOpened_carriesReferralCode() {
+        let spy = SpyAnalytics()
+        service(spy, store: InMemoryAnalyticsStateStore())
+            .recordShareScreenOpened(referralCode: "ab3de9fg", at: now)
+
+        XCTAssertEqual(spy.captured.map(\.name), ["share_screen_opened"])
+        XCTAssertEqual(spy.captured.first?.properties["referral_code"], .string("ab3de9fg"))
+        XCTAssertEqual(spy.captured.first?.captureTimestamp, now)
+    }
+
+    func test_recordQRDisplayed_carriesReferralCode() {
+        let spy = SpyAnalytics()
+        service(spy, store: InMemoryAnalyticsStateStore())
+            .recordQRDisplayed(referralCode: "ab3de9fg", at: now)
+
+        XCTAssertEqual(spy.captured.map(\.name), ["qr_displayed"])
+        XCTAssertEqual(spy.captured.first?.properties["referral_code"], .string("ab3de9fg"))
+    }
+
+    func test_recordShareLinkOpened_carriesReferralCode() {
+        let spy = SpyAnalytics()
+        service(spy, store: InMemoryAnalyticsStateStore())
+            .recordShareLinkOpened(referralCode: "ab3de9fg", at: now)
+
+        XCTAssertEqual(spy.captured.map(\.name), ["share_link_opened"])
+        XCTAssertEqual(spy.captured.first?.properties["referral_code"], .string("ab3de9fg"))
+    }
+
+    // MARK: - Watch proxy (share surface)
+
+    func test_recordWatchShareScreenOpened_taggedWatch_withTrueTimestampAndCode() {
+        let spy = SpyAnalytics()
+        let svc = service(spy, store: InMemoryAnalyticsStateStore())
+        XCTAssertEqual(svc.deviceSource, .phone, "service default is phone")
+
+        let opened = Date(timeIntervalSince1970: 1_650_000_000)
+        svc.recordWatchShareScreenOpened(referralCode: "watchcode", at: opened)
+
+        let event = spy.captured.first
+        XCTAssertEqual(event?.name, "share_screen_opened")
+        XCTAssertEqual(event?.deviceSource, .watch, "proxied event keeps watch origin")
+        XCTAssertEqual(event?.properties["device_source"], .string("watch"))
+        XCTAssertEqual(event?.properties["referral_code"], .string("watchcode"), "carries the Watch's own code, not the phone's")
+        XCTAssertEqual(event?.captureTimestamp, opened, "true capture time preserved")
+        XCTAssertEqual(svc.deviceSource, .phone, "service device source unchanged after")
+    }
+
+    func test_recordWatchQRDisplayed_taggedWatch_withTrueTimestampAndCode() {
+        let spy = SpyAnalytics()
+        let svc = service(spy, store: InMemoryAnalyticsStateStore())
+
+        let shown = Date(timeIntervalSince1970: 1_650_000_100)
+        svc.recordWatchQRDisplayed(referralCode: "watchcode", at: shown)
+
+        let event = spy.captured.first
+        XCTAssertEqual(event?.name, "qr_displayed")
+        XCTAssertEqual(event?.deviceSource, .watch)
+        XCTAssertEqual(event?.properties["device_source"], .string("watch"))
+        XCTAssertEqual(event?.properties["referral_code"], .string("watchcode"))
+        XCTAssertEqual(event?.captureTimestamp, shown)
+    }
+
     func test_sessionEnded_carriesValueAndDuration_andNoDoubleClose() {
         let spy = SpyAnalytics()
         let store = InMemoryAnalyticsStateStore()

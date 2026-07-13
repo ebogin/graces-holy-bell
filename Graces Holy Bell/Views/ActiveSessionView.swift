@@ -173,7 +173,7 @@ struct ActiveSessionView: View {
             Text("Clear the log and start fresh. This CANNOT BE UNDONE. Your session will be saved in History.")
         }
         .sheet(isPresented: $showShareWithFriend) {
-            ShareWithFriendView()
+            ShareWithFriendView(analytics: viewModel.analytics)
         }
         .sheet(item: $selectedEntry) { entry in
             PrayerDetailSheet(viewModel: viewModel, entry: entry)

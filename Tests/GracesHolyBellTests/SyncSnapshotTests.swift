@@ -124,4 +124,34 @@ final class SyncSnapshotTests: XCTestCase {
     func test_clearMessage_wrongMsg_returnsNil() {
         XCTAssertNil(ClearMessage.fromUserInfo(["msg": "event"]))
     }
+
+    // MARK: - WatchAnalyticsProxy (share surface)
+
+    func test_shareScreenOpenedPayload_roundTrip() {
+        let payload = WatchAnalyticsProxy.shareScreenOpenedPayload(referralCode: "ab3de9fg", at: t0)
+        let restored = WatchAnalyticsProxy.isShareScreenOpened(payload)
+        XCTAssertEqual(restored?.referralCode, "ab3de9fg")
+        XCTAssertEqual(restored?.timestamp, t0)
+    }
+
+    func test_qrDisplayedPayload_roundTrip() {
+        let payload = WatchAnalyticsProxy.qrDisplayedPayload(referralCode: "ab3de9fg", at: t1)
+        let restored = WatchAnalyticsProxy.isQRDisplayed(payload)
+        XCTAssertEqual(restored?.referralCode, "ab3de9fg")
+        XCTAssertEqual(restored?.timestamp, t1)
+    }
+
+    func test_shareScreenOpenedPayload_notConfusedWithQRDisplayed() {
+        let payload = WatchAnalyticsProxy.shareScreenOpenedPayload(referralCode: "ab3de9fg", at: t0)
+        XCTAssertNil(WatchAnalyticsProxy.isQRDisplayed(payload))
+    }
+
+    func test_qrDisplayedPayload_notConfusedWithShareScreenOpened() {
+        let payload = WatchAnalyticsProxy.qrDisplayedPayload(referralCode: "ab3de9fg", at: t0)
+        XCTAssertNil(WatchAnalyticsProxy.isShareScreenOpened(payload))
+    }
+
+    func test_isShareScreenOpened_wrongEvent_returnsNil() {
+        XCTAssertNil(WatchAnalyticsProxy.isShareScreenOpened(WatchAnalyticsProxy.prayerLogViewedPayload(at: t0)))
+    }
 }

@@ -74,6 +74,10 @@ struct WatchShareView: View {
         .padding(.bottom, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
+        // Analytics (additive): the Watch share/QR screen was opened. The QR
+        // is shown immediately on this screen, so screen-opened and
+        // qr-displayed fire together.
+        .onAppear { viewModel.recordShareOpened() }
         .task {
             // Encode off the main actor — the pure-Swift encoder (Reed-Solomon
             // + 8-mask penalty scan) is heavy enough to jank the screen's

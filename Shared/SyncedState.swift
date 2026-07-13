@@ -103,4 +103,30 @@ enum WatchAnalyticsProxy {
               let ts = dict["timestamp"] as? Date else { return nil }
         return ts
     }
+
+    // MARK: - Share surface (additive)
+
+    /// Carries a Watch-origin `share_screen_opened` / `qr_displayed` to the
+    /// phone, including the Watch's own `referralCode` — each device mints its
+    /// own code (see `WaitlistLink`), so it rides along with the timestamp
+    /// rather than being recomputed on the phone.
+    static func shareScreenOpenedPayload(referralCode: String, at timestamp: Date) -> [String: Any] {
+        ["analyticsEvent": "share_screen_opened", "timestamp": timestamp, "referralCode": referralCode]
+    }
+    static func isShareScreenOpened(_ dict: [String: Any]) -> (referralCode: String, timestamp: Date)? {
+        guard dict["analyticsEvent"] as? String == "share_screen_opened",
+              let ts = dict["timestamp"] as? Date,
+              let code = dict["referralCode"] as? String else { return nil }
+        return (code, ts)
+    }
+
+    static func qrDisplayedPayload(referralCode: String, at timestamp: Date) -> [String: Any] {
+        ["analyticsEvent": "qr_displayed", "timestamp": timestamp, "referralCode": referralCode]
+    }
+    static func isQRDisplayed(_ dict: [String: Any]) -> (referralCode: String, timestamp: Date)? {
+        guard dict["analyticsEvent"] as? String == "qr_displayed",
+              let ts = dict["timestamp"] as? Date,
+              let code = dict["referralCode"] as? String else { return nil }
+        return (code, ts)
+    }
 }

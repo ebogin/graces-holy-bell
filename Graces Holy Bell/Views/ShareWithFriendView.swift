@@ -8,6 +8,8 @@ import SwiftUI
 /// `WaitlistLink` for how that code is created and stored.
 struct ShareWithFriendView: View {
 
+    var analytics: AnalyticsService? = nil
+
     @Environment(\.dismiss) private var dismiss
 
     private let shareURL = WaitlistLink.shareURL()
@@ -96,6 +98,13 @@ struct ShareWithFriendView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                     .accessibilityIdentifier("share-link-button")
+                    // Analytics (additive): a simultaneous gesture observes the
+                    // tap without altering ShareLink's own behavior — no
+                    // completion tracking, this only flags the link path was
+                    // invoked (see viral-growth-plan §1).
+                    .simultaneousGesture(TapGesture().onEnded {
+                        analytics?.recordShareLinkOpened(referralCode: WaitlistLink.referralCode)
+                    })
 
                     Text("They'll land on a private signup page. There's no public list — see the Privacy Policy for details.")
                         .font(.pixelFont(8, relativeTo: .caption))
@@ -120,12 +129,19 @@ struct ShareWithFriendView: View {
             .ignoresSafeArea()
         )
         .onAppear {
+            // Analytics (additive): the QR renders immediately on this screen,
+            // so screen-opened and qr-displayed fire together.
+            let referralCode = WaitlistLink.referralCode
+            analytics?.recordShareScreenOpened(referralCode: referralCode)
             if qrImage == nil {
                 qrImage = QRCodeGenerator.image(
                     from: shareURL.absoluteString,
                     dark: .lcdDark,
                     light: .lcdBackground
                 )
+            }
+            if qrImage != nil {
+                analytics?.recordQRDisplayed(referralCode: referralCode)
             }
         }
     }

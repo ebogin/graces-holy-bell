@@ -99,6 +99,41 @@ final class AnalyticsService {
         transport.capture(factory(deviceSource: .watch).prayerLogViewed(at: timestamp))
     }
 
+    // MARK: - Share surface
+
+    /// The "Share with a Friend" screen/sheet was opened. `referralCode` is the
+    /// caller's own `WaitlistLink.referralCode` (each device mints its own).
+    func recordShareScreenOpened(referralCode: String, at timestamp: Date = Date()) {
+        transport.capture(factory().shareScreenOpened(referralCode: referralCode, at: timestamp))
+    }
+
+    /// The QR code was actually shown on screen.
+    func recordQRDisplayed(referralCode: String, at timestamp: Date = Date()) {
+        transport.capture(factory().qrDisplayed(referralCode: referralCode, at: timestamp))
+    }
+
+    /// The link-sharing path (system share sheet / copy link) was invoked.
+    func recordShareLinkOpened(referralCode: String, at timestamp: Date = Date()) {
+        transport.capture(factory().shareLinkOpened(referralCode: referralCode, at: timestamp))
+    }
+
+    // MARK: - Watch proxy (share surface)
+
+    /// A Watch-only `share_screen_opened`, proxied to the phone over WCSession.
+    /// `referralCode` is the Watch's own referral code (passed through, not
+    /// recomputed here — the phone must not substitute its own code). Always
+    /// tagged `device_source = watch` and stamped with the Watch's true capture
+    /// time, exactly like `recordWatchPrayerLogViewed`.
+    func recordWatchShareScreenOpened(referralCode: String, at timestamp: Date) {
+        transport.capture(factory(deviceSource: .watch).shareScreenOpened(referralCode: referralCode, at: timestamp))
+    }
+
+    /// A Watch-only `qr_displayed`, proxied to the phone over WCSession. See
+    /// `recordWatchShareScreenOpened` for the referral-code / timestamp contract.
+    func recordWatchQRDisplayed(referralCode: String, at timestamp: Date) {
+        transport.capture(factory(deviceSource: .watch).qrDisplayed(referralCode: referralCode, at: timestamp))
+    }
+
     // MARK: - Session lifecycle
 
     /// First PRAY of a session: emits `session_started` and the opening

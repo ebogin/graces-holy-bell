@@ -100,6 +100,18 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
         session.transferUserInfo(WatchAnalyticsProxy.prayerLogViewedPayload(at: Date()))
     }
 
+    // MARK: - Analytics proxy (share surface, additive)
+
+    func sendShareScreenOpened(referralCode: String) {
+        guard session.activationState == .activated else { return }
+        session.transferUserInfo(WatchAnalyticsProxy.shareScreenOpenedPayload(referralCode: referralCode, at: Date()))
+    }
+
+    func sendQRDisplayed(referralCode: String) {
+        guard session.activationState == .activated else { return }
+        session.transferUserInfo(WatchAnalyticsProxy.qrDisplayedPayload(referralCode: referralCode, at: Date()))
+    }
+
     // MARK: - Watch Amen Alarm
 
     func scheduleWatchAlarm(fireDate: Date) {

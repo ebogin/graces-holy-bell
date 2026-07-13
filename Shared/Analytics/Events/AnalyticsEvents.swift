@@ -171,6 +171,29 @@ struct AnalyticsEventFactory {
         event("prayer_log_viewed", at: timestamp)
     }
 
+    // MARK: - Share surface (viral-growth-plan §3)
+
+    /// The "Share with a Friend" screen/sheet was opened (phone or watch).
+    /// `referralCode` is this install's anonymous code (`WaitlistLink.referralCode`),
+    /// attached so PostHog can join this outgoing share to the server-side
+    /// `referral_link_clicked` events carrying the same code as `ref_code`.
+    func shareScreenOpened(referralCode: String, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("share_screen_opened", ["referral_code": .string(referralCode)], at: timestamp)
+    }
+
+    /// The QR code was actually shown on screen (the primary share method).
+    /// Fires alongside `shareScreenOpened` when the QR is visible immediately.
+    func qrDisplayed(referralCode: String, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("qr_displayed", ["referral_code": .string(referralCode)], at: timestamp)
+    }
+
+    /// The link-sharing path (system share sheet / copy link) was invoked —
+    /// the secondary share method. No completion tracking: this only flags
+    /// "this person shared" (see viral-growth-plan §1).
+    func shareLinkOpened(referralCode: String, at timestamp: Date = Date()) -> AnalyticsEvent {
+        event("share_link_opened", ["referral_code": .string(referralCode)], at: timestamp)
+    }
+
     // MARK: - Persistence health
 
     func persistenceError(stage: PersistenceErrorStage, at timestamp: Date = Date()) -> AnalyticsEvent {
