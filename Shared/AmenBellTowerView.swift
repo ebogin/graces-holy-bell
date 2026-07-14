@@ -4,13 +4,13 @@ import SwiftUI
 /// transparent-background sprite frames (same pattern as PrayingFigureView),
 /// drawn with `.interpolation(.none)` for crisp pixels over `Color.lcdBackground`.
 ///
-/// Frame cycle (0.6s/frame — slowed to half the praying figure's 0.3s
-/// cadence, per request): strike-left → rest → strike-right → rest, one
-/// full cycle every 2.4s. Strikes land on frames 0 and 2, i.e. every 1.2s
-/// starting at `epoch` — the takeover views' "AMEN" blink (`frame % 2 ==
-/// 0`) follows every strike, toggling every 0.6s. `bell_alarm.caf`'s
-/// clangs are also every 2.4s, landing exactly on every strike-left pose
-/// (frame 0); the strike-right pose is a silent hit.
+/// Frame cycle (0.3s/frame, matching the praying figure's cadence):
+/// strike-left → rest → strike-right → rest, one full cycle every 1.2s.
+/// Strikes land on frames 0 and 2, i.e. every 0.6s starting at `epoch` —
+/// the takeover views' "AMEN" blink (`frame % 2 == 0`) follows every
+/// strike, toggling every 0.3s. `bell_alarm.caf`'s clangs are every 2.4s
+/// (unrelated to the frame rate — not changed with animation speed),
+/// landing on every other "strike-left" pose; the rest are silent hits.
 ///
 /// Artwork: 64×128-cell pixel grid exported at 8× (512×1024 PNGs) using the
 /// LCD palette (lcdDark #1a2a0a, lcdMid #4a6a3a, lcdSlider #8aaa6a).
@@ -23,8 +23,8 @@ struct AmenBellTowerView: View {
     /// animation (and audio started from the same moment) stay in sync.
     var epoch: Date = Date(timeIntervalSinceReferenceDate: 0)
 
-    /// Half the praying figure's 0.3s cadence — slowed at the user's request.
-    static let frameDuration: TimeInterval = 0.6
+    /// Matches PrayingFigureView / WatchPrayingFigureView.
+    static let frameDuration: TimeInterval = 0.3
     static let frameCount = 4
 
     /// Frame index (0..3) at `date` on the frame clock starting at `epoch`.

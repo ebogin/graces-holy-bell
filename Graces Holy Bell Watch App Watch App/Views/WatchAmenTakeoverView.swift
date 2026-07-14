@@ -19,11 +19,11 @@ struct WatchAmenTakeoverView: View {
     @State private var sound = AmenSoundPlayer()
 
     var body: some View {
-        // One frame clock (0.6s, anchored at the fire date) drives the bell
-        // animation and the AMEN blink — each half the speed of the earlier
-        // 0.3s cadence, per request. bell_alarm.caf's clangs are every 2.4s,
-        // exactly one animation cycle, so starting playback from this same
-        // fireDate keeps every clang landing on the strike-left pose.
+        // One frame clock (0.3s, anchored at the fire date, matching the
+        // praying figure's cadence) drives the bell animation and the AMEN
+        // blink. bell_alarm.caf's clangs are every 2.4s — independent of the
+        // frame rate — so starting playback from this same fireDate keeps
+        // clangs landing on (every other) strike-left pose.
         TimelineView(.periodic(from: fireDate, by: AmenBellTowerView.frameDuration)) { context in
             let frame = AmenBellTowerView.frameIndex(at: context.date, epoch: fireDate)
 
