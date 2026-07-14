@@ -20,10 +20,11 @@ struct WatchAmenTakeoverView: View {
 
     var body: some View {
         // One frame clock (0.3s, anchored at the fire date) drives the bell
-        // animation and the AMEN! blink. The bundled bell_alarm.caf clangs at
-        // half that strike rate (every 1.2s, on the "strike-left" pose) — it
-        // was too repetitive matched to every strike — but starting playback
-        // from this same fireDate keeps those clangs landing on real strikes.
+        // animation and the AMEN! blink. The bundled bell_alarm.caf clangs
+        // much slower than every strike (every 2.4s, on the "strike-left"
+        // pose) — matching every strike, then every other, both still felt
+        // too fast — but starting playback from this same fireDate keeps
+        // those clangs landing on real strikes.
         TimelineView(.periodic(from: fireDate, by: AmenBellTowerView.frameDuration)) { context in
             let frame = AmenBellTowerView.frameIndex(at: context.date, epoch: fireDate)
 

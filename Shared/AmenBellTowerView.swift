@@ -7,9 +7,9 @@ import SwiftUI
 /// Frame cycle (0.3s/frame): strike-left → rest → strike-right → rest.
 /// Strikes land on frames 0 and 2, i.e. every 0.6s starting at `epoch` — the
 /// takeover views' "AMEN!" blink (`frame % 2 == 0`) follows every strike.
-/// `bell_alarm.caf`'s clangs are timed to only every *other* strike (every
-/// 1.2s, the frame-0 "strike-left" pose) since matching every visual strike
-/// rang too fast — the frame-2 "strike-right" pose is a silent hit.
+/// `bell_alarm.caf`'s clangs are timed to only every *fourth* strike (every
+/// 2.4s, on every other "strike-left" pose) since matching every visual
+/// strike rang too fast — most strikes are silent hits.
 ///
 /// Artwork: 64×128-cell pixel grid exported at 8× (512×1024 PNGs) using the
 /// LCD palette (lcdDark #1a2a0a, lcdMid #4a6a3a, lcdSlider #8aaa6a).
