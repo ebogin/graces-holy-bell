@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Full-screen AMEN takeover for the Watch — shown when the Amen Alarm fires
-/// while the app is open. The icon's bell tower rings, "AMEN!" blinks, the
+/// while the app is open. The icon's bell tower rings, "AMEN" blinks, the
 /// dot-dot-dot wrist-haptic pattern runs for 30 seconds, and (when Bell Sound
 /// is on) the clanging bell plays. Tap anywhere to dismiss.
 struct WatchAmenTakeoverView: View {
@@ -19,12 +19,11 @@ struct WatchAmenTakeoverView: View {
     @State private var sound = AmenSoundPlayer()
 
     var body: some View {
-        // One frame clock (0.3s, anchored at the fire date) drives the bell
-        // animation and the AMEN! blink. The bundled bell_alarm.caf clangs
-        // much slower than every strike (every 2.4s, on the "strike-left"
-        // pose) — matching every strike, then every other, both still felt
-        // too fast — but starting playback from this same fireDate keeps
-        // those clangs landing on real strikes.
+        // One frame clock (0.6s, anchored at the fire date) drives the bell
+        // animation and the AMEN blink — each half the speed of the earlier
+        // 0.3s cadence, per request. bell_alarm.caf's clangs are every 2.4s,
+        // exactly one animation cycle, so starting playback from this same
+        // fireDate keeps every clang landing on the strike-left pose.
         TimelineView(.periodic(from: fireDate, by: AmenBellTowerView.frameDuration)) { context in
             let frame = AmenBellTowerView.frameIndex(at: context.date, epoch: fireDate)
 
@@ -32,7 +31,7 @@ struct WatchAmenTakeoverView: View {
                 Color.lcdBackground.ignoresSafeArea()
 
                 VStack(spacing: 6) {
-                    Text("AMEN!")
+                    Text("AMEN")
                         .font(.pixelFont(16, relativeTo: .title3))
                         .foregroundStyle(Color.lcdDark)
                         .lineLimit(1)
