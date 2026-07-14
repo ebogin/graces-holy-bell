@@ -37,7 +37,7 @@ struct AmenTakeoverView: View {
                         .opacity(frame % 2 == 0 ? 1 : 0)
 
                     AmenBellTowerView(epoch: fireDate)
-                        .frame(maxWidth: 210, maxHeight: 400)
+                        .frame(maxWidth: 200, maxHeight: 400)
 
                     VStack(spacing: 12) {
                         Text("TIME TO PRAY")
