@@ -25,4 +25,15 @@ enum FeatureFlags {
     /// Left out of the 1.5x release 2026-07-13: kept off the critical path
     /// while it settles.
     static let welcomeMessageEnabled = false
+
+    /// Per-prayer figure actions: after each PRAY swipe the figure performs a
+    /// remotely-configured action (placeholder scaffolding today — see
+    /// ANIMATIONS.md / HANDOFF-prayer-animations.md) before returning to
+    /// praying. Off: the figure just keeps praying (prior behavior) and no
+    /// animations config is fetched.
+    ///
+    /// On by default while this is being built out on its feature branch. Flip
+    /// to `false` to keep it off the critical path for a release, exactly like
+    /// `welcomeMessageEnabled`.
+    static let prayerActionsEnabled = true
 }

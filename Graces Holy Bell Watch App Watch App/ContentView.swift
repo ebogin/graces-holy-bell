@@ -6,6 +6,9 @@ struct WatchContentView: View {
     let viewModel: WatchSessionViewModel
     @ObservedObject var connectivityManager: WatchConnectivityManager
     @Environment(\.scenePhase) private var scenePhase
+    /// Remotely-configurable per-prayer action manifest (see ANIMATIONS.md).
+    /// Fetched directly by the Watch so figure actions update without a build.
+    @State private var animationConfig = WatchAnimationConfigStore()
 
     var body: some View {
         NavigationStack {
@@ -15,8 +18,11 @@ struct WatchContentView: View {
                     WatchFirstLaunchView(viewModel: viewModel)
                         .transition(.opacity)
                 case .active:
-                    WatchActiveSessionView(viewModel: viewModel)
-                        .transition(.opacity)
+                    WatchActiveSessionView(
+                        viewModel: viewModel,
+                        animations: animationConfig.currentPrayerActions
+                    )
+                    .transition(.opacity)
                 case .log:
                     WatchLogView(viewModel: viewModel)
                         .transition(.opacity)
@@ -38,11 +44,17 @@ struct WatchContentView: View {
                 viewModel.applySnapshot(snapshot)
             }
         }
+        // Fetch the remote action manifest on launch (throttled internally;
+        // falls back to the bundled default until/if it lands).
+        .task {
+            await animationConfig.refresh()
+        }
         // Reconcile with the phone on every foreground so opening the Watch app
         // shows fresh state instead of waiting for opportunistic delivery.
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 viewModel.syncNow()
+                Task { await animationConfig.refresh() }
             }
         }
     }

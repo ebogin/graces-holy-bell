@@ -7,10 +7,19 @@ import SwiftUI
 struct WatchActiveSessionView: View {
 
     let viewModel: WatchSessionViewModel
+    /// Remotely-configurable per-prayer action manifest (see ANIMATIONS.md),
+    /// supplied by WatchContentView. Defaulted so previews stay simple.
+    var animations: PrayerActionsConfig = .bundledDefault
     @State private var showStopConfirmation = false
     /// Fire date of the last AMEN takeover the user dismissed — a new fire
     /// (next alarm interval) presents the takeover again.
     @State private var acknowledgedFireDate: Date?
+    /// The prayer action currently playing in the figure's slot (placeholder
+    /// scaffolding), or nil while the figure is simply praying.
+    @State private var activeAction: ResolvedPrayerAction?
+    /// Highest prayer index already played — so each swipe fires once and
+    /// re-appearing the screen doesn't replay.
+    @State private var lastTriggeredIndex = 0
 
     var body: some View {
         // Single per-second clock for the whole screen — the timer and the
@@ -43,6 +52,43 @@ struct WatchActiveSessionView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: takeoverFireDate(at: now))
+        // Per-prayer action placeholder: fire on appear (covers the first
+        // prayer, logged on the start screen before this view existed) and on
+        // each subsequent count change (later swipes).
+        .onAppear { syncPrayerAction() }
+        .onChange(of: viewModel.sortedEntries.count) { _, _ in syncPrayerAction() }
+        // Hold the action for its duration, then return to praying. A new swipe
+        // mid-action changes activeAction, cancelling this and restarting.
+        .task(id: activeAction) {
+            guard let action = activeAction else { return }
+            try? await Task.sleep(for: .seconds(action.durationSeconds))
+            guard !Task.isCancelled else { return }
+            activeAction = nil
+        }
+    }
+
+    /// A prayer whose timestamp is older than this when the screen (re)appears
+    /// is treated as pre-existing (relaunch, returning from a sheet) and does
+    /// NOT replay its action — only a fresh swipe does.
+    private static let actionTriggerRecency: TimeInterval = 3
+
+    /// Plays the placeholder action for the newest prayer, exactly once per
+    /// swipe. Beyond the configured sequence length, `action(forPrayerIndex:)`
+    /// returns nil and the figure simply keeps praying.
+    private func syncPrayerAction() {
+        let count = viewModel.sortedEntries.count
+        guard count > lastTriggeredIndex else {
+            // Count dropped (sync/merge) or unchanged — realign, never replay.
+            lastTriggeredIndex = min(lastTriggeredIndex, count)
+            return
+        }
+        let justHappened = viewModel.lastPrayerTimestamp
+            .map { Date().timeIntervalSince($0) < Self.actionTriggerRecency } ?? false
+        lastTriggeredIndex = count
+        guard justHappened,
+              let action = animations.action(forPrayerIndex: count)
+        else { return }
+        activeAction = action
     }
 
     /// How long after the fire moment the takeover keeps presenting — opening
@@ -58,7 +104,7 @@ struct WatchActiveSessionView: View {
     }
 
     private func mainScreen(now: Date) -> some View {
-        WatchScreenLayout(figurePose: .praying) {
+        WatchScreenLayout(figurePose: .praying, prayerAction: activeAction) {
 
             // Header: small title over the live timer + "SINCE LAST PRAYER"
             WatchSessionHeader(viewModel: viewModel, now: now)
