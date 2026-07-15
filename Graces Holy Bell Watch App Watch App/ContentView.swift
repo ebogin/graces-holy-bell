@@ -45,16 +45,21 @@ struct WatchContentView: View {
             }
         }
         // Fetch the remote action manifest on launch (throttled internally;
-        // falls back to the bundled default until/if it lands).
+        // falls back to the bundled default until/if it lands). Gated with the
+        // phone via the shared FeatureFlags.prayerActionsEnabled.
         .task {
-            await animationConfig.refresh()
+            if FeatureFlags.prayerActionsEnabled {
+                await animationConfig.refresh()
+            }
         }
         // Reconcile with the phone on every foreground so opening the Watch app
         // shows fresh state instead of waiting for opportunistic delivery.
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 viewModel.syncNow()
-                Task { await animationConfig.refresh() }
+                if FeatureFlags.prayerActionsEnabled {
+                    Task { await animationConfig.refresh() }
+                }
             }
         }
     }

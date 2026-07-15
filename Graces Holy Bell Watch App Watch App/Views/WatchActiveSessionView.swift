@@ -76,6 +76,7 @@ struct WatchActiveSessionView: View {
     /// swipe. Beyond the configured sequence length, `action(forPrayerIndex:)`
     /// returns nil and the figure simply keeps praying.
     private func syncPrayerAction() {
+        guard FeatureFlags.prayerActionsEnabled else { return }
         let count = viewModel.sortedEntries.count
         guard count > lastTriggeredIndex else {
             // Count dropped (sync/merge) or unchanged — realign, never replay.
