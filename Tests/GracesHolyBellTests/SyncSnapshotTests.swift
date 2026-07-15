@@ -27,6 +27,26 @@ final class SyncSnapshotTests: XCTestCase {
         XCTAssertEqual(restored?.watchAlarmInterval, 5400)
     }
 
+    func test_soundEnabledPreservedThroughDictionary() {
+        let original = SyncSnapshot(
+            events: [],
+            lastClearedAt: nil,
+            amenAlarmFireAt: t0,
+            amenAlarmSoundEnabled: true
+        )
+        let restored = SyncSnapshot.fromDictionary(original.toDictionary())
+        XCTAssertEqual(restored?.amenAlarmSoundEnabled, true)
+    }
+
+    func test_soundEnabled_missingFromOldBuildSnapshot_decodesAsNil() {
+        // A snapshot encoded without the field (pre-Bell-Sound build) must
+        // still decode; the missing key reads as nil (treated as off).
+        let old = SyncSnapshot(events: [], lastClearedAt: nil, amenAlarmFireAt: t0)
+        let restored = SyncSnapshot.fromDictionary(old.toDictionary())
+        XCTAssertNotNil(restored)
+        XCTAssertNil(restored?.amenAlarmSoundEnabled)
+    }
+
     func test_toDictionary_fromDictionary_nilOptionals() {
         let original = SyncSnapshot(events: [], lastClearedAt: nil, amenAlarmFireAt: nil)
         let restored = SyncSnapshot.fromDictionary(original.toDictionary())

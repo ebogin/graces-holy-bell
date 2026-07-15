@@ -11,6 +11,9 @@ enum WatchEventStore {
         /// Last alarm duration synced from the phone (seconds).
         /// Used to recompute the fire date offline when the phone is unreachable.
         var lastSyncedAlarmInterval: TimeInterval?
+        /// Last Bell Sound setting synced from the phone. Optional so stores
+        /// written before the field existed still decode (nil → off).
+        var lastSyncedSoundEnabled: Bool?
     }
 
     static func load() -> State {

@@ -20,6 +20,9 @@ struct ActiveSessionView: View {
     @State private var showShareWithFriend = false
     /// Log row tapped — drives the edit/delete/intention detail sheet.
     @State private var selectedEntry: PrayerEntry?
+    /// Fire date of the last AMEN takeover the user dismissed — a new fire
+    /// (next alarm interval) presents the takeover again.
+    @State private var acknowledgedFireDate: Date?
 
     var body: some View {
         // Single per-second clock for the whole screen: the header timer, the
@@ -36,6 +39,26 @@ struct ActiveSessionView: View {
     }
 
     private func screen(now: Date) -> some View {
+        ZStack {
+            mainScreen(now: now)
+
+            // Full-screen AMEN takeover: bell tower ringing, 30s of intense
+            // haptics, and (when enabled) the clanging bell. Tap dismisses.
+            if let fireAt = takeoverFireDate(at: now), acknowledgedFireDate != fireAt {
+                AmenTakeoverView(
+                    fireDate: fireAt,
+                    soundEnabled: amenAlarmSettings.soundEnabled
+                ) {
+                    acknowledgedFireDate = fireAt
+                }
+                .transition(.opacity)
+                .zIndex(1)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: takeoverFireDate(at: now))
+    }
+
+    private func mainScreen(now: Date) -> some View {
         PrayerScreenLayout(
             figurePose: .praying,
             onBackgroundTap: showSettings ? { dismissSettings() } : nil
@@ -182,6 +205,19 @@ struct ActiveSessionView: View {
 
     /// How long the AMEN! blink and its haptic pulses last.
     private static let amenFlashDuration: TimeInterval = 5.0
+
+    /// How long after the fire moment the takeover keeps presenting — opening
+    /// the app well after the alarm still shows AMEN until acknowledged.
+    private static let takeoverWindow: TimeInterval = 600
+
+    /// The current alarm fire date when the takeover should be up, or nil.
+    private func takeoverFireDate(at now: Date) -> Date? {
+        guard amenAlarmSettings.phoneEnabled,
+              let last = viewModel.lastPrayerTimestamp else { return nil }
+        let fireAt = last.addingTimeInterval(amenAlarmSettings.duration.rawValue)
+        guard now >= fireAt, now.timeIntervalSince(fireAt) <= Self.takeoverWindow else { return nil }
+        return fireAt
+    }
 
     /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm is off.
     /// Gated on the Phone toggle only — the progress bar, flash, and vibration are

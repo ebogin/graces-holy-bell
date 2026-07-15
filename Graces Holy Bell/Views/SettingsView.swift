@@ -63,6 +63,15 @@ struct SettingsView: View {
                     }
                 )
 
+                // Loud bell-clang sound toggle row (AMEN full-screen takeover)
+                alarmToggleRow(
+                    label: "  Bell Sound",
+                    isOn: $settings.soundEnabled,
+                    onChange: { enabled in
+                        if enabled { requestNotificationPermission() }
+                    }
+                )
+
                 // Duration picker row — grayed out when neither Phone nor Watch
                 // alarm is enabled (nothing to time until an alarm is on).
                 durationRow()
