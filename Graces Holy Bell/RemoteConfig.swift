@@ -155,6 +155,12 @@ final class RemoteConfig {
     /// Decoded from the raw cached bytes (or the last successful fetch).
     private(set) var welcome: WelcomeConfig?
 
+    /// Remotely-configurable per-prayer action manifest (see ANIMATIONS.md),
+    /// decoded from the "animations" key of the same /app-config fetch. nil
+    /// until a fetch/cache lands; callers use `currentPrayerActions`, which
+    /// falls back to the bundled default.
+    private(set) var animations: PrayerActionsConfig?
+
     /// Bundled fallback — used when there's no cache yet and when no
     /// message's audience matches the caller's local state.
     static let defaultWelcome = WelcomeConfig(
@@ -184,6 +190,7 @@ final class RemoteConfig {
 
     private enum Keys {
         static let raw = "remoteConfig.welcome.raw"
+        static let animationsRaw = "remoteConfig.animations.raw"
         static let lastFetchAt = "remoteConfig.welcome.lastFetchAt"
     }
 
@@ -200,6 +207,9 @@ final class RemoteConfig {
         self.fetchData = fetchData
         if let cached = defaults.data(forKey: Keys.raw) {
             self.welcome = try? JSONDecoder().decode(WelcomeConfig.self, from: cached)
+        }
+        if let cachedAnimations = defaults.data(forKey: Keys.animationsRaw) {
+            self.animations = try? JSONDecoder().decode(PrayerActionsConfig.self, from: cachedAnimations)
         }
     }
 
@@ -221,18 +231,41 @@ final class RemoteConfig {
                 logger.debug("app-config fetch: unexpected response")
                 return
             }
-            guard
-                let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let welcomeObject = root["welcome"]
-            else {
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 return
             }
-            let welcomeData = try JSONSerialization.data(withJSONObject: welcomeObject)
-            let decoded = try JSONDecoder().decode(WelcomeConfig.self, from: welcomeData)
 
-            defaults.set(welcomeData, forKey: Keys.raw)
-            defaults.set(Date(), forKey: Keys.lastFetchAt)
-            welcome = decoded
+            // Each top-level key is decoded independently so a malformed
+            // "animations" block can't discard a good "welcome" block, and vice
+            // versa. `lastFetchAt` (the throttle) advances only if at least one
+            // key landed, so an empty/failed response retries on next foreground.
+            var didUpdate = false
+
+            if let welcomeObject = root["welcome"] {
+                do {
+                    let welcomeData = try JSONSerialization.data(withJSONObject: welcomeObject)
+                    welcome = try JSONDecoder().decode(WelcomeConfig.self, from: welcomeData)
+                    defaults.set(welcomeData, forKey: Keys.raw)
+                    didUpdate = true
+                } catch {
+                    logger.debug("app-config welcome decode failed: \(String(describing: error), privacy: .public)")
+                }
+            }
+
+            if let animationsObject = root["animations"] {
+                do {
+                    let animationsData = try JSONSerialization.data(withJSONObject: animationsObject)
+                    animations = try JSONDecoder().decode(PrayerActionsConfig.self, from: animationsData)
+                    defaults.set(animationsData, forKey: Keys.animationsRaw)
+                    didUpdate = true
+                } catch {
+                    logger.debug("app-config animations decode failed: \(String(describing: error), privacy: .public)")
+                }
+            }
+
+            if didUpdate {
+                defaults.set(Date(), forKey: Keys.lastFetchAt)
+            }
         } catch {
             logger.debug("app-config fetch failed: \(String(describing: error), privacy: .public)")
         }
@@ -246,6 +279,13 @@ final class RemoteConfig {
             return message
         }
         return Self.defaultWelcome.messages[0]
+    }
+
+    /// The per-prayer action manifest to drive the figure with — the fetched/
+    /// cached one, or the bundled default when nothing has loaded yet. Never
+    /// nil, so the active screen always has a sequence to play.
+    var currentPrayerActions: PrayerActionsConfig {
+        animations ?? .bundledDefault
     }
 
     private func matches(_ audience: String?, isWatchAvailable: Bool) -> Bool {

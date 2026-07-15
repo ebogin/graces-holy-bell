@@ -13,6 +13,9 @@ struct ActiveSessionView: View {
     /// so every instance reflects the same persisted value.
     var liveActivitySettings = LiveActivitySettings()
     let consent: AnalyticsConsent
+    /// Defaulted so previews don't need to construct one — see RemoteConfig.swift.
+    /// Supplies the remotely-configurable per-prayer action manifest.
+    var remoteConfig = RemoteConfig()
     var isWatchAvailable: Bool = false
     var onForceSync: () -> Void = {}
     @State private var showStopConfirmation = false
@@ -20,6 +23,15 @@ struct ActiveSessionView: View {
     @State private var showShareWithFriend = false
     /// Log row tapped — drives the edit/delete/intention detail sheet.
     @State private var selectedEntry: PrayerEntry?
+    /// Fire date of the last AMEN takeover the user dismissed — a new fire
+    /// (next alarm interval) presents the takeover again.
+    @State private var acknowledgedFireDate: Date?
+    /// The prayer action currently playing in the figure's slot (placeholder
+    /// scaffolding), or nil while the figure is simply praying.
+    @State private var activeAction: ResolvedPrayerAction?
+    /// Highest prayer index we've already played an action for — so each swipe
+    /// fires exactly once and re-appearing the screen doesn't replay.
+    @State private var lastTriggeredIndex = 0
 
     var body: some View {
         // Single per-second clock for the whole screen: the header timer, the
@@ -36,8 +48,67 @@ struct ActiveSessionView: View {
     }
 
     private func screen(now: Date) -> some View {
+        ZStack {
+            mainScreen(now: now)
+
+            // Full-screen AMEN takeover: bell tower ringing, 30s of intense
+            // haptics, and (when enabled) the clanging bell. Tap dismisses.
+            if let fireAt = takeoverFireDate(at: now), acknowledgedFireDate != fireAt {
+                AmenTakeoverView(
+                    fireDate: fireAt,
+                    soundEnabled: amenAlarmSettings.soundEnabled
+                ) {
+                    acknowledgedFireDate = fireAt
+                }
+                .transition(.opacity)
+                .zIndex(1)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: takeoverFireDate(at: now))
+        // Per-prayer action placeholder: fire on appear (covers the first
+        // prayer, logged on the idle screen before this view existed) and on
+        // each subsequent count change (later swipes).
+        .onAppear { syncPrayerAction() }
+        .onChange(of: viewModel.sortedEntries.count) { _, _ in syncPrayerAction() }
+        // Hold the action for its duration, then return to praying. A new swipe
+        // mid-action changes activeAction, cancelling this and restarting.
+        .task(id: activeAction) {
+            guard let action = activeAction else { return }
+            try? await Task.sleep(for: .seconds(action.durationSeconds))
+            guard !Task.isCancelled else { return }
+            activeAction = nil
+        }
+    }
+
+    /// A prayer whose timestamp is older than this when the screen (re)appears
+    /// is treated as pre-existing (relaunch into an active session, returning
+    /// from a sheet) and does NOT replay its action — only a fresh swipe does.
+    private static let actionTriggerRecency: TimeInterval = 3
+
+    /// Plays the placeholder action for the newest prayer, exactly once per
+    /// swipe. Beyond the configured sequence length, `action(forPrayerIndex:)`
+    /// returns nil and the figure simply keeps praying.
+    private func syncPrayerAction() {
+        guard FeatureFlags.prayerActionsEnabled else { return }
+        let count = viewModel.sortedEntries.count
+        guard count > lastTriggeredIndex else {
+            // Count dropped (log edit) or unchanged — realign, never replay.
+            lastTriggeredIndex = min(lastTriggeredIndex, count)
+            return
+        }
+        let justHappened = viewModel.lastPrayerTimestamp
+            .map { Date().timeIntervalSince($0) < Self.actionTriggerRecency } ?? false
+        lastTriggeredIndex = count
+        guard justHappened,
+              let action = remoteConfig.currentPrayerActions.action(forPrayerIndex: count)
+        else { return }
+        activeAction = action
+    }
+
+    private func mainScreen(now: Date) -> some View {
         PrayerScreenLayout(
             figurePose: .praying,
+            prayerAction: activeAction,
             onBackgroundTap: showSettings ? { dismissSettings() } : nil
         ) {
 
@@ -182,6 +253,19 @@ struct ActiveSessionView: View {
 
     /// How long the AMEN! blink and its haptic pulses last.
     private static let amenFlashDuration: TimeInterval = 5.0
+
+    /// How long after the fire moment the takeover keeps presenting — opening
+    /// the app well after the alarm still shows AMEN until acknowledged.
+    private static let takeoverWindow: TimeInterval = 600
+
+    /// The current alarm fire date when the takeover should be up, or nil.
+    private func takeoverFireDate(at now: Date) -> Date? {
+        guard amenAlarmSettings.phoneEnabled,
+              let last = viewModel.lastPrayerTimestamp else { return nil }
+        let fireAt = last.addingTimeInterval(amenAlarmSettings.duration.rawValue)
+        guard now >= fireAt, now.timeIntervalSince(fireAt) <= Self.takeoverWindow else { return nil }
+        return fireAt
+    }
 
     /// Amen Alarm progress since the last prayer (0...1+), or nil when the alarm is off.
     /// Gated on the Phone toggle only — the progress bar, flash, and vibration are

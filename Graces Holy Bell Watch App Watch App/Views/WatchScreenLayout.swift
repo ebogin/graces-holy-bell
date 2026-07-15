@@ -14,6 +14,11 @@ import WatchKit
 struct WatchScreenLayout<Header: View, Slider: View, BottomRow: View>: View {
 
     let figurePose: WatchPrayingFigureView.Pose
+    /// When non-nil, the figure slot shows this in-progress prayer action
+    /// (placeholder scaffolding) instead of the praying sprite — same slot and
+    /// footprint. nil = the normal praying/idle figure. Set by
+    /// WatchActiveSessionView after each swipe; the start screen never sets it.
+    var prayerAction: ResolvedPrayerAction? = nil
     @ViewBuilder var header: Header
     @ViewBuilder var slider: Slider
     @ViewBuilder var bottomRow: BottomRow
@@ -32,12 +37,17 @@ struct WatchScreenLayout<Header: View, Slider: View, BottomRow: View>: View {
             }
             .frame(maxWidth: .infinity)
 
-            // ── Figure — scales to the leftover space, centered ───────────
+            // ── Figure (or mid-session prayer-action placeholder) — scales to
+            //    the leftover space, centered ───────────────────────────────
             GeometryReader { geo in
-                WatchPrayingFigureView(
-                    pose: figurePose,
-                    height: min(maxFigureHeight, max(geo.size.height - 4, 0))
-                )
+                let figureHeight = min(maxFigureHeight, max(geo.size.height - 4, 0))
+                Group {
+                    if let prayerAction {
+                        WatchPrayerActionView(playback: prayerAction, height: figureHeight)
+                    } else {
+                        WatchPrayingFigureView(pose: figurePose, height: figureHeight)
+                    }
+                }
                 .frame(width: geo.size.width, height: geo.size.height)
             }
 

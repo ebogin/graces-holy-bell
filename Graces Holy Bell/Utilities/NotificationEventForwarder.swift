@@ -20,7 +20,8 @@ final class NotificationEventForwarder: NSObject, UNUserNotificationCenterDelega
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        if response.notification.request.identifier == AmenAlarmManager.notificationID {
+        // Prefix match covers the follow-up ".repeatN" burst notifications too.
+        if response.notification.request.identifier.hasPrefix(AmenAlarmManager.notificationID) {
             onAmenAlarmTapped()
         }
         completionHandler()

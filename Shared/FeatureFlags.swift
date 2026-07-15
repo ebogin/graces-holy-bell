@@ -5,6 +5,11 @@ import Foundation
 /// These are plain constants — flip a value and rebuild. Unlike the PostHog
 /// remote flags (analytics/experiments), these exist to hide UI that isn't
 /// ready to ship without deleting the code behind it.
+///
+/// Lives in `Shared/` so the same constant governs BOTH the iPhone and Watch
+/// targets — a single flip hides a feature everywhere. (Flags that only the
+/// phone references, like `prayerHistoryEnabled`/`welcomeMessageEnabled`, are
+/// simply unused on the Watch — harmless.)
 enum FeatureFlags {
 
     /// In-app Prayer History (Settings → PRAYER LOG → History) and its calendar
@@ -25,4 +30,16 @@ enum FeatureFlags {
     /// Left out of the 1.5x release 2026-07-13: kept off the critical path
     /// while it settles.
     static let welcomeMessageEnabled = false
+
+    /// Per-prayer figure actions — the "prayer swipe narrative": after each
+    /// PRAY swipe the figure performs a remotely-configured action (placeholder
+    /// scaffolding today — see ANIMATIONS.md / HANDOFF-prayer-animations.md)
+    /// before returning to praying. Off: the figure just keeps praying (prior
+    /// behavior), and no animations config is fetched on either platform.
+    ///
+    /// Gated on BOTH iPhone and Watch (this file is Shared). Kept **off** on
+    /// main — the feature is still in development (real artwork, change
+    /// pipeline, and an admin UI are pending). Flip to `true` to work on it or
+    /// once it's ready to ship.
+    static let prayerActionsEnabled = false
 }

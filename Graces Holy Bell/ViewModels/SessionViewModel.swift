@@ -446,7 +446,8 @@ final class SessionViewModel {
             events: events,
             lastClearedAt: lastClearedAt,
             amenAlarmFireAt: amenAlarmFireAt,
-            watchAlarmInterval: watchAlarmInterval
+            watchAlarmInterval: watchAlarmInterval,
+            amenAlarmSoundEnabled: amenAlarmSettings?.soundEnabled
         )
     }
 
@@ -564,7 +565,7 @@ final class SessionViewModel {
             return
         }
         let fireDate = lastTimestamp.addingTimeInterval(settings.duration.rawValue)
-        amenAlarmManager.scheduleAlarm(fireDate: fireDate)
+        amenAlarmManager.scheduleAlarm(fireDate: fireDate, soundEnabled: settings.soundEnabled)
     }
 }
 

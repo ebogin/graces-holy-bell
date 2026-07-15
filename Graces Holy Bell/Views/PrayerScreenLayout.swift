@@ -28,6 +28,11 @@ enum BottomIconMetrics {
 struct PrayerScreenLayout<Header: View, Middle: View, Slider: View, Buttons: View>: View {
 
     let figurePose: PrayingFigureView.Pose
+    /// When non-nil, an in-progress prayer action (placeholder scaffolding) is
+    /// shown in the figure's slot — same position and footprint — instead of
+    /// the praying sprite. nil = the normal praying/idle figure. Set by
+    /// ActiveSessionView after each swipe; IdleView never sets it.
+    var prayerAction: ResolvedPrayerAction? = nil
     /// Tap-anywhere-to-dismiss handler; pass non-nil while the settings panel is open.
     var onBackgroundTap: (() -> Void)? = nil
     @ViewBuilder var header: Header
@@ -67,8 +72,13 @@ struct PrayerScreenLayout<Header: View, Middle: View, Slider: View, Buttons: Vie
 
                 Spacer(minLength: 12)
 
-                // ── Animated praying figure ───────────────────────────────
-                PrayingFigureView(pose: figurePose, scale: 2.6)
+                // ── Praying figure — or, mid-session, the current prayer
+                //    action placeholder occupying the same slot/footprint ────
+                if let prayerAction {
+                    PrayerActionView(playback: prayerAction, scale: 2.6)
+                } else {
+                    PrayingFigureView(pose: figurePose, scale: 2.6)
+                }
 
                 Spacer(minLength: 12)
 

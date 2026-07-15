@@ -17,6 +17,10 @@ struct SyncSnapshot: Codable {
     /// to turn its alarm OFF instead of re-arming from a stale interval.
     /// Optional-with-default so payloads minted before the field decode cleanly.
     var watchAlarmInterval: TimeInterval? = nil
+    /// Whether the alarm should also play the loud clanging bell on the Watch.
+    /// Optional with a default so snapshots from builds without the field
+    /// still decode (missing key → nil → treated as off).
+    var amenAlarmSoundEnabled: Bool? = nil
 
     private static let payloadKey = "snapshot"
 

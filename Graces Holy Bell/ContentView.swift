@@ -64,6 +64,7 @@ struct ContentView: View {
                         advancedSettings: advancedSettings,
                         liveActivitySettings: liveActivitySettings,
                         consent: consent,
+                        remoteConfig: remoteConfig,
                         isWatchAvailable: viewModel.isWatchAvailable,
                         onForceSync: { connectivityManager?.forceSync() }
                     )
@@ -84,7 +85,7 @@ struct ContentView: View {
         // Skipped entirely while FeatureFlags.welcomeMessageEnabled is off (no
         // network call), so IdleView falls back to the bundled default text.
         .task {
-            if FeatureFlags.welcomeMessageEnabled {
+            if FeatureFlags.welcomeMessageEnabled || FeatureFlags.prayerActionsEnabled {
                 await remoteConfig.refresh()
             }
         }
@@ -213,7 +214,7 @@ struct ContentView: View {
         // (launch open is recorded by recordLaunch).
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
-                if FeatureFlags.welcomeMessageEnabled {
+                if FeatureFlags.welcomeMessageEnabled || FeatureFlags.prayerActionsEnabled {
                     Task { await remoteConfig.refresh() }
                 }
                 connectivityManager?.sendSnapshotToWatch()
