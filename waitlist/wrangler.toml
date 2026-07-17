@@ -35,7 +35,7 @@ ADMIN_EMAIL = "gracesholybell@boginfactory.com"
 POSTHOG_API_KEY = "phc_rbcTaa7iVthsLZujJpNFchF9oqsmHZZ53Hp6SDfYsWJ8"
 # Post-launch cutover: set to the App Store URL to flip /r/<code> from
 # redirecting to the waitlist page to redirecting straight to the App Store.
-# REDIRECT_URL = "https://apps.apple.com/app/..."
+REDIRECT_URL = "https://apps.apple.com/app/id6768446704"
 
 # Secrets are NOT stored here. Set them with:
 #   npx wrangler secret put RESEND_API_KEY
