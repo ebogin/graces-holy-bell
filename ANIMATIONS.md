@@ -150,11 +150,13 @@ render as the placeholders **#1 / #2 / #3** (each also showing its `id`), for
 
 ## Feature flag
 
-`FeatureFlags.prayerActionsEnabled` (in `Graces Holy Bell/FeatureFlags.swift`)
-gates the **iPhone**: off → no animations fetch and the figure just keeps
-praying (prior behavior). It's **on** by default on the feature branch. The
-**Watch** currently runs the feature unconditionally (it has no `FeatureFlags`
-file); see the handoff for how to unify if you want a single switch.
+`FeatureFlags.prayerActionsEnabled` (in `Shared/FeatureFlags.swift`) gates
+**both** the iPhone and the Watch: off → no animations fetch on either
+platform, and the figure just keeps praying (prior behavior). Currently
+**`false`** on `main` — the feature is still in development (real artwork,
+change pipeline, admin UI are pending); see
+[HANDOFF-prayer-animations.md](HANDOFF-prayer-animations.md) for the full
+picture and where this code lives on origin.
 
 ## How to roll back
 

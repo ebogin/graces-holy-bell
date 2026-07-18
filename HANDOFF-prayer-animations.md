@@ -1,6 +1,7 @@
 # Handoff — Building the Per-Prayer Figure Animations
 
-**Audience:** the AI (or person) building the actual figure animations.
+**Audience:** the AI (or person) building the actual figure animations —
+including a cloud agent with no access to any local machine or worktree.
 **Status:** all the *plumbing* is built and verified (phone + watch compile and
 run). What's left is the **art**: each prayer action currently renders a
 placeholder, and your job is to replace that placeholder with the real
@@ -8,6 +9,35 @@ animation, keyed off a stable action `id`.
 
 Read [ANIMATIONS.md](ANIMATIONS.md) first — it's the remote-config contract
 (schema + how to publish sequences without a build). This doc is the code map.
+
+## Where this lives on origin
+
+```
+git clone git@github.com:ebogin/graces-holy-bell.git
+cd graces-holy-bell
+git checkout claude/prayer-animations-handoff
+```
+
+- **Repo:** `github.com/ebogin/graces-holy-bell` (SSH:
+  `git@github.com:ebogin/graces-holy-bell.git`).
+- **Branch:** `claude/prayer-animations-handoff` — this is where the code
+  described in this doc actually lives on origin. Everything referenced below
+  (`Shared/PrayerActionsConfig.swift`, `PrayerActionView.swift`, etc.) is on
+  this branch, checked in.
+- **What this branch is:** a snapshot of `main` (as of the "Ship 1.54 (7) to
+  TestFlight" commit) with one doc fix cherry-picked on top. It is **not**
+  `main` itself — `main` had not yet been pushed to origin as of this
+  snapshot and may have moved further by the time you read this. If you want
+  the latest, check whether `main` on origin has advanced past this branch's
+  base and rebase; otherwise this branch is safe to build directly on.
+- **Where the feature actually ships:** `main`. Once your animation work is
+  ready, it should land there (via PR or merge), not stay parked on this
+  handoff branch.
+- **Feature flag right now:** `Shared/FeatureFlags.swift` →
+  `prayerActionsEnabled = false` on both this branch and `main` — the bell
+  AMEN feature already shipped (TestFlight 1.53/1.54) and runs flagless; the
+  prayer-swipe narrative in this doc is intentionally still dormant behind
+  that flag until the real art (your work) is ready.
 
 ---
 
@@ -197,15 +227,19 @@ pause for a human to visually verify** — don't self-verify UI via screenshots.
 
 ## 8. Branch context (so your work merges cleanly)
 
-This branch = `main` + the on-hold **AMEN full-screen takeover** (bell tower)
-merged in. A sibling branch, `claude/watch-bell-ringing-sound-animation-f9cb19`,
-is the *ongoing* home of that bell/AMEN work and will merge with this later. It
-touches `ActiveSessionView`, `WatchActiveSessionView`, the session view models,
-`SyncedState`, and the connectivity managers — so this scaffolding deliberately
-concentrates changes in files that branch does **not** touch
-(`PrayerScreenLayout`, `PrayingFigureView`, `WatchScreenLayout`,
-`WatchPrayingFigureView`, `RemoteConfig`, and the new files). Keep your artwork
-changes in `PrayerActionView` / `WatchPrayerActionView` / new asset files and
-you'll stay out of the merge path too.
+The **AMEN full-screen takeover** (bell tower + haptics + Bell Sound toggle)
+that used to be separate, on-hold work is **done and shipped** — it's in
+`main` flagless (no feature flag; it's just normal code) and went out in the
+1.53/1.54 TestFlight builds. It is **not** something you need to build or
+avoid; treat it as part of the baseline, same as any other existing feature.
 
-`main` is untouched by all of this.
+The **prayer-swipe narrative** (this doc's subject) is the only thing still
+behind a flag (`Shared/FeatureFlags.swift` → `prayerActionsEnabled`, currently
+`false`). Your artwork changes should stay concentrated in
+`PrayerActionView.swift` / `WatchPrayerActionView.swift` / new asset files —
+the rest of the plumbing (config, layout injection, trigger) is done and
+shouldn't need touching unless you're changing the timing/selection model
+(§6).
+
+When your work is ready, flip `prayerActionsEnabled` to `true` as part of
+landing it on `main` — that flag flip is effectively "launch the feature."
