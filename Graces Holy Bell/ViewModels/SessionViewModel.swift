@@ -73,6 +73,12 @@ final class SessionViewModel {
     /// PhoneConnectivityManager on activation and watch-state changes.
     var isWatchAvailable = false
 
+    /// When the user last tapped an Amen Alarm notification. ActiveSessionView
+    /// re-anchors the AMEN takeover to this moment so the bell rings a full
+    /// 30-second window from the tap (by tap time the original fire window has
+    /// usually already elapsed). Cleared when the takeover is dismissed.
+    var amenNotificationTappedAt: Date?
+
     // MARK: - Initialization
 
     init(modelContext: ModelContext, archiveStore: SessionArchiveStore = SessionArchiveStore()) {

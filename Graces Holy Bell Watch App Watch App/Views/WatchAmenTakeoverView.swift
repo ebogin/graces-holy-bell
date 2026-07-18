@@ -17,6 +17,7 @@ struct WatchAmenTakeoverView: View {
 
     @State private var haptics = WatchAmenHapticsPlayer()
     @State private var sound = AmenSoundPlayer()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         // One frame clock (0.3s, anchored at the fire date, matching the
@@ -54,16 +55,33 @@ struct WatchAmenTakeoverView: View {
         .onTapGesture { onDismiss() }
         .accessibilityIdentifier("watch-amen-takeover")
         .accessibilityAddTraits(.isButton)
-        .onAppear {
-            let elapsed = max(0, Date().timeIntervalSince(fireDate))
-            haptics.start(duration: Self.alarmWindow - elapsed)
-            if soundEnabled {
-                sound.start(elapsed: elapsed)
-            }
-        }
+        .onAppear { startAlarmOutput() }
         .onDisappear {
             haptics.stop()
             sound.stop()
+        }
+        // The haptic player is Timer-driven, and timers freeze while the scene
+        // is inactive (wrist down / face faded) — the frozen callbacks would
+        // then all fire in one burst on wake. Stop cleanly when fading (the
+        // scheduled notification pulses cover the wrist-down alarm) and restart
+        // for the remaining window on wrist raise.
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                startAlarmOutput()
+            } else {
+                haptics.stop()
+                sound.stop()
+            }
+        }
+    }
+
+    /// (Re)starts haptics + bell for the remainder of the 30-second window.
+    /// Safe to call repeatedly — both players restart idempotently.
+    private func startAlarmOutput() {
+        let elapsed = max(0, Date().timeIntervalSince(fireDate))
+        haptics.start(duration: Self.alarmWindow - elapsed)
+        if soundEnabled {
+            sound.start(elapsed: elapsed)
         }
     }
 }

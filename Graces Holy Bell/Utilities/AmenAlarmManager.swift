@@ -86,7 +86,12 @@ final class AmenAlarmManager {
     ) {
         let content = UNMutableNotificationContent()
         content.title = "🔔 Amen"
+        content.body = "Time to pray. Tap to ring the bell."
         content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
+        // Break through Focus modes and appear prominently — the alarm is
+        // explicitly user-scheduled. Requires the Time Sensitive Notifications
+        // entitlement; harmlessly downgraded to .active without it.
+        content.interruptionLevel = .timeSensitive
 
         let components = Calendar.current.dateComponents(
             [.year, .month, .day, .hour, .minute, .second],

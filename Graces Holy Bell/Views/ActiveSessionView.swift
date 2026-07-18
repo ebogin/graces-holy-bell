@@ -59,7 +59,12 @@ struct ActiveSessionView: View {
                     soundEnabled: amenAlarmSettings.soundEnabled
                 ) {
                     acknowledgedFireDate = fireAt
+                    viewModel.amenNotificationTappedAt = nil
                 }
+                // Identity follows the anchor: when a notification tap
+                // re-anchors the fire date, recreate the view so onAppear
+                // restarts the bell + haptics from the new moment.
+                .id(fireAt)
                 .transition(.opacity)
                 .zIndex(1)
             }
@@ -264,6 +269,12 @@ struct ActiveSessionView: View {
               let last = viewModel.lastPrayerTimestamp else { return nil }
         let fireAt = last.addingTimeInterval(amenAlarmSettings.duration.rawValue)
         guard now >= fireAt, now.timeIntervalSince(fireAt) <= Self.takeoverWindow else { return nil }
+        // A notification tap re-anchors the takeover to the tap moment so the
+        // bell + haptics run a full 30-second window from opening the app (the
+        // original fire window has usually already elapsed by tap time).
+        if let tapped = viewModel.amenNotificationTappedAt, tapped > fireAt, tapped <= now {
+            return tapped
+        }
         return fireAt
     }
 

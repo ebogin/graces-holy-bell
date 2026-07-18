@@ -12,6 +12,14 @@ final class PrayerLiveActivityController {
 
     private var activity: Activity<PrayerActivityAttributes>?
 
+    /// Tail of the update chain. `Activity.update` is async and unstructured
+    /// `Task`s complete in no particular order — with a rapid run of prayers
+    /// (10+ slider fires) an older update could land *after* the newest one,
+    /// leaving the Lock Screen timer anchored to a stale prayer until the next
+    /// state change ("off-sync and won't re-sync"). Chaining each update behind
+    /// the previous one guarantees the latest state always applies last.
+    private var updateTask: Task<Void, Never>?
+
     private let logger = Logger(subsystem: "Boginfactory.Graces-Holy-Bell", category: "liveActivity")
 
     init() {
@@ -37,8 +45,20 @@ final class PrayerLiveActivityController {
         )
         let content = ActivityContent(state: state, staleDate: nil)
 
+        // Drop a tracked activity the system or the user already tore down
+        // (dismissed from the Lock Screen, 8-hour system limit) — updating it
+        // is a silent no-op, so fall through and request a fresh one instead.
+        if let tracked = activity,
+           tracked.activityState == .ended || tracked.activityState == .dismissed {
+            activity = nil
+        }
+
         if let activity {
-            Task { await activity.update(content) }
+            let previous = updateTask
+            updateTask = Task {
+                await previous?.value
+                await activity.update(content)
+            }
             return
         }
 
@@ -59,9 +79,15 @@ final class PrayerLiveActivityController {
     private func endActivity() {
         activity = nil
         // End every activity for our attributes, not just the tracked one, so
-        // stragglers from a crashed run can't linger on the Lock Screen.
-        for stale in Activity<PrayerActivityAttributes>.activities {
-            Task { await stale.end(nil, dismissalPolicy: .immediate) }
+        // stragglers from a crashed run can't linger on the Lock Screen. Ends
+        // chain behind pending updates so a stale in-flight update can't lose
+        // to the end (or vice versa).
+        let previous = updateTask
+        updateTask = Task {
+            await previous?.value
+            for stale in Activity<PrayerActivityAttributes>.activities {
+                await stale.end(nil, dismissalPolicy: .immediate)
+            }
         }
     }
 }

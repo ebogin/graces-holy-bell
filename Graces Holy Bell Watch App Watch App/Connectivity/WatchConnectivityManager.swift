@@ -38,6 +38,20 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     private let snapshotLock = NSLock()
     private var cachedLocalSnapshot: [String: Any]?
 
+    // Alarm-scheduling state. `scheduledAlarmKey` dedupes the very frequent
+    // schedule calls (every snapshot/refresh); `alarmTask` chains the async
+    // notification-center work so the remove/add pairs of overlapping calls can
+    // never interleave — an interleaved stale task used to re-add pulses for an
+    // *earlier* fire date, producing random wrist taps before the real alarm
+    // and clobbering the fire-moment burst. Both guarded by `alarmLock` (this
+    // manager is called from the main thread and the WC delegate queue).
+    private let alarmLock = NSLock()
+    /// Starts as a sentinel (not nil): pending notifications survive app
+    /// relaunches, so the first cancel of a run must always reach the center,
+    /// and the first schedule must never dedupe against a stale match.
+    private var scheduledAlarmKey: String? = "unknown-at-launch"
+    private var alarmTask: Task<Void, Never>?
+
     override init() {
         super.init()
         session.delegate = self
@@ -131,9 +145,28 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
     /// clanging bell plays in-app when the takeover is up.
     func scheduleWatchAlarm(fireDate: Date, soundEnabled: Bool = false) {
         guard fireDate > .now else { return }
+
+        // Dedupe: this is called on every snapshot/refresh, almost always with
+        // an unchanged fire date. Only touch the notification center when the
+        // schedule actually changes.
+        let key = "\(fireDate.timeIntervalSinceReferenceDate)|\(soundEnabled)"
+        alarmLock.lock()
+        if scheduledAlarmKey == key {
+            alarmLock.unlock()
+            return
+        }
+        scheduledAlarmKey = key
+        let previousTask = alarmTask
+
         let center = UNUserNotificationCenter.current()
         let sound: UNNotificationSound? = soundEnabled ? .default : nil
-        Task {
+        alarmTask = Task { [weak self] in
+            // Serialize behind any in-flight schedule/cancel so remove/add
+            // pairs never interleave across calls.
+            await previousTask?.value
+            // A newer call superseded this one while it waited — skip.
+            guard let self, self.currentAlarmKey() == key else { return }
+
             let settings = await center.notificationSettings()
             if settings.authorizationStatus == .notDetermined {
                 _ = try? await center.requestAuthorization(options: [.alert, .sound])
@@ -150,11 +183,30 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
                 )
             }
         }
+        alarmLock.unlock()
     }
 
     func cancelWatchAlarm() {
-        UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: Self.allAlarmIDs)
+        alarmLock.lock()
+        // No-op when nothing is scheduled (the common idle-path call).
+        guard scheduledAlarmKey != nil else {
+            alarmLock.unlock()
+            return
+        }
+        scheduledAlarmKey = nil
+        let previousTask = alarmTask
+        alarmTask = Task {
+            await previousTask?.value
+            UNUserNotificationCenter.current()
+                .removePendingNotificationRequests(withIdentifiers: Self.allAlarmIDs)
+        }
+        alarmLock.unlock()
+    }
+
+    private func currentAlarmKey() -> String? {
+        alarmLock.lock()
+        defer { alarmLock.unlock() }
+        return scheduledAlarmKey
     }
 
     private static func add(
@@ -166,6 +218,10 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "🔔 Amen"
         content.sound = sound
+        // Break through Focus modes — the alarm is explicitly user-scheduled.
+        // Requires the Time Sensitive Notifications entitlement; harmlessly
+        // downgraded to .active without it.
+        content.interruptionLevel = .timeSensitive
         let components = Calendar.current.dateComponents(
             [.year, .month, .day, .hour, .minute, .second],
             from: fireDate

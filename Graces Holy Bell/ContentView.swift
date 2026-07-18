@@ -35,9 +35,11 @@ struct ContentView: View {
     // users, who start `.granted` and never fire `onChange`) or later via
     // `.onChange(of: consent.state)` (EU users tapping Allow).
     @State private var analyticsActivation = ConsentActivation()
-    // Retains the notification-tap delegate for the app's lifetime (analytics only).
-    @State private var notificationForwarder: NotificationEventForwarder?
     var connectivityManager: PhoneConnectivityManager?
+    /// Notification-tap router, created by the App during launch (so cold-start
+    /// taps are caught). ContentView only wires its callback. Defaulted so
+    /// previews don't need to construct one.
+    var notificationForwarder: NotificationEventForwarder? = nil
     /// Set by the App when the store failed to open/migrate and was recreated
     /// from scratch — reported to analytics once the service is built.
     var storeWasRecovered: Bool = false
@@ -166,13 +168,14 @@ struct ContentView: View {
                     analytics?.recordPrayerLogEditingSet(enabled: enabled)
                 }
 
-                // Forward Amen Alarm notification taps into analytics (additive;
-                // only implements didReceive, so presentation behavior is unchanged).
-                let forwarder = NotificationEventForwarder { [weak analytics] in
+                // Amen Alarm notification taps: record analytics and open the
+                // AMEN takeover (re-anchored so the bell rings a full window).
+                // The forwarder was installed as the center's delegate during
+                // app launch; a cold-start tap was buffered and flushes here.
+                notificationForwarder?.onAmenAlarmTapped = { [weak analytics, weak vm] in
                     analytics?.recordAmenAlarmTapped()
+                    vm?.amenNotificationTappedAt = Date()
                 }
-                UNUserNotificationCenter.current().delegate = forwarder
-                notificationForwarder = forwarder
 
                 if storeWasRecovered {
                     analytics.recordPersistenceError(stage: .migrationRecovery)
