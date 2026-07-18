@@ -52,6 +52,10 @@ Shared:
   + `bundledDefault`. Shared by both targets. **`ResolvedPrayerAction` is what
   the views render** — it carries `prayerIndex`, `actionID`, `durationSeconds`,
   `label`.
+- **`Shared/FeatureFlags.swift`** — `prayerActionsEnabled` gates the whole
+  feature on **both** iPhone and Watch (moved here from the phone target so one
+  flip controls both). Currently `false` on `main` — the feature is dormant
+  until it's ready to ship; flip to `true` locally to work on it.
 
 iPhone:
 - **`Graces Holy Bell/Views/PrayerActionView.swift`** — ⭐ THE PLACEHOLDER. Replace
@@ -65,7 +69,6 @@ iPhone:
   (`syncPrayerAction()`, `onAppear`/`onChange`, `.task(id:)` auto-clear).
 - `Graces Holy Bell/RemoteConfig.swift` — decodes the `animations` key; exposes
   `currentPrayerActions`.
-- `Graces Holy Bell/FeatureFlags.swift` — `prayerActionsEnabled` (phone gate).
 - `Graces Holy Bell/ContentView.swift` — passes `remoteConfig` to
   `ActiveSessionView`; gates the fetch.
 
@@ -152,10 +155,13 @@ These were chosen for the scaffolding; each is easy to change and localized.
    the single fetcher and push the manifest to the watch, that's a
    `SyncSnapshot` field + a line in the connectivity managers — but note those
    files are also touched by the ongoing bell branch (see §8), so coordinate.
-4. **The Watch has no feature flag.** `FeatureFlags.prayerActionsEnabled` gates
-   the phone only. To gate both from one switch, move `FeatureFlags.swift` into
-   `Shared/` (it's pure constants) and reference the flag in
-   `WatchActiveSessionView.syncPrayerAction()`.
+4. **One flag gates both platforms.** `FeatureFlags.prayerActionsEnabled` lives
+   in `Shared/` and is checked in three places: the phone's fetch
+   (`ContentView`), the watch's fetch (`WatchContentView`'s `.task` and
+   foreground `onChange`), and the watch's trigger
+   (`WatchActiveSessionView.syncPrayerAction()`). The phone's trigger
+   (`ActiveSessionView.syncPrayerAction()`) checks it too. If you add another
+   entry point, gate it the same way — nothing enforces this centrally.
 5. **Replay guard.** Actions only play for a prayer logged within the last 3 s,
    so relaunching into an active session (or returning from a sheet) doesn't
    replay the last action. If you make actions animation-driven, keep this in
