@@ -7,11 +7,17 @@ import UserNotifications
 /// alarmDuration`. It is rescheduled every time the user slides PRAY, and
 /// cancelled when the session stops or is cleared.
 ///
-/// Persistence (background delivery):
+/// Persistence (background delivery), with `FeatureFlags.amenTakeoverEnabled`:
 /// - Bell Sound ON: one notification carrying the ~29.5s clanging bell sound.
 /// - Bell Sound OFF: a burst of four silent notifications (silence.caf gives a
 ///   haptic with no audible sound) spread across 30 seconds, so the vibration
 ///   repeats instead of buzzing once and vanishing.
+///
+/// With the flag OFF (shipping default) neither applies: exactly ONE silent
+/// notification is scheduled, whatever the Bell Sound setting says. The burst
+/// mirrored to the wrist as four separate buzzes, which is what it's for.
+/// `allIDs` still lists the burst identifiers so `cancelAlarm` clears anything
+/// a previous build left pending.
 ///
 /// All methods are safe to call from @MainActor context.
 final class AmenAlarmManager {
@@ -51,6 +57,13 @@ final class AmenAlarmManager {
 
         guard fireDate > .now else { return }
 
+        // Pre-takeover behavior: a single silent notification, no repeat burst
+        // and no bell audio. See FeatureFlags.amenTakeoverEnabled.
+        guard FeatureFlags.amenTakeoverEnabled else {
+            add(id: Self.notificationID, fireDate: fireDate, sound: Self.silentSoundName, to: center)
+            return
+        }
+
         if soundEnabled {
             // One notification carrying the full clanging-bell alarm sound.
             add(id: Self.notificationID, fireDate: fireDate, sound: Self.bellSoundName, to: center)
@@ -85,8 +98,12 @@ final class AmenAlarmManager {
         to center: UNUserNotificationCenter
     ) {
         let content = UNMutableNotificationContent()
-        content.title = "🔔 Amen"
-        content.body = "Time to pray. Tap to ring the bell."
+        content.title = "🔔 Amen Alarm"
+        // "Tap to ring the bell" only means anything when tapping opens the
+        // takeover — without it the notification says just what it is.
+        if FeatureFlags.amenTakeoverEnabled {
+            content.body = "Time to pray. Tap to ring the bell."
+        }
         content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
         // Break through Focus modes and appear prominently — the alarm is
         // explicitly user-scheduled. Requires the Time Sensitive Notifications

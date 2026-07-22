@@ -265,6 +265,12 @@ struct ActiveSessionView: View {
 
     /// The current alarm fire date when the takeover should be up, or nil.
     private func takeoverFireDate(at now: Date) -> Date? {
+        // Off: no takeover ever presents, so the AMEN! blink underneath it is
+        // the whole alarm UI again. Also why flipping the Phone toggle on can
+        // no longer surface an alarm that already elapsed — the takeover
+        // presented for any fire date inside `takeoverWindow`, notification or
+        // not. See FeatureFlags.amenTakeoverEnabled.
+        guard FeatureFlags.amenTakeoverEnabled else { return nil }
         guard amenAlarmSettings.phoneEnabled,
               let last = viewModel.lastPrayerTimestamp else { return nil }
         let fireAt = last.addingTimeInterval(amenAlarmSettings.duration.rawValue)

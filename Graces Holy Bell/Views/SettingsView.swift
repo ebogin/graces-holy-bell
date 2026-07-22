@@ -63,14 +63,19 @@ struct SettingsView: View {
                     }
                 )
 
-                // Loud bell-clang sound toggle row (AMEN full-screen takeover)
-                alarmToggleRow(
-                    label: "  Loud Bell (beta)",
-                    isOn: $settings.soundEnabled,
-                    onChange: { enabled in
-                        if enabled { requestNotificationPermission() }
-                    }
-                )
+                // Loud bell-clang sound toggle row (AMEN full-screen takeover).
+                // Hidden with the takeover: the bell audio only plays as part
+                // of it, so the row would toggle nothing. The persisted
+                // preference is left untouched and returns with the flag.
+                if FeatureFlags.amenTakeoverEnabled {
+                    alarmToggleRow(
+                        label: "  Loud Bell (beta)",
+                        isOn: $settings.soundEnabled,
+                        onChange: { enabled in
+                            if enabled { requestNotificationPermission() }
+                        }
+                    )
+                }
 
                 // Duration picker row — grayed out when neither Phone nor Watch
                 // alarm is enabled (nothing to time until an alarm is on).

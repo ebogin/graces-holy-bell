@@ -42,4 +42,25 @@ enum FeatureFlags {
     /// pipeline, and an admin UI are pending). Flip to `true` to work on it or
     /// once it's ready to ship.
     static let prayerActionsEnabled = false
+
+    /// The full-screen AMEN takeover era of the Amen Alarm — everything added
+    /// in `e01c4da` and after: the ringing bell-tower takeover (phone + Watch),
+    /// the `bell_alarm.caf` Loud Bell option, the 30-second haptic patterns,
+    /// the follow-up `.repeatN` notification burst, and the notification-tap
+    /// re-anchoring.
+    ///
+    /// Off: the alarm reverts to its pre-takeover behavior — the PRAY slider
+    /// doubles as a progress bar and blinks "AMEN!" for 5 seconds at the
+    /// interval, backed by exactly ONE silent local notification. That blink
+    /// layer was never removed, so nothing needs restoring; the takeover was
+    /// only ever drawn on top of it.
+    ///
+    /// Gated on BOTH iPhone and Watch (this file is Shared). Turned off
+    /// 2026-07-22 to ship: the takeover era carries five open bugs — a burst of
+    /// four notifications mirroring to the wrist, over-frequent Watch haptics,
+    /// the takeover re-presenting itself after a notification tap, wrong
+    /// notification copy, and an already-elapsed alarm re-firing when the Phone
+    /// toggle is switched on. None of the code is deleted; flip to `true` to
+    /// pick the work back up.
+    static let amenTakeoverEnabled = false
 }

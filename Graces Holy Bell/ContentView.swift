@@ -172,9 +172,14 @@ struct ContentView: View {
                 // AMEN takeover (re-anchored so the bell rings a full window).
                 // The forwarder was installed as the center's delegate during
                 // app launch; a cold-start tap was buffered and flushes here.
+                // With the takeover off there is nothing to open, so the tap
+                // stays analytics-only — re-anchoring is what made the bell
+                // tower vanish and immediately re-present on the first tap.
                 notificationForwarder?.onAmenAlarmTapped = { [weak analytics, weak vm] in
                     analytics?.recordAmenAlarmTapped()
-                    vm?.amenNotificationTappedAt = Date()
+                    if FeatureFlags.amenTakeoverEnabled {
+                        vm?.amenNotificationTappedAt = Date()
+                    }
                 }
 
                 if storeWasRecovered {

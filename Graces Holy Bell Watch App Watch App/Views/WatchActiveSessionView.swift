@@ -98,6 +98,10 @@ struct WatchActiveSessionView: View {
 
     /// The current alarm fire date when the takeover should be up, or nil.
     private func takeoverFireDate(at now: Date) -> Date? {
+        // Off: no takeover, so WatchAmenTakeoverView never mounts and its
+        // 30-second dot-dot-dot haptic pattern never starts. The Watch is left
+        // with the slider's AMEN! blink. See FeatureFlags.amenTakeoverEnabled.
+        guard FeatureFlags.amenTakeoverEnabled else { return nil }
         guard let fireAt = viewModel.amenAlarmFireAt,
               now >= fireAt,
               now.timeIntervalSince(fireAt) <= Self.takeoverWindow else { return nil }
