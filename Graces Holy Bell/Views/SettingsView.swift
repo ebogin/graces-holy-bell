@@ -65,7 +65,7 @@ struct SettingsView: View {
 
                 // Loud bell-clang sound toggle row (AMEN full-screen takeover)
                 alarmToggleRow(
-                    label: "  Bell Sound",
+                    label: "  Loud Bell (beta)",
                     isOn: $settings.soundEnabled,
                     onChange: { enabled in
                         if enabled { requestNotificationPermission() }

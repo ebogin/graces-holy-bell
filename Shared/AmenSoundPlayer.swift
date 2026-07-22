@@ -18,8 +18,15 @@ final class AmenSoundPlayer {
               let player = try? AVAudioPlayer(contentsOf: url),
               elapsed < player.duration else { return }
 
-        try? AVAudioSession.sharedInstance().setCategory(.playback)
-        try? AVAudioSession.sharedInstance().setActive(true)
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback)
+        try? session.setActive(true)
+        #if os(iOS)
+        // Force the built-in speaker even if AirPods/Bluetooth earphones are
+        // connected — this is an alarm, it needs to be heard, not routed to
+        // whatever headset happens to be paired. (Not available on watchOS.)
+        try? session.overrideOutputAudioPort(.speaker)
+        #endif
         player.currentTime = max(0, elapsed)
         player.play()
         self.player = player
